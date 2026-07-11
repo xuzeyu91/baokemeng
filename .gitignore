@@ -1,0 +1,17 @@
+# Local project state / tooling data (not source)
+.workbuddy/
+.psacowork/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Node
+node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp

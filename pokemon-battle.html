@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宝可梦卡牌对战</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg1: #1b2a4a;
+  --bg2: #0e1630;
+  --panel: #ffffff;
+  --ink: #1c2536;
+  --muted: #6b7689;
+  --accent: #ffcb05;
+  --accent2: #3b6fd6;
+  --hp-good: #46c46a;
+  --hp-mid: #f2c14e;
+  --hp-low: #e3534a;
+  --shadow: 0 8px 24px rgba(0,0,0,.28);
+}
+
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  background: radial-gradient(1200px 700px at 50% -10%, #2a3f6e 0%, var(--bg1) 40%, var(--bg2) 100%);
+  color: var(--ink);
+  min-height: 100vh;
+  padding: 18px 14px 40px;
+}
+
+.wrap { max-width: 1080px; margin: 0 auto; }
+
+header.top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.title {
+  display: flex; align-items: center; gap: 12px;
+  color: #fff;
+}
+.title .logo {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, #fff 0 30%, #e3534a 31% 100%);
+  border: 3px solid #fff; box-shadow: var(--shadow);
+  position: relative;
+}
+.title .logo::after {
+  content: ""; position: absolute; left: -3px; right: -3px; top: 50%;
+  height: 3px; background: #fff; transform: translateY(-50%);
+}
+.title h1 { font-size: 22px; letter-spacing: .5px; }
+.title small { display:block; font-weight: 400; font-size: 12px; color: #b9c6e6; }
+
+button.btn {
+  cursor: pointer; border: none; border-radius: 10px;
+  padding: 10px 16px; font-size: 14px; font-weight: 700;
+  background: var(--accent); color: #3a2d00; transition: transform .08s, filter .15s;
+  box-shadow: 0 4px 0 #c79a00;
+}
+button.btn:hover { filter: brightness(1.05); }
+button.btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #c79a00; }
+button.btn.ghost { background: #2b3c63; color: #fff; box-shadow: 0 4px 0 #16213c; }
+button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); box-shadow: none; }
+
+/* Battle field */
+.field {
+  display: grid; grid-template-columns: 1fr 64px 1fr; gap: 10px; align-items: stretch;
+  margin-bottom: 14px;
+}
+.side { display: flex; flex-direction: column; gap: 10px; }
+.side.you { align-items: flex-start; }
+.side.ai  { align-items: flex-end; }
+
+.side-label {
+  color:#fff; font-weight:700; font-size:13px; letter-spacing:1px;
+  display:flex; align-items:center; gap:8px; opacity:.92;
+}
+.side-label .tag { background:#0006; padding:2px 8px; border-radius:20px; font-size:11px; }
+
+.vs {
+  display:flex; align-items:center; justify-content:center; color:#fff;
+  font-weight:800; font-style:italic; font-size:22px; opacity:.8;
+}
+
+/* Active card */
+.card {
+  width: 240px; background: var(--panel); border-radius: 16px; overflow: hidden;
+  box-shadow: var(--shadow); border: 3px solid #fff; position: relative;
+}
+.card .head {
+  padding: 10px 12px; color:#fff; display:flex; justify-content:space-between; align-items:center;
+}
+.card .head .nm { font-weight: 800; font-size: 16px; text-shadow: 0 1px 2px #0006; }
+.card .head .no { font-size: 12px; opacity:.85; font-weight:700; }
+.card .art {
+  background: linear-gradient(180deg,#f3f5fb,#dfe5f2);
+  height: 132px; display:flex; align-items:center; justify-content:center; position:relative;
+}
+.card .art img { width: 118px; height: 118px; object-fit: contain; image-rendering: pixelated; }
+.card .art .fallback {
+  display:none; width:96px; height:96px; border-radius:50%;
+  background: radial-gradient(circle at 50% 38%, #fff 0 30%, #e3534a 31% 100%);
+  border:4px solid #fff; align-items:center; justify-content:center;
+  color:#fff; font-weight:800; font-size:18px;
+}
+.card .types { display:flex; gap:6px; padding: 8px 12px 4px; flex-wrap:wrap; }
+.type-chip {
+  font-size: 11px; font-weight:700; color:#fff; padding:3px 9px; border-radius:20px;
+}
+.card .body { padding: 4px 12px 12px; }
+.hp-row { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); font-weight:700; }
+.hp-bar { flex:1; height: 12px; background:#e6e9f0; border-radius:8px; overflow:hidden; }
+.hp-fill { height:100%; background: var(--hp-good); transition: width .45s ease; }
+.energy { display:flex; gap:5px; margin-top:8px; align-items:center; }
+.energy .lbl { font-size:11px; color:var(--muted); font-weight:700; }
+.energy .dot { width:13px; height:13px; border-radius:50%; background:#d7dce6; border:1px solid #c2c8d4; }
+.energy .dot.on { background: radial-gradient(circle at 30% 30%, #ffe27a, #f0a800); border-color:#c98a00; box-shadow:0 0 6px #ffcf3a; }
+
+/* Bench */
+.bench { display:flex; gap:8px; flex-wrap:wrap; }
+.mini {
+  width: 92px; background: var(--panel); border-radius: 10px; overflow:hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,.18); border:2px solid #fff; cursor: default;
+  transition: transform .1s;
+}
+.mini.switchable { cursor: pointer; }
+.mini.switchable:hover { transform: translateY(-3px); border-color: var(--accent); }
+.mini .mh { padding:5px 7px; color:#fff; font-size:11px; font-weight:700; display:flex; justify-content:space-between; }
+.mini .ma { height:54px; background:#eef1f8; display:flex; align-items:center; justify-content:center; }
+.mini .ma img { width:48px; height:48px; object-fit:contain; image-rendering:pixelated; }
+.mini .ma .fb { display:none; width:38px; height:38px; border-radius:50%; background: radial-gradient(circle at 50% 38%, #fff 0 30%, #e3534a 31% 100%); border:2px solid #fff; }
+.mini .mb { padding:4px 7px 6px; }
+.mini .mhp { height:7px; background:#e6e9f0; border-radius:5px; overflow:hidden; }
+.mini .mhp i { display:block; height:100%; background:var(--hp-good); }
+.mini .mname { font-size:10px; color:var(--ink); font-weight:700; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.deck-pile {
+  display:flex; align-items:center; gap:6px; color:#cdd7ee; font-size:12px; font-weight:700;
+}
+.deck-pile .pile {
+  width:34px; height:46px; border-radius:6px; background:
+    repeating-linear-gradient(45deg,#2b3c63 0 6px,#243457 6px 12px);
+  border:2px solid #fff; box-shadow:0 3px 6px #0004;
+}
+
+/* Action panel */
+.actions {
+  background: var(--panel); border-radius: 16px; padding: 14px;
+  box-shadow: var(--shadow); display:grid; grid-template-columns: 1fr 280px; gap: 14px;
+}
+.move-area .ttl, .log-area .ttl { font-size:13px; font-weight:800; color:var(--muted); margin-bottom:8px; letter-spacing:1px; }
+.moves { display:flex; gap:10px; flex-wrap:wrap; }
+.move {
+  flex:1; min-width: 200px; text-align:left; border:2px solid #e3e8f2; border-radius:12px;
+  padding:10px 12px; background:#f7f9fd; cursor:pointer; transition: .12s;
+}
+.move:hover:not(:disabled) { border-color: var(--accent2); background:#eef3ff; }
+.move:disabled { opacity:.5; cursor:not-allowed; }
+.move .mn { font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px; }
+.move .md { font-size:12px; color:var(--muted); margin-top:4px; display:flex; gap:10px; }
+.move .eff { font-size:11px; font-weight:800; margin-top:4px; }
+.move .eff.sup { color:#d23b2e; }
+.move .eff.weak { color:#2f8f4e; }
+.move .cost { margin-left:auto; font-size:11px; color:#9aa3b5; }
+
+.switch-hint { font-size:12px; color:var(--muted); margin-top:10px; }
+.switch-hint b { color:var(--accent2); }
+
+.log-area { background:#0f1830; border-radius:12px; padding:10px 12px; color:#cdd7ee; }
+.log-area .ttl { color:#9fb0d6; }
+.log { font-size:12px; line-height:1.7; max-height: 220px; overflow:auto; }
+.log .e { padding:2px 0; border-bottom:1px dashed #ffffff14; }
+.log .e.you { color:#ffe08a; }
+.log .e.ai { color:#9fd0ff; }
+.log .e.sys { color:#b6c2dd; }
+.log .e.kill { color:#ff8a7a; font-weight:700; }
+
+/* Game over */
+.overlay {
+  position: fixed; inset:0; background:#0a0f1fcc; display:none;
+  align-items:center; justify-content:center; z-index:50; backdrop-filter: blur(3px);
+}
+.overlay.show { display:flex; }
+.over-box {
+  background:#fff; border-radius:18px; padding:28px 34px; text-align:center; box-shadow:var(--shadow);
+  max-width: 360px;
+}
+.over-box h2 { font-size:26px; margin-bottom:8px; }
+.over-box p { color:var(--muted); margin-bottom:18px; }
+.over-box .emoji { font-size:54px; margin-bottom:6px; }
+
+.foot { color:#9fb0d6; text-align:center; font-size:12px; margin-top:16px; }
+
+/* ===== Setup screen ===== */
+.overlay.setup { background:#0a0f1fdd; }
+.setup-box {
+  position: relative;
+  background: #fff; border-radius: 18px; padding: 22px 24px 20px;
+  width: min(760px, 94vw); max-height: 90vh; overflow: auto;
+  box-shadow: var(--shadow);
+}
+.setup-box h2 { font-size: 22px; color: var(--ink); }
+.setup-sub { color: var(--muted); font-size: 13px; margin: 4px 0 14px; }
+.setup-close {
+  position: absolute; top: 12px; right: 12px; width: 30px; height: 30px;
+  border: none; border-radius: 8px; background: #eef1f8; color: #6b7689;
+  font-size: 15px; cursor: pointer; font-weight: 700;
+}
+.setup-close:hover { background: #e1e6f0; }
+
+.setup-modes { display: flex; gap: 10px; margin-bottom: 14px; }
+.seg {
+  flex: 1; padding: 11px; border: 2px solid #e3e8f2; background: #f7f9fd;
+  border-radius: 12px; font-size: 14px; font-weight: 800; color: var(--muted);
+  cursor: pointer; transition: .12s;
+}
+.seg.active { border-color: var(--accent2); background: #eef3ff; color: var(--accent2); }
+
+.picker-tools { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.pk-search {
+  flex: 1; min-width: 200px; padding: 9px 12px; border: 2px solid #e3e8f2;
+  border-radius: 10px; font-size: 13px; outline: none;
+}
+.pk-search:focus { border-color: var(--accent2); }
+.pk-tools-btns { display: flex; gap: 6px; }
+.mini-btn {
+  padding: 9px 12px; border: none; border-radius: 10px; font-size: 12px; font-weight: 700;
+  background: var(--accent2); color: #fff; cursor: pointer; white-space: nowrap;
+}
+.mini-btn.ghost { background: #eef1f8; color: var(--muted); }
+.mini-btn:hover { filter: brightness(1.05); }
+
+.type-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.tf {
+  border: none; border-radius: 20px; padding: 4px 11px; font-size: 11px;
+  font-weight: 700; color: #fff; background: #c2c8d4; cursor: pointer; opacity: .7;
+}
+.tf.on { opacity: 1; outline: 2px solid #fff; box-shadow: 0 0 0 2px #3b6fd6; }
+
+.pk-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 8px; max-height: 46vh; overflow: auto; padding: 4px;
+  background: #f4f6fb; border-radius: 12px;
+}
+.pk {
+  position: relative; background: #fff; border: 2px solid #e3e8f2; border-radius: 10px;
+  padding: 6px 4px 5px; text-align: center; cursor: pointer; transition: .12s; user-select: none;
+}
+.pk:hover { transform: translateY(-2px); border-color: var(--accent2); }
+.pk.sel { border-color: var(--accent2); background: #eef3ff; box-shadow: 0 0 0 2px #3b6fd6 inset; }
+.pk-check {
+  position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent2); color: #fff; font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow);
+}
+.pk-art {
+  height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 3px;
+}
+.pk-art img { width: 44px; height: 44px; object-fit: contain; image-rendering: pixelated; }
+.pk-fb {
+  display: none; width: 34px; height: 34px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, #fff 0 30%, #e3534a 31% 100%);
+  border: 2px solid #fff; color: #fff; font-weight: 800; font-size: 12px;
+  align-items: center; justify-content: center;
+}
+.pk-name { font-size: 11px; font-weight: 700; color: var(--ink); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.pk-types { display: flex; gap: 3px; justify-content: center; margin-top: 2px; flex-wrap: wrap; }
+.pk-types .type-chip { font-size: 9px; padding: 1px 6px; }
+
+.pick-foot { font-size: 12px; color: var(--muted); margin-top: 10px; text-align: center; }
+.pick-foot b { color: var(--accent2); font-size: 14px; }
+
+.setup-actions { display: flex; justify-content: center; margin-top: 14px; }
+.start-btn { font-size: 16px; padding: 12px 36px; }
+.start-btn:disabled { background: #c9cfdb; color: #fff; box-shadow: none; cursor: not-allowed; }
+
+/* ===== Battle animations ===== */
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.dmg-num {
+  position: absolute; transform: translate(-50%, -50%); font-weight: 900; font-size: 30px;
+  color: #fff; text-shadow: 0 2px 0 #00000055, 0 0 8px #00000088;
+  animation: floatUp 1s ease-out forwards;
+}
+.dmg-num.sup { color: #ffe14d; text-shadow: 0 2px 0 #b8860b, 0 0 12px #ffd400; }
+.dmg-num.weak { color: #c8f0c8; text-shadow: 0 2px 0 #2f6b2f, 0 0 10px #4caf50; }
+.dmg-txt {
+  position: absolute; transform: translate(-50%, -50%); font-weight: 800; font-size: 15px;
+  color: #fff; text-shadow: 0 1px 3px #0008; animation: floatUp 1.1s ease-out forwards;
+  white-space: nowrap;
+}
+.dmg-txt.weak { color: #c8f0c8; }
+.dmg-txt.energy { color: #ffe27a; font-size: 17px; }
+.dmg-txt.ko {
+  color: #ff5a4d; font-size: 30px; font-weight: 900; letter-spacing: 2px;
+  text-shadow: 0 2px 6px #000a; animation: koPop 1.3s ease-out forwards;
+}
+.impact {
+  position: absolute; width: 16px; height: 16px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: radial-gradient(circle, #fff 0 30%, #ffd400 40%, transparent 70%);
+  animation: burst .38s ease-out forwards;
+}
+.impact.sup { background: radial-gradient(circle, #fff 0 30%, #ffd400 40%, transparent 70%); }
+.impact.weak { background: radial-gradient(circle, #fff 0 30%, #4caf50 40%, transparent 70%); }
+.flash {
+  position: absolute; inset: 0; animation: flashfx .32s ease-out forwards;
+}
+.flash.sup { background: radial-gradient(circle, transparent 40%, #ffd40055 100%); }
+.flash.weak { background: radial-gradient(circle, transparent 40%, #4caf5055 100%); }
+
+@keyframes floatUp {
+  0% { opacity: 0; transform: translate(-50%, -20%) scale(.6); }
+  20% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -150%) scale(1); }
+}
+@keyframes koPop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.4) rotate(-8deg); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(3deg); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+}
+@keyframes burst {
+  0% { opacity: .9; transform: translate(-50%, -50%) scale(.4); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(3.4); }
+}
+@keyframes flashfx {
+  0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0; }
+}
+
+/* attacker lunge */
+.card.lunge-r { animation: lungeR .26s ease-out; }
+.card.lunge-l { animation: lungeL .26s ease-out; }
+@keyframes lungeR {
+  0% { transform: translateX(0); } 45% { transform: translateX(26px) scale(1.04); } 100% { transform: translateX(0); }
+}
+@keyframes lungeL {
+  0% { transform: translateX(0); } 45% { transform: translateX(-26px) scale(1.04); } 100% { transform: translateX(0); }
+}
+.card.hit-shake { animation: shake .42s ease-in-out; }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-7px) rotate(-1deg); }
+  40% { transform: translateX(6px) rotate(1deg); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(4px); }
+}
+.card.energy-gain { animation: glow .7s ease-out; }
+@keyframes glow {
+  0% { box-shadow: var(--shadow); }
+  35% { box-shadow: 0 0 0 3px #ffd40088, 0 0 22px #ffd400cc, var(--shadow); }
+  100% { box-shadow: var(--shadow); }
+}
+.card.slide-in { animation: slideIn .4s ease-out; }
+@keyframes slideIn {
+  0% { opacity: 0; transform: translateY(-18px) scale(.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card.faint { animation: faint .7s ease-in forwards; }
+@keyframes faint {
+  0% { opacity: 1; transform: translateY(0) rotate(0); }
+  25% { transform: translateX(-6px) rotate(-3deg); }
+  55% { transform: translateX(6px) rotate(3deg); }
+  100% { opacity: 0; transform: translateY(22px) scale(.85) rotate(-8deg); filter: grayscale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card.lunge-r, .card.lunge-l, .card.hit-shake, .card.energy-gain,
+  .card.slide-in, .card.faint, .dmg-num, .dmg-txt, .impact, .flash { animation-duration: .01s; }
+}
+
+@media (max-width: 760px) {
+  .field { grid-template-columns: 1fr; }
+  .vs { display:none; }
+  .side.ai { align-items:flex-start; }
+  .actions { grid-template-columns: 1fr; }
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="title">
+      <div class="logo"></div>
+      <div>
+        <h1>宝可梦卡牌对战</h1>
+        <small>初代 151 只宝可梦 · 属性克制 · 你 VS 电脑</small>
+      </div>
+    </div>
+    <button class="btn ghost" onclick="PK.toSetup()">重选宝可梦</button>
+  </header>
+  <div class="field">
+    <div class="side you" id="you-side"></div>
+    <div class="vs">VS</div>
+    <div class="side ai" id="ai-side"></div>
+  </div>
+  <div class="actions">
+    <div class="move-area">
+      <div class="ttl" id="turn-indicator">准备中…</div>
+      <div class="moves" id="moves"></div>
+      <div class="switch-hint" id="switch-hint"></div>
+    </div>
+    <div class="log-area">
+      <div class="ttl">战斗记录</div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+  <div class="foot">提示：绿色技能代表克制当前对手，能量不足的技能会变灰。</div>
+</div>
+<div class="overlay" id="overlay"><div class="over-box" id="over-box"></div></div>
+<div class="overlay setup" id="setup">
+  <div class="setup-box">
+    <button class="setup-close" id="setup-close">✕</button>
+    <h2>组建你的宝可梦战队</h2>
+    <p class="setup-sub">从初代 151 只中选择，或让系统随机分配。</p>
+    <div class="setup-modes">
+      <button class="seg" id="seg-random">⚡ 随机组队</button>
+      <button class="seg" id="seg-custom">✋ 自选 12 只</button>
+    </div>
+    <div id="custom-panel" class="hidden">
+      <div class="picker-tools">
+        <input id="pk-search" class="pk-search" placeholder="搜索名字或编号…" />
+        <div class="pk-tools-btns">
+          <button class="mini-btn" id="pk-fill">随机补全</button>
+          <button class="mini-btn ghost" id="pk-clear">清空</button>
+        </div>
+      </div>
+      <div id="pk-types" class="type-filters"></div>
+      <div id="pk-grid" class="pk-grid"></div>
+      <div class="pick-foot">已选 <b id="pick-count">0</b> / 12</div>
+    </div>
+    <div class="setup-actions"><button class="btn start-btn" id="start-btn">开始对战</button></div>
+  </div>
+</div>
+<div id="fx"></div>
+<script>
+// Auto-generated dataset of the 151 Gen-1 Pokemon (offline-built).
+window.POKEMON_LIST = [{"id": 1, "name": "bulbasaur", "name_zh": "妙蛙种子", "types": ["grass", "poison"], "hp": 45, "attack": 49, "defense": 49, "sp_attack": 65, "sp_defense": 65, "speed": 45, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png"}, {"id": 2, "name": "ivysaur", "name_zh": "妙蛙草", "types": ["grass", "poison"], "hp": 60, "attack": 62, "defense": 63, "sp_attack": 80, "sp_defense": 80, "speed": 60, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/2.png"}, {"id": 3, "name": "venusaur", "name_zh": "妙蛙花", "types": ["grass", "poison"], "hp": 80, "attack": 82, "defense": 83, "sp_attack": 100, "sp_defense": 100, "speed": 80, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/3.png"}, {"id": 4, "name": "charmander", "name_zh": "小火龙", "types": ["fire"], "hp": 39, "attack": 52, "defense": 43, "sp_attack": 60, "sp_defense": 50, "speed": 65, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/4.png"}, {"id": 5, "name": "charmeleon", "name_zh": "火恐龙", "types": ["fire"], "hp": 58, "attack": 64, "defense": 58, "sp_attack": 80, "sp_defense": 65, "speed": 80, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/5.png"}, {"id": 6, "name": "charizard", "name_zh": "喷火龙", "types": ["fire", "flying"], "hp": 78, "attack": 84, "defense": 78, "sp_attack": 109, "sp_defense": 85, "speed": 100, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png"}, {"id": 7, "name": "squirtle", "name_zh": "杰尼龟", "types": ["water"], "hp": 44, "attack": 48, "defense": 65, "sp_attack": 50, "sp_defense": 64, "speed": 43, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/7.png"}, {"id": 8, "name": "wartortle", "name_zh": "卡咪龟", "types": ["water"], "hp": 59, "attack": 63, "defense": 80, "sp_attack": 65, "sp_defense": 80, "speed": 58, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/8.png"}, {"id": 9, "name": "blastoise", "name_zh": "水箭龟", "types": ["water"], "hp": 79, "attack": 83, "defense": 100, "sp_attack": 85, "sp_defense": 105, "speed": 78, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/9.png"}, {"id": 10, "name": "caterpie", "name_zh": "绿毛虫", "types": ["bug"], "hp": 45, "attack": 30, "defense": 35, "sp_attack": 20, "sp_defense": 20, "speed": 45, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10.png"}, {"id": 11, "name": "metapod", "name_zh": "铁甲蛹", "types": ["bug"], "hp": 50, "attack": 20, "defense": 55, "sp_attack": 25, "sp_defense": 25, "speed": 30, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/11.png"}, {"id": 12, "name": "butterfree", "name_zh": "巴大蝶", "types": ["bug", "flying"], "hp": 60, "attack": 45, "defense": 50, "sp_attack": 90, "sp_defense": 80, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/12.png"}, {"id": 13, "name": "weedle", "name_zh": "独角虫", "types": ["bug", "poison"], "hp": 40, "attack": 35, "defense": 30, "sp_attack": 20, "sp_defense": 20, "speed": 50, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/13.png"}, {"id": 14, "name": "kakuna", "name_zh": "铁壳蛹", "types": ["bug", "poison"], "hp": 45, "attack": 25, "defense": 50, "sp_attack": 25, "sp_defense": 25, "speed": 35, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/14.png"}, {"id": 15, "name": "beedrill", "name_zh": "大针蜂", "types": ["bug", "poison"], "hp": 65, "attack": 90, "defense": 40, "sp_attack": 45, "sp_defense": 80, "speed": 75, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/15.png"}, {"id": 16, "name": "pidgey", "name_zh": "波波", "types": ["normal", "flying"], "hp": 40, "attack": 45, "defense": 40, "sp_attack": 35, "sp_defense": 35, "speed": 56, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/16.png"}, {"id": 17, "name": "pidgeotto", "name_zh": "比比鸟", "types": ["normal", "flying"], "hp": 63, "attack": 60, "defense": 55, "sp_attack": 50, "sp_defense": 50, "speed": 71, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/17.png"}, {"id": 18, "name": "pidgeot", "name_zh": "大比鸟", "types": ["normal", "flying"], "hp": 83, "attack": 80, "defense": 75, "sp_attack": 70, "sp_defense": 70, "speed": 101, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/18.png"}, {"id": 19, "name": "rattata", "name_zh": "小拉达", "types": ["normal"], "hp": 30, "attack": 56, "defense": 35, "sp_attack": 25, "sp_defense": 35, "speed": 72, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/19.png"}, {"id": 20, "name": "raticate", "name_zh": "拉达", "types": ["normal"], "hp": 55, "attack": 81, "defense": 60, "sp_attack": 50, "sp_defense": 70, "speed": 97, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/20.png"}, {"id": 21, "name": "spearow", "name_zh": "烈雀", "types": ["normal", "flying"], "hp": 40, "attack": 60, "defense": 30, "sp_attack": 31, "sp_defense": 31, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/21.png"}, {"id": 22, "name": "fearow", "name_zh": "大嘴雀", "types": ["normal", "flying"], "hp": 65, "attack": 90, "defense": 65, "sp_attack": 61, "sp_defense": 61, "speed": 100, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/22.png"}, {"id": 23, "name": "ekans", "name_zh": "阿柏蛇", "types": ["poison"], "hp": 35, "attack": 60, "defense": 44, "sp_attack": 40, "sp_defense": 54, "speed": 55, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/23.png"}, {"id": 24, "name": "arbok", "name_zh": "阿柏怪", "types": ["poison"], "hp": 60, "attack": 85, "defense": 69, "sp_attack": 65, "sp_defense": 79, "speed": 80, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/24.png"}, {"id": 25, "name": "pikachu", "name_zh": "皮卡丘", "types": ["electric"], "hp": 35, "attack": 55, "defense": 40, "sp_attack": 50, "sp_defense": 50, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png"}, {"id": 26, "name": "raichu", "name_zh": "雷丘", "types": ["electric"], "hp": 60, "attack": 90, "defense": 55, "sp_attack": 90, "sp_defense": 80, "speed": 110, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/26.png"}, {"id": 27, "name": "sandshrew", "name_zh": "穿山鼠", "types": ["ground"], "hp": 50, "attack": 75, "defense": 85, "sp_attack": 20, "sp_defense": 30, "speed": 40, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/27.png"}, {"id": 28, "name": "sandslash", "name_zh": "穿山王", "types": ["ground"], "hp": 75, "attack": 100, "defense": 110, "sp_attack": 45, "sp_defense": 55, "speed": 65, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/28.png"}, {"id": 29, "name": "nidoran-f", "name_zh": "尼多兰", "types": ["poison"], "hp": 55, "attack": 47, "defense": 52, "sp_attack": 40, "sp_defense": 40, "speed": 41, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/29.png"}, {"id": 30, "name": "nidorina", "name_zh": "尼多娜", "types": ["poison"], "hp": 70, "attack": 62, "defense": 67, "sp_attack": 55, "sp_defense": 55, "speed": 56, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/30.png"}, {"id": 31, "name": "nidoqueen", "name_zh": "尼多后", "types": ["poison", "ground"], "hp": 90, "attack": 92, "defense": 87, "sp_attack": 75, "sp_defense": 85, "speed": 76, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/31.png"}, {"id": 32, "name": "nidoran-m", "name_zh": "尼多朗", "types": ["poison"], "hp": 46, "attack": 57, "defense": 40, "sp_attack": 40, "sp_defense": 40, "speed": 50, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/32.png"}, {"id": 33, "name": "nidorino", "name_zh": "尼多力诺", "types": ["poison"], "hp": 61, "attack": 72, "defense": 57, "sp_attack": 55, "sp_defense": 55, "speed": 65, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/33.png"}, {"id": 34, "name": "nidoking", "name_zh": "尼多王", "types": ["poison", "ground"], "hp": 81, "attack": 102, "defense": 77, "sp_attack": 85, "sp_defense": 75, "speed": 85, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/34.png"}, {"id": 35, "name": "clefairy", "name_zh": "皮皮", "types": ["normal"], "hp": 70, "attack": 45, "defense": 48, "sp_attack": 60, "sp_defense": 65, "speed": 35, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/35.png"}, {"id": 36, "name": "clefable", "name_zh": "皮可西", "types": ["normal"], "hp": 95, "attack": 70, "defense": 73, "sp_attack": 95, "sp_defense": 90, "speed": 60, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/36.png"}, {"id": 37, "name": "vulpix", "name_zh": "六尾", "types": ["fire"], "hp": 38, "attack": 41, "defense": 40, "sp_attack": 50, "sp_defense": 65, "speed": 65, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/37.png"}, {"id": 38, "name": "ninetales", "name_zh": "九尾", "types": ["fire"], "hp": 73, "attack": 76, "defense": 75, "sp_attack": 81, "sp_defense": 100, "speed": 100, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/38.png"}, {"id": 39, "name": "jigglypuff", "name_zh": "胖丁", "types": ["normal"], "hp": 115, "attack": 45, "defense": 20, "sp_attack": 45, "sp_defense": 25, "speed": 20, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/39.png"}, {"id": 40, "name": "wigglytuff", "name_zh": "胖可丁", "types": ["normal"], "hp": 140, "attack": 70, "defense": 45, "sp_attack": 75, "sp_defense": 50, "speed": 45, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/40.png"}, {"id": 41, "name": "zubat", "name_zh": "超音蝠", "types": ["poison", "flying"], "hp": 40, "attack": 45, "defense": 35, "sp_attack": 30, "sp_defense": 40, "speed": 55, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/41.png"}, {"id": 42, "name": "golbat", "name_zh": "大嘴蝠", "types": ["poison", "flying"], "hp": 75, "attack": 80, "defense": 70, "sp_attack": 65, "sp_defense": 75, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/42.png"}, {"id": 43, "name": "oddish", "name_zh": "走路草", "types": ["grass", "poison"], "hp": 45, "attack": 50, "defense": 55, "sp_attack": 75, "sp_defense": 65, "speed": 30, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/43.png"}, {"id": 44, "name": "gloom", "name_zh": "臭臭花", "types": ["grass", "poison"], "hp": 60, "attack": 65, "defense": 70, "sp_attack": 85, "sp_defense": 75, "speed": 40, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/44.png"}, {"id": 45, "name": "vileplume", "name_zh": "霸王花", "types": ["grass", "poison"], "hp": 75, "attack": 80, "defense": 85, "sp_attack": 110, "sp_defense": 90, "speed": 50, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/45.png"}, {"id": 46, "name": "paras", "name_zh": "派拉斯", "types": ["bug", "grass"], "hp": 35, "attack": 70, "defense": 55, "sp_attack": 45, "sp_defense": 55, "speed": 25, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/46.png"}, {"id": 47, "name": "parasect", "name_zh": "派拉斯特", "types": ["bug", "grass"], "hp": 60, "attack": 95, "defense": 80, "sp_attack": 60, "sp_defense": 80, "speed": 30, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/47.png"}, {"id": 48, "name": "venonat", "name_zh": "毛球", "types": ["bug", "poison"], "hp": 60, "attack": 45, "defense": 50, "sp_attack": 40, "sp_defense": 55, "speed": 45, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/48.png"}, {"id": 49, "name": "venomoth", "name_zh": "摩鲁蛾", "types": ["bug", "poison"], "hp": 70, "attack": 65, "defense": 60, "sp_attack": 90, "sp_defense": 75, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/49.png"}, {"id": 50, "name": "diglett", "name_zh": "地鼠", "types": ["ground"], "hp": 10, "attack": 55, "defense": 25, "sp_attack": 35, "sp_defense": 45, "speed": 95, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/50.png"}, {"id": 51, "name": "dugtrio", "name_zh": "三地鼠", "types": ["ground"], "hp": 35, "attack": 100, "defense": 50, "sp_attack": 50, "sp_defense": 70, "speed": 120, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/51.png"}, {"id": 52, "name": "meowth", "name_zh": "喵喵", "types": ["normal"], "hp": 40, "attack": 45, "defense": 35, "sp_attack": 40, "sp_defense": 40, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/52.png"}, {"id": 53, "name": "persian", "name_zh": "猫老大", "types": ["normal"], "hp": 65, "attack": 70, "defense": 60, "sp_attack": 65, "sp_defense": 65, "speed": 115, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/53.png"}, {"id": 54, "name": "psyduck", "name_zh": "可达鸭", "types": ["water"], "hp": 50, "attack": 52, "defense": 48, "sp_attack": 65, "sp_defense": 50, "speed": 55, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/54.png"}, {"id": 55, "name": "golduck", "name_zh": "哥达鸭", "types": ["water"], "hp": 80, "attack": 82, "defense": 78, "sp_attack": 95, "sp_defense": 80, "speed": 85, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/55.png"}, {"id": 56, "name": "mankey", "name_zh": "猴怪", "types": ["fighting"], "hp": 40, "attack": 80, "defense": 35, "sp_attack": 35, "sp_defense": 45, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/56.png"}, {"id": 57, "name": "primeape", "name_zh": "火暴猴", "types": ["fighting"], "hp": 65, "attack": 105, "defense": 60, "sp_attack": 60, "sp_defense": 70, "speed": 95, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/57.png"}, {"id": 58, "name": "growlithe", "name_zh": "卡蒂狗", "types": ["fire"], "hp": 55, "attack": 70, "defense": 45, "sp_attack": 70, "sp_defense": 50, "speed": 60, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/58.png"}, {"id": 59, "name": "arcanine", "name_zh": "风速狗", "types": ["fire"], "hp": 90, "attack": 110, "defense": 80, "sp_attack": 100, "sp_defense": 80, "speed": 95, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/59.png"}, {"id": 60, "name": "poliwag", "name_zh": "蚊香蝌蚪", "types": ["water"], "hp": 40, "attack": 50, "defense": 40, "sp_attack": 40, "sp_defense": 40, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/60.png"}, {"id": 61, "name": "poliwhirl", "name_zh": "蚊香君", "types": ["water"], "hp": 65, "attack": 65, "defense": 65, "sp_attack": 50, "sp_defense": 50, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/61.png"}, {"id": 62, "name": "poliwrath", "name_zh": "蚊香泳士", "types": ["water", "fighting"], "hp": 90, "attack": 85, "defense": 95, "sp_attack": 70, "sp_defense": 95, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/62.png"}, {"id": 63, "name": "abra", "name_zh": "凯西", "types": ["psychic"], "hp": 25, "attack": 20, "defense": 15, "sp_attack": 105, "sp_defense": 55, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/63.png"}, {"id": 64, "name": "kadabra", "name_zh": "勇基拉", "types": ["psychic"], "hp": 40, "attack": 35, "defense": 30, "sp_attack": 120, "sp_defense": 70, "speed": 105, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/64.png"}, {"id": 65, "name": "alakazam", "name_zh": "胡地", "types": ["psychic"], "hp": 55, "attack": 50, "defense": 45, "sp_attack": 135, "sp_defense": 95, "speed": 120, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/65.png"}, {"id": 66, "name": "machop", "name_zh": "腕力", "types": ["fighting"], "hp": 70, "attack": 80, "defense": 50, "sp_attack": 35, "sp_defense": 35, "speed": 35, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/66.png"}, {"id": 67, "name": "machoke", "name_zh": "豪力", "types": ["fighting"], "hp": 80, "attack": 100, "defense": 70, "sp_attack": 50, "sp_defense": 60, "speed": 45, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/67.png"}, {"id": 68, "name": "machamp", "name_zh": "怪力", "types": ["fighting"], "hp": 90, "attack": 130, "defense": 80, "sp_attack": 65, "sp_defense": 85, "speed": 55, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/68.png"}, {"id": 69, "name": "bellsprout", "name_zh": "喇叭芽", "types": ["grass", "poison"], "hp": 50, "attack": 75, "defense": 35, "sp_attack": 70, "sp_defense": 30, "speed": 40, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/69.png"}, {"id": 70, "name": "weepinbell", "name_zh": "口呆花", "types": ["grass", "poison"], "hp": 65, "attack": 90, "defense": 50, "sp_attack": 85, "sp_defense": 45, "speed": 55, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/70.png"}, {"id": 71, "name": "victreebel", "name_zh": "大食花", "types": ["grass", "poison"], "hp": 80, "attack": 105, "defense": 65, "sp_attack": 100, "sp_defense": 60, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/71.png"}, {"id": 72, "name": "tentacool", "name_zh": "玛瑙水母", "types": ["water", "poison"], "hp": 40, "attack": 40, "defense": 35, "sp_attack": 50, "sp_defense": 100, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/72.png"}, {"id": 73, "name": "tentacruel", "name_zh": "毒刺水母", "types": ["water", "poison"], "hp": 80, "attack": 70, "defense": 65, "sp_attack": 80, "sp_defense": 120, "speed": 100, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/73.png"}, {"id": 74, "name": "geodude", "name_zh": "小拳石", "types": ["rock", "ground"], "hp": 40, "attack": 80, "defense": 100, "sp_attack": 30, "sp_defense": 30, "speed": 20, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/74.png"}, {"id": 75, "name": "graveler", "name_zh": "隆隆石", "types": ["rock", "ground"], "hp": 55, "attack": 95, "defense": 115, "sp_attack": 45, "sp_defense": 45, "speed": 35, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/75.png"}, {"id": 76, "name": "golem", "name_zh": "隆隆岩", "types": ["rock", "ground"], "hp": 80, "attack": 120, "defense": 130, "sp_attack": 55, "sp_defense": 65, "speed": 45, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/76.png"}, {"id": 77, "name": "ponyta", "name_zh": "小火马", "types": ["fire"], "hp": 50, "attack": 85, "defense": 55, "sp_attack": 65, "sp_defense": 65, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/77.png"}, {"id": 78, "name": "rapidash", "name_zh": "烈焰马", "types": ["fire"], "hp": 65, "attack": 100, "defense": 70, "sp_attack": 80, "sp_defense": 80, "speed": 105, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/78.png"}, {"id": 79, "name": "slowpoke", "name_zh": "呆呆兽", "types": ["water", "psychic"], "hp": 90, "attack": 65, "defense": 65, "sp_attack": 40, "sp_defense": 40, "speed": 15, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/79.png"}, {"id": 80, "name": "slowbro", "name_zh": "呆壳兽", "types": ["water", "psychic"], "hp": 95, "attack": 75, "defense": 110, "sp_attack": 100, "sp_defense": 80, "speed": 30, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/80.png"}, {"id": 81, "name": "magnemite", "name_zh": "小磁怪", "types": ["electric"], "hp": 25, "attack": 35, "defense": 70, "sp_attack": 95, "sp_defense": 55, "speed": 45, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/81.png"}, {"id": 82, "name": "magneton", "name_zh": "三合一磁怪", "types": ["electric"], "hp": 50, "attack": 60, "defense": 95, "sp_attack": 120, "sp_defense": 70, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/82.png"}, {"id": 83, "name": "farfetchd", "name_zh": "大葱鸭", "types": ["normal", "flying"], "hp": 52, "attack": 65, "defense": 55, "sp_attack": 58, "sp_defense": 62, "speed": 60, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/83.png"}, {"id": 84, "name": "doduo", "name_zh": "嘟嘟", "types": ["normal", "flying"], "hp": 35, "attack": 85, "defense": 45, "sp_attack": 35, "sp_defense": 35, "speed": 75, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/84.png"}, {"id": 85, "name": "dodrio", "name_zh": "嘟嘟利", "types": ["normal", "flying"], "hp": 60, "attack": 110, "defense": 70, "sp_attack": 60, "sp_defense": 60, "speed": 110, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/85.png"}, {"id": 86, "name": "seel", "name_zh": "小海狮", "types": ["water"], "hp": 65, "attack": 45, "defense": 55, "sp_attack": 45, "sp_defense": 70, "speed": 45, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/86.png"}, {"id": 87, "name": "dewgong", "name_zh": "白海狮", "types": ["water", "ice"], "hp": 90, "attack": 70, "defense": 80, "sp_attack": 75, "sp_defense": 95, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/87.png"}, {"id": 88, "name": "grimer", "name_zh": "臭泥", "types": ["poison"], "hp": 80, "attack": 80, "defense": 50, "sp_attack": 40, "sp_defense": 50, "speed": 25, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/88.png"}, {"id": 89, "name": "muk", "name_zh": "臭臭泥", "types": ["poison"], "hp": 105, "attack": 105, "defense": 75, "sp_attack": 65, "sp_defense": 100, "speed": 50, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/89.png"}, {"id": 90, "name": "shellder", "name_zh": "大舌贝", "types": ["water"], "hp": 30, "attack": 65, "defense": 100, "sp_attack": 45, "sp_defense": 25, "speed": 40, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/90.png"}, {"id": 91, "name": "cloyster", "name_zh": "刺甲贝", "types": ["water", "ice"], "hp": 50, "attack": 95, "defense": 180, "sp_attack": 85, "sp_defense": 45, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/91.png"}, {"id": 92, "name": "gastly", "name_zh": "鬼斯", "types": ["ghost", "poison"], "hp": 30, "attack": 35, "defense": 30, "sp_attack": 100, "sp_defense": 35, "speed": 80, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/92.png"}, {"id": 93, "name": "haunter", "name_zh": "鬼斯通", "types": ["ghost", "poison"], "hp": 45, "attack": 50, "defense": 45, "sp_attack": 115, "sp_defense": 55, "speed": 95, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/93.png"}, {"id": 94, "name": "gengar", "name_zh": "耿鬼", "types": ["ghost", "poison"], "hp": 60, "attack": 65, "defense": 60, "sp_attack": 130, "sp_defense": 75, "speed": 110, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/94.png"}, {"id": 95, "name": "onix", "name_zh": "大岩蛇", "types": ["rock", "ground"], "hp": 35, "attack": 45, "defense": 160, "sp_attack": 30, "sp_defense": 45, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/95.png"}, {"id": 96, "name": "drowzee", "name_zh": "催眠貘", "types": ["psychic"], "hp": 60, "attack": 48, "defense": 45, "sp_attack": 43, "sp_defense": 90, "speed": 42, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/96.png"}, {"id": 97, "name": "hypno", "name_zh": "引梦貘人", "types": ["psychic"], "hp": 85, "attack": 73, "defense": 70, "sp_attack": 73, "sp_defense": 115, "speed": 67, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/97.png"}, {"id": 98, "name": "krabby", "name_zh": "大钳蟹", "types": ["water"], "hp": 30, "attack": 105, "defense": 90, "sp_attack": 25, "sp_defense": 25, "speed": 50, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/98.png"}, {"id": 99, "name": "kingler", "name_zh": "巨钳蟹", "types": ["water"], "hp": 55, "attack": 130, "defense": 115, "sp_attack": 50, "sp_defense": 50, "speed": 75, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/99.png"}, {"id": 100, "name": "voltorb", "name_zh": "霹雳电球", "types": ["electric"], "hp": 40, "attack": 30, "defense": 50, "sp_attack": 55, "sp_defense": 55, "speed": 100, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/100.png"}, {"id": 101, "name": "electrode", "name_zh": "顽皮雷弹", "types": ["electric"], "hp": 60, "attack": 50, "defense": 70, "sp_attack": 80, "sp_defense": 80, "speed": 140, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/101.png"}, {"id": 102, "name": "exeggcute", "name_zh": "蛋蛋", "types": ["grass", "psychic"], "hp": 60, "attack": 40, "defense": 80, "sp_attack": 60, "sp_defense": 45, "speed": 40, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/102.png"}, {"id": 103, "name": "exeggutor", "name_zh": "椰蛋树", "types": ["grass", "psychic"], "hp": 95, "attack": 95, "defense": 85, "sp_attack": 125, "sp_defense": 75, "speed": 55, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/103.png"}, {"id": 104, "name": "cubone", "name_zh": "卡拉卡拉", "types": ["ground"], "hp": 50, "attack": 50, "defense": 95, "sp_attack": 40, "sp_defense": 50, "speed": 35, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/104.png"}, {"id": 105, "name": "marowak", "name_zh": "嘎啦嘎啦", "types": ["ground"], "hp": 60, "attack": 80, "defense": 110, "sp_attack": 50, "sp_defense": 80, "speed": 45, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/105.png"}, {"id": 106, "name": "hitmonlee", "name_zh": "飞腿郎", "types": ["fighting"], "hp": 50, "attack": 120, "defense": 53, "sp_attack": 35, "sp_defense": 110, "speed": 87, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/106.png"}, {"id": 107, "name": "hitmonchan", "name_zh": "快拳郎", "types": ["fighting"], "hp": 50, "attack": 105, "defense": 79, "sp_attack": 35, "sp_defense": 110, "speed": 76, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/107.png"}, {"id": 108, "name": "lickitung", "name_zh": "大舌头", "types": ["normal"], "hp": 90, "attack": 55, "defense": 75, "sp_attack": 60, "sp_defense": 75, "speed": 30, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/108.png"}, {"id": 109, "name": "koffing", "name_zh": "瓦斯弹", "types": ["poison"], "hp": 40, "attack": 65, "defense": 95, "sp_attack": 60, "sp_defense": 45, "speed": 35, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/109.png"}, {"id": 110, "name": "weezing", "name_zh": "双弹瓦斯", "types": ["poison"], "hp": 65, "attack": 90, "defense": 120, "sp_attack": 85, "sp_defense": 70, "speed": 60, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/110.png"}, {"id": 111, "name": "rhyhorn", "name_zh": "独角犀牛", "types": ["ground", "rock"], "hp": 80, "attack": 85, "defense": 95, "sp_attack": 30, "sp_defense": 30, "speed": 25, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/111.png"}, {"id": 112, "name": "rhydon", "name_zh": "钻角犀兽", "types": ["ground", "rock"], "hp": 105, "attack": 130, "defense": 120, "sp_attack": 45, "sp_defense": 45, "speed": 40, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/112.png"}, {"id": 113, "name": "chansey", "name_zh": "吉利蛋", "types": ["normal"], "hp": 250, "attack": 5, "defense": 5, "sp_attack": 35, "sp_defense": 105, "speed": 50, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/113.png"}, {"id": 114, "name": "tangela", "name_zh": "蔓藤怪", "types": ["grass"], "hp": 65, "attack": 55, "defense": 115, "sp_attack": 100, "sp_defense": 40, "speed": 60, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/114.png"}, {"id": 115, "name": "kangaskhan", "name_zh": "袋兽", "types": ["normal"], "hp": 105, "attack": 95, "defense": 80, "sp_attack": 40, "sp_defense": 80, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/115.png"}, {"id": 116, "name": "horsea", "name_zh": "墨海马", "types": ["water"], "hp": 30, "attack": 40, "defense": 70, "sp_attack": 70, "sp_defense": 25, "speed": 60, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/116.png"}, {"id": 117, "name": "seadra", "name_zh": "海刺龙", "types": ["water"], "hp": 55, "attack": 65, "defense": 95, "sp_attack": 95, "sp_defense": 45, "speed": 85, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/117.png"}, {"id": 118, "name": "goldeen", "name_zh": "角金鱼", "types": ["water"], "hp": 45, "attack": 67, "defense": 60, "sp_attack": 35, "sp_defense": 50, "speed": 63, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/118.png"}, {"id": 119, "name": "seaking", "name_zh": "金鱼王", "types": ["water"], "hp": 80, "attack": 92, "defense": 65, "sp_attack": 65, "sp_defense": 80, "speed": 68, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/119.png"}, {"id": 120, "name": "staryu", "name_zh": "海星星", "types": ["water"], "hp": 30, "attack": 45, "defense": 55, "sp_attack": 70, "sp_defense": 55, "speed": 85, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/120.png"}, {"id": 121, "name": "starmie", "name_zh": "宝石海星", "types": ["water", "psychic"], "hp": 60, "attack": 75, "defense": 85, "sp_attack": 100, "sp_defense": 85, "speed": 115, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/121.png"}, {"id": 122, "name": "mr-mime", "name_zh": "魔墙人偶", "types": ["psychic"], "hp": 40, "attack": 45, "defense": 65, "sp_attack": 100, "sp_defense": 120, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/122.png"}, {"id": 123, "name": "scyther", "name_zh": "飞天螳螂", "types": ["bug", "flying"], "hp": 70, "attack": 110, "defense": 80, "sp_attack": 55, "sp_defense": 80, "speed": 105, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/123.png"}, {"id": 124, "name": "jynx", "name_zh": "迷唇姐", "types": ["ice", "psychic"], "hp": 65, "attack": 50, "defense": 35, "sp_attack": 115, "sp_defense": 95, "speed": 95, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/124.png"}, {"id": 125, "name": "electabuzz", "name_zh": "电击兽", "types": ["electric"], "hp": 65, "attack": 83, "defense": 57, "sp_attack": 95, "sp_defense": 85, "speed": 105, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/125.png"}, {"id": 126, "name": "magmar", "name_zh": "鸭嘴火兽", "types": ["fire"], "hp": 65, "attack": 95, "defense": 57, "sp_attack": 100, "sp_defense": 85, "speed": 93, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/126.png"}, {"id": 127, "name": "pinsir", "name_zh": "凯罗斯", "types": ["bug"], "hp": 65, "attack": 125, "defense": 100, "sp_attack": 55, "sp_defense": 70, "speed": 85, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/127.png"}, {"id": 128, "name": "tauros", "name_zh": "肯泰罗", "types": ["normal"], "hp": 75, "attack": 100, "defense": 95, "sp_attack": 40, "sp_defense": 70, "speed": 110, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/128.png"}, {"id": 129, "name": "magikarp", "name_zh": "鲤鱼王", "types": ["water"], "hp": 20, "attack": 10, "defense": 55, "sp_attack": 15, "sp_defense": 20, "speed": 80, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/129.png"}, {"id": 130, "name": "gyarados", "name_zh": "暴鲤龙", "types": ["water", "flying"], "hp": 95, "attack": 125, "defense": 79, "sp_attack": 60, "sp_defense": 100, "speed": 81, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/130.png"}, {"id": 131, "name": "lapras", "name_zh": "乘龙", "types": ["water", "ice"], "hp": 130, "attack": 85, "defense": 80, "sp_attack": 85, "sp_defense": 95, "speed": 60, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/131.png"}, {"id": 132, "name": "ditto", "name_zh": "百变怪", "types": ["normal"], "hp": 48, "attack": 48, "defense": 48, "sp_attack": 48, "sp_defense": 48, "speed": 48, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/132.png"}, {"id": 133, "name": "eevee", "name_zh": "伊布", "types": ["normal"], "hp": 55, "attack": 55, "defense": 50, "sp_attack": 45, "sp_defense": 65, "speed": 55, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png"}, {"id": 134, "name": "vaporeon", "name_zh": "水伊布", "types": ["water"], "hp": 130, "attack": 65, "defense": 60, "sp_attack": 110, "sp_defense": 95, "speed": 65, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/134.png"}, {"id": 135, "name": "jolteon", "name_zh": "雷伊布", "types": ["electric"], "hp": 65, "attack": 65, "defense": 60, "sp_attack": 110, "sp_defense": 95, "speed": 130, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/135.png"}, {"id": 136, "name": "flareon", "name_zh": "火伊布", "types": ["fire"], "hp": 130, "attack": 65, "defense": 60, "sp_attack": 110, "sp_defense": 95, "speed": 65, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/136.png"}, {"id": 137, "name": "porygon", "name_zh": "多边兽", "types": ["normal"], "hp": 65, "attack": 60, "defense": 70, "sp_attack": 75, "sp_defense": 85, "speed": 40, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/137.png"}, {"id": 138, "name": "omanyte", "name_zh": "菊石兽", "types": ["rock", "water"], "hp": 35, "attack": 40, "defense": 100, "sp_attack": 90, "sp_defense": 55, "speed": 35, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/138.png"}, {"id": 139, "name": "omastar", "name_zh": "多刺菊石兽", "types": ["rock", "water"], "hp": 70, "attack": 60, "defense": 125, "sp_attack": 115, "sp_defense": 70, "speed": 55, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/139.png"}, {"id": 140, "name": "kabuto", "name_zh": "化石盔", "types": ["rock", "water"], "hp": 30, "attack": 80, "defense": 90, "sp_attack": 55, "sp_defense": 45, "speed": 55, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/140.png"}, {"id": 141, "name": "kabutops", "name_zh": "镰刀盔", "types": ["rock", "water"], "hp": 60, "attack": 115, "defense": 105, "sp_attack": 65, "sp_defense": 70, "speed": 80, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/141.png"}, {"id": 142, "name": "aerodactyl", "name_zh": "化石翼龙", "types": ["rock", "flying"], "hp": 80, "attack": 105, "defense": 65, "sp_attack": 60, "sp_defense": 75, "speed": 130, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/142.png"}, {"id": 143, "name": "snorlax", "name_zh": "卡比兽", "types": ["normal"], "hp": 160, "attack": 110, "defense": 65, "sp_attack": 65, "sp_defense": 110, "speed": 30, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/143.png"}, {"id": 144, "name": "articuno", "name_zh": "急冻鸟", "types": ["ice", "flying"], "hp": 90, "attack": 85, "defense": 100, "sp_attack": 95, "sp_defense": 125, "speed": 85, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/144.png"}, {"id": 145, "name": "zapdos", "name_zh": "闪电鸟", "types": ["electric", "flying"], "hp": 90, "attack": 90, "defense": 85, "sp_attack": 125, "sp_defense": 90, "speed": 100, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/145.png"}, {"id": 146, "name": "moltres", "name_zh": "火焰鸟", "types": ["fire", "flying"], "hp": 90, "attack": 100, "defense": 90, "sp_attack": 125, "sp_defense": 85, "speed": 90, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/146.png"}, {"id": 147, "name": "dratini", "name_zh": "迷你龙", "types": ["dragon"], "hp": 41, "attack": 64, "defense": 45, "sp_attack": 50, "sp_defense": 50, "speed": 50, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/147.png"}, {"id": 148, "name": "dragonair", "name_zh": "哈克龙", "types": ["dragon"], "hp": 61, "attack": 84, "defense": 65, "sp_attack": 70, "sp_defense": 70, "speed": 70, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/148.png"}, {"id": 149, "name": "dragonite", "name_zh": "快龙", "types": ["dragon", "flying"], "hp": 91, "attack": 134, "defense": 95, "sp_attack": 100, "sp_defense": 100, "speed": 80, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/149.png"}, {"id": 150, "name": "mewtwo", "name_zh": "超梦", "types": ["psychic"], "hp": 106, "attack": 110, "defense": 90, "sp_attack": 154, "sp_defense": 90, "speed": 130, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/150.png"}, {"id": 151, "name": "mew", "name_zh": "梦幻", "types": ["psychic"], "hp": 100, "attack": 100, "defense": 100, "sp_attack": 100, "sp_defense": 100, "speed": 100, "sprite": "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/151.png"}];
+window.TYPE_EFFECT = {"normal": {"normal": 1.0, "fire": 1.0, "water": 1.0, "electric": 1.0, "grass": 1.0, "ice": 1.0, "fighting": 1.0, "poison": 1.0, "ground": 1.0, "flying": 1.0, "psychic": 1.0, "bug": 1.0, "rock": 0.5, "ghost": 0.0, "dragon": 1.0}, "fire": {"normal": 1.0, "fire": 0.5, "water": 0.5, "electric": 1.0, "grass": 2.0, "ice": 2.0, "fighting": 1.0, "poison": 1.0, "ground": 1.0, "flying": 1.0, "psychic": 1.0, "bug": 2.0, "rock": 0.5, "ghost": 1.0, "dragon": 0.5}, "water": {"normal": 1.0, "fire": 2.0, "water": 0.5, "electric": 1.0, "grass": 0.5, "ice": 1.0, "fighting": 1.0, "poison": 1.0, "ground": 2.0, "flying": 1.0, "psychic": 1.0, "bug": 1.0, "rock": 2.0, "ghost": 1.0, "dragon": 0.5}, "electric": {"normal": 1.0, "fire": 1.0, "water": 2.0, "electric": 0.5, "grass": 0.5, "ice": 1.0, "fighting": 1.0, "poison": 1.0, "ground": 0.0, "flying": 2.0, "psychic": 1.0, "bug": 1.0, "rock": 1.0, "ghost": 1.0, "dragon": 0.5}, "grass": {"normal": 1.0, "fire": 0.5, "water": 2.0, "electric": 1.0, "grass": 0.5, "ice": 1.0, "fighting": 1.0, "poison": 0.5, "ground": 2.0, "flying": 0.5, "psychic": 1.0, "bug": 0.5, "rock": 2.0, "ghost": 1.0, "dragon": 0.5}, "ice": {"normal": 1.0, "fire": 0.5, "water": 0.5, "electric": 1.0, "grass": 2.0, "ice": 0.5, "fighting": 1.0, "poison": 1.0, "ground": 2.0, "flying": 2.0, "psychic": 1.0, "bug": 1.0, "rock": 1.0, "ghost": 1.0, "dragon": 2.0}, "fighting": {"normal": 2.0, "fire": 1.0, "water": 1.0, "electric": 1.0, "grass": 1.0, "ice": 2.0, "fighting": 1.0, "poison": 0.5, "ground": 1.0, "flying": 0.5, "psychic": 0.5, "bug": 0.5, "rock": 2.0, "ghost": 0.0, "dragon": 1.0}, "poison": {"normal": 1.0, "fire": 1.0, "water": 1.0, "electric": 1.0, "grass": 2.0, "ice": 1.0, "fighting": 1.0, "poison": 0.5, "ground": 0.5, "flying": 1.0, "psychic": 1.0, "bug": 1.0, "rock": 0.5, "ghost": 0.5, "dragon": 1.0}, "ground": {"normal": 1.0, "fire": 2.0, "water": 1.0, "electric": 2.0, "grass": 0.5, "ice": 1.0, "fighting": 1.0, "poison": 2.0, "ground": 1.0, "flying": 0.0, "psychic": 1.0, "bug": 0.5, "rock": 2.0, "ghost": 1.0, "dragon": 1.0}, "flying": {"normal": 1.0, "fire": 1.0, "water": 1.0, "electric": 0.5, "grass": 2.0, "ice": 1.0, "fighting": 2.0, "poison": 1.0, "ground": 1.0, "flying": 1.0, "psychic": 1.0, "bug": 2.0, "rock": 0.5, "ghost": 1.0, "dragon": 1.0}, "psychic": {"normal": 1.0, "fire": 1.0, "water": 1.0, "electric": 1.0, "grass": 1.0, "ice": 1.0, "fighting": 2.0, "poison": 2.0, "ground": 1.0, "flying": 1.0, "psychic": 0.5, "bug": 1.0, "rock": 1.0, "ghost": 1.0, "dragon": 1.0}, "bug": {"normal": 1.0, "fire": 0.5, "water": 1.0, "electric": 1.0, "grass": 2.0, "ice": 1.0, "fighting": 0.5, "poison": 0.5, "ground": 0.5, "flying": 0.5, "psychic": 2.0, "bug": 1.0, "rock": 1.0, "ghost": 0.5, "dragon": 1.0}, "rock": {"normal": 1.0, "fire": 2.0, "water": 0.5, "electric": 1.0, "grass": 0.5, "ice": 2.0, "fighting": 0.5, "poison": 1.0, "ground": 0.5, "flying": 2.0, "psychic": 1.0, "bug": 2.0, "rock": 1.0, "ghost": 1.0, "dragon": 1.0}, "ghost": {"normal": 0.0, "fire": 1.0, "water": 1.0, "electric": 1.0, "grass": 1.0, "ice": 1.0, "fighting": 0.0, "poison": 0.5, "ground": 1.0, "flying": 1.0, "psychic": 0.0, "bug": 0.5, "rock": 1.0, "ghost": 2.0, "dragon": 1.0}, "dragon": {"normal": 1.0, "fire": 1.0, "water": 1.0, "electric": 1.0, "grass": 1.0, "ice": 1.0, "fighting": 1.0, "poison": 1.0, "ground": 1.0, "flying": 1.0, "psychic": 1.0, "bug": 1.0, "rock": 1.0, "ghost": 1.0, "dragon": 2.0}};
+window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric": "电", "grass": "草", "ice": "冰", "fighting": "格斗", "poison": "毒", "ground": "地面", "flying": "飞行", "psychic": "超能力", "bug": "虫", "rock": "岩石", "ghost": "幽灵", "dragon": "龙"};
+
+</script>
+<script>
+/* 宝可梦卡牌对战 — game logic (vanilla JS) */
+(function () {
+  "use strict";
+
+  var LIST = window.POKEMON_LIST;
+  var EFFECT = window.TYPE_EFFECT;
+  var TYPE_ZH = window.TYPE_ZH;
+
+  var TYPE_COLOR = {
+    normal:"#A8A878", fire:"#F08030", water:"#6890F0", electric:"#F8D030",
+    grass:"#78C850", ice:"#98D8D8", fighting:"#C03028", poison:"#A040A0",
+    ground:"#E0C068", flying:"#A890F0", psychic:"#F85888", bug:"#A8B820",
+    rock:"#B8A038", ghost:"#705898", dragon:"#7038F8"
+  };
+
+  // physical / special move name per type
+  var MOVE_NAME = {
+    normal:["撞击","舍身冲撞"], fire:["火花","喷射火焰"], water:["水枪","水炮"],
+    electric:["电击","十万伏特"], grass:["藤鞭","飞叶快刀"], ice:["冰砾","冰冻光束"],
+    fighting:["手刀","百万吨重拳"], poison:["毒针","污泥炸弹"], ground:["泥巴射击","地震"],
+    flying:["啄","空气斩"], psychic:["念力","精神强念"], bug:["虫咬","虫鸣"],
+    rock:["落石","岩石封锁"], ghost:["影子拳","暗影球"], dragon:["龙息","龙之波动"]
+  };
+
+  var DECK_SIZE = 12;
+  var BENCH_START = 4;
+  var MAX_ENERGY = 3;
+
+  var state = null;
+  var busy = false;
+  var setup = { mode: "random", selected: [], typeFilter: "all", query: "" };
+
+  if (typeof console !== "undefined" && console.log) {
+    console.log("[PK] v4 loaded: synchronous battle flow (animations disabled)");
+  }
+
+  /* ---------- helpers ---------- */
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function typeMult(moveType, defTypes) {
+    var m = 1;
+    for (var i = 0; i < defTypes.length; i++) {
+      var row = EFFECT[moveType];
+      if (row && row[defTypes[i]] !== undefined) m *= row[defTypes[i]];
+    }
+    return m;
+  }
+  function genMoves(mon) {
+    var t1 = mon.types[0];
+    var t2 = mon.types[1] || "normal";
+    var p1 = clamp(Math.round(mon.attack * 0.55) + 20, 40, 100);
+    var p2 = clamp(Math.round(mon.sp_attack * 0.55) + 20, 40, 100);
+    return [
+      { name: MOVE_NAME[t1][0], type: t1, power: p1, cost: 1, cat: "phys" },
+      { name: MOVE_NAME[t2][1] || MOVE_NAME[t2][0], type: t2, power: p2, cost: 2, cat: "spec" }
+    ];
+  }
+  function makeCard(mon) {
+    return {
+      mon: mon, maxHp: mon.hp, hp: mon.hp, energy: 0,
+      fainted: false, moves: genMoves(mon)
+    };
+  }
+  function randomMons(n) {
+    return shuffle(LIST).slice(0, n);
+  }
+
+  /* ---------- setup ---------- */
+  function buildState(youMons, aiMons) {
+    function buildPlayer(name, pool) {
+      var cards = pool.map(makeCard);
+      var active = cards[0];
+      var bench = cards.slice(1, 1 + BENCH_START);
+      var deck = cards.slice(1 + BENCH_START);
+      return { name: name, active: active, bench: bench, deck: deck };
+    }
+    state = {
+      you: buildPlayer("你", youMons),
+      ai: buildPlayer("电脑", aiMons),
+      turn: "you", over: false, winner: null, log: []
+    };
+  }
+
+  function newGame(youMons) {
+    var youPool = (youMons && youMons.length === DECK_SIZE)
+      ? youMons.slice()
+      : randomMons(DECK_SIZE);
+    var used = {};
+    youPool.forEach(function (m) { used[m.id] = true; });
+    var rest = LIST.filter(function (m) { return !used[m.id]; });
+    var aiPool = shuffle(rest).slice(0, DECK_SIZE);
+    buildState(youPool, aiPool);
+    log("sys", "对战开始！双方各派出一只宝可梦，先让对方无宝可梦可派者获胜。");
+    render();
+  }
+
+  function beginGame(youMons) {
+    hideOverlays();
+    setup.selected = [];
+    newGame(youMons);
+    startTurn("you");
+  }
+
+  /* ---------- logging ---------- */
+  function log(cls, msg) {
+    state.log.push({ cls: cls, msg: msg });
+    if (state.log.length > 40) state.log.shift();
+  }
+
+  /* ---------- combat ---------- */
+  function expectedDamage(attacker, defender, move) {
+    var atk = move.cat === "phys" ? attacker.mon.attack : attacker.mon.sp_attack;
+    var def = move.cat === "phys" ? defender.mon.defense : defender.mon.sp_defense;
+    var mult = typeMult(move.type, defender.mon.types);
+    return Math.max(1, Math.floor(move.power * (atk / (def + 10)) * 0.5 * mult));
+  }
+  function rollDamage(attacker, defender, move) {
+    var atk = move.cat === "phys" ? attacker.mon.attack : attacker.mon.sp_attack;
+    var def = move.cat === "phys" ? defender.mon.defense : defender.mon.sp_defense;
+    var mult = typeMult(move.type, defender.mon.types);
+    var variance = 0.85 + Math.random() * 0.15;
+    var dmg = Math.max(1, Math.floor(move.power * (atk / (def + 10)) * 0.5 * mult * variance));
+    return { dmg: dmg, mult: mult };
+  }
+
+  function useMove(side, moveIdx) {
+    var me = state[side];
+    var foe = state[side === "you" ? "ai" : "you"];
+    var foeSide = side === "you" ? "ai" : "you";
+    var attacker = me.active, defender = foe.active;
+    var move = attacker.moves[moveIdx];
+    if (attacker.energy < move.cost) return;
+    attacker.energy -= move.cost;
+
+    var r = rollDamage(attacker, defender, move);
+    defender.hp = Math.max(0, defender.hp - r.dmg);
+
+    var effTxt = r.mult >= 2 ? "效果拔群！" : r.mult === 0 ? "没有效果…"
+      : r.mult < 1 ? "效果不太好…" : "";
+    var who = side === "you" ? "你" : "电脑";
+    var line = who + "的" + attacker.mon.name_zh + " 使用【" + move.name + "】，对" +
+               defender.mon.name_zh + " 造成 " + r.dmg + " 点伤害。" + effTxt;
+    log(side, line);
+
+    // --- sync: update state & render immediately ---
+    if (defender.hp <= 0) {
+      handleFaint(foeSide);
+    }
+    render();
+
+    // --- advance turn ---
+    if (!state.over) afterMove(side);
+  }
+
+  function afterMove(side) {
+    if (state.over) return;
+    if (side === "you") endHumanTurn();
+    else startTurn("you");
+  }
+
+  function handleFaint(side) {
+    var p = state[side];
+    var dead = p.active;
+    dead.fainted = true;
+    log("kill", p.name + "的" + dead.mon.name_zh + " 倒下了！");
+
+    if (p.bench.length > 0) {
+      var best = 0;
+      for (var i = 1; i < p.bench.length; i++) {
+        if (p.bench[i].hp > p.bench[best].hp) best = i;
+      }
+      var promoted = p.bench.splice(best, 1)[0];
+      p.active = promoted;
+      log("sys", p.name + " 派出 " + promoted.mon.name_zh + " 上场！");
+    } else if (p.deck.length > 0) {
+      p.active = p.deck.shift();
+      log("sys", p.name + " 从牌库抽出 " + p.active.mon.name_zh + " 上场！");
+    } else {
+      state.over = true;
+      state.winner = side === "you" ? "ai" : "you";
+      log("kill", p.name + " 已无宝可梦可派，" + (state.winner === "you" ? "你" : "电脑") + " 获胜！");
+      render();
+      showOver();
+      return;
+    }
+    render();
+  }
+
+  function doSwitch(side, benchIdx) {
+    var p = state[side];
+    if (benchIdx < 0 || benchIdx >= p.bench.length) return;
+    var incoming = p.bench.splice(benchIdx, 1)[0];
+    p.bench.push(p.active);
+    p.active = incoming;
+    var who = side === "you" ? "你" : "电脑";
+    log("sys", who + " 换上 " + incoming.mon.name_zh + "（" + p.active.mon.name_zh + " 退居后备）。");
+  }
+
+  /* ---------- turn flow (fully synchronous — zero setTimeout) ---------- */
+  function startTurn(side) {
+    if (state.over) return;
+    var p = state[side];
+    p.active.energy = Math.min(MAX_ENERGY, p.active.energy + 1);
+    state.turn = side;
+    busy = side === "ai";
+    render();
+    if (side === "ai") {
+      aiAct();
+    }
+  }
+
+  function endHumanTurn() {
+    if (state.over) return;
+    busy = true;
+    render();
+    startTurn("ai");
+  }
+
+  function aiAct() {
+    if (state.over) { busy = false; return; }
+    var me = state.ai, foe = state.you;
+    var a = me.active, d = foe.active;
+
+    var choices = [];
+    for (var i = 0; i < a.moves.length; i++) {
+      var mv = a.moves[i];
+      if (a.energy < mv.cost) continue;
+      var exp = expectedDamage(a, d, mv);
+      choices.push({ i: i, exp: exp, ko: exp >= d.hp });
+    }
+    if (choices.length === 0) {
+      busy = false; startTurn("you"); return;
+    }
+    choices.sort(function (x, y) { return (y.ko - x.ko) || (y.exp - x.exp); });
+    var pick = choices[0];
+
+    if (!pick.ko && a.hp / a.maxHp < 0.35 && me.bench.length > 0) {
+      var bestBench = 0;
+      for (var j = 1; j < me.bench.length; j++) {
+        if (me.bench[j].maxHp > me.bench[bestBench].maxHp) bestBench = j;
+      }
+      if (me.bench[bestBench].maxHp > a.maxHp) {
+        doSwitch("ai", bestBench);
+        render();
+        busy = false;
+        startTurn("you");
+        return;
+      }
+    }
+
+    // useMove is now fully synchronous
+    useMove("ai", pick.i);
+  }
+
+  /* human actions */
+  function onMove(idx) {
+    if (busy || state.over || state.turn !== "you") return;
+    busy = true;
+    useMove("you", idx);
+  }
+  function onSwitch(idx) {
+    if (busy || state.over || state.turn !== "you") return;
+    busy = true;
+    doSwitch("you", idx);
+    render();
+    endHumanTurn();
+  }
+
+  /* ---------- animations (browser only; guarded for headless) ---------- */
+  function fxLayer() {
+    if (typeof document === "undefined" || !document.body) return null;
+    var fx = document.getElementById("fx");
+    if (!fx) { fx = document.createElement("div"); fx.id = "fx"; document.body.appendChild(fx); }
+    return fx;
+  }
+  function elId(side) { return side === "you" ? "you-active-card" : "ai-active-card"; }
+  function centerOf(el) {
+    if (el && typeof el.getBoundingClientRect === "function") {
+      var r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    return { x: (window.innerWidth || 600) / 2, y: (window.innerHeight || 600) / 2 };
+  }
+
+  function animateStrike(side, move, r) {
+    try {
+      var fx = fxLayer();
+      if (!fx) return;
+      var atk = document.getElementById(elId(side));
+      var def = document.getElementById(elId(side === "you" ? "ai" : "you"));
+      if (atk) atk.classList.add(side === "you" ? "lunge-r" : "lunge-l");
+
+      setTimeout(function () {
+        try {
+          if (def) {
+            def.classList.add("hit-shake");
+            setTimeout(function () { if (def) def.classList.remove("hit-shake"); }, 420);
+          }
+          spawnDamage(def, r);
+          flashEffect(r.mult);
+        } catch(e2) { console.warn("[PK] strike cb:", e2); }
+      }, IMPACT_MS);
+    } catch(e) { console.warn("[PK] animateStrike:", e); }
+  }
+
+  function spawnDamage(defEl, r) {
+    try {
+      var fx = fxLayer(); if (!fx) return;
+      var c = centerOf(defEl);
+      var d = document.createElement("div");
+      d.className = "dmg-num " + (r.mult >= 2 ? "sup" : r.mult < 1 ? "weak" : "");
+      d.textContent = "-" + r.dmg;
+      d.style.left = (c.x + (Math.random() * 24 - 12)) + "px";
+      d.style.top = (c.y - 20) + "px";
+      fx.appendChild(d);
+      setTimeout(function () { try { if (d && d.parentNode) d.parentNode.removeChild(d); }catch(_){} }, 1000);
+
+      if (r.mult === 0) {
+        var no = document.createElement("div");
+        no.className = "dmg-txt weak";
+        no.textContent = "没有效果";
+        no.style.left = c.x + "px"; no.style.top = (c.y + 16) + "px";
+        fx.appendChild(no);
+        setTimeout(function () { try { if (no && no.parentNode) no.parentNode.removeChild(no); }catch(_){} }, 1100);
+      }
+      if (defEl) {
+        var burst = document.createElement("div");
+        burst.className = "impact " + (r.mult >= 2 ? "sup" : r.mult < 1 ? "weak" : "");
+        burst.style.left = c.x + "px"; burst.style.top = c.y + "px";
+        fx.appendChild(burst);
+        setTimeout(function () { try { if (burst && burst.parentNode) burst.parentNode.removeChild(burst); }catch(_){} }, 380);
+      }
+    } catch(e) { console.warn("[PK] spawnDamage:", e); }
+  }
+
+  function flashEffect(mult) {
+    try {
+      var fx = fxLayer(); if (!fx || mult === 1) return;
+      var f = document.createElement("div");
+      f.className = "flash " + (mult >= 2 ? "sup" : "weak");
+      fx.appendChild(f);
+      setTimeout(function () { try { if (f && f.parentNode) f.parentNode.removeChild(f); }catch(_){} }, 320);
+    } catch(e) { console.warn("[PK] flash:", e); }
+  }
+
+  function animateFaint(side) {
+    try {
+      var fx = fxLayer(); if (!fx) return;
+      var card = document.getElementById(elId(side));
+      if (card) {
+        card.classList.add("faint");
+        var c = centerOf(card);
+        var ko = document.createElement("div");
+        ko.className = "dmg-txt ko"; ko.textContent = "K.O.";
+        ko.style.left = c.x + "px"; ko.style.top = c.y + "px";
+        fx.appendChild(ko);
+        setTimeout(function () { try { if (ko && ko.parentNode) ko.parentNode.removeChild(ko); }catch(_){} }, 1400);
+      }
+    } catch(e) { console.warn("[PK] faint:", e); }
+  }
+
+  function animateEnergy(side) {
+    try {
+      var fx = fxLayer(); if (!fx) return;
+      var card = document.getElementById(elId(side));
+      if (card) card.classList.add("energy-gain");
+      var c = centerOf(card);
+      var p = document.createElement("div");
+      p.className = "dmg-txt energy"; p.textContent = "⚡+1";
+      p.style.left = (c.x + 60) + "px"; p.style.top = (c.y - 40) + "px";
+      fx.appendChild(p);
+      setTimeout(function () { try { if (p && p.parentNode) p.parentNode.removeChild(p); }catch(_){} }, 900);
+    } catch(e) { console.warn("[PK] energy:", e); }
+  }
+
+  function animateSwitch(side) {
+    var card = document.getElementById(elId(side));
+    if (card) card.classList.add("slide-in");
+  }
+
+  function hideOverlays() {
+    var ov = document.getElementById("overlay");
+    var su = document.getElementById("setup");
+    if (ov) ov.classList.remove("show");
+    if (su) su.classList.remove("show");
+  }
+
+  /* ---------- rendering ---------- */
+  function typeChips(types) {
+    return types.map(function (t) {
+      return '<span class="type-chip" style="background:' + (TYPE_COLOR[t] || "#888") + '">' +
+        (TYPE_ZH[t] || t) + "</span>";
+    }).join("");
+  }
+  function hpColor(ratio) {
+    return ratio > 0.5 ? "var(--hp-good)" : ratio > 0.22 ? "var(--hp-mid)" : "var(--hp-low)";
+  }
+  function energyDots(n) {
+    var s = "";
+    for (var i = 0; i < MAX_ENERGY; i++) {
+      s += '<span class="dot' + (i < n ? " on" : "") + '"></span>';
+    }
+    return s;
+  }
+
+  function cardHTML(side, p, withEnergy) {
+    var c = p.active;
+    var ratio = c.hp / c.maxHp;
+    var headColor = TYPE_COLOR[c.mon.types[0]] || "#555";
+    var en = withEnergy
+      ? '<div class="energy"><span class="lbl">能量</span>' + energyDots(c.energy) + "</div>"
+      : "";
+    return '' +
+      '<div class="card" id="' + elId(side) + '" style="border-color:' + headColor + '">' +
+        '<div class="head" style="background:' + headColor + '">' +
+          '<span class="nm">' + c.mon.name_zh + '</span>' +
+          '<span class="no">#' + ("00" + c.mon.id).slice(-3) + '</span>' +
+        '</div>' +
+        '<div class="art">' +
+          '<img src="' + c.mon.sprite + '" alt="' + c.mon.name_zh + '" ' +
+            'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+          '<div class="fallback">' + c.mon.id + '</div>' +
+        '</div>' +
+        '<div class="types">' + typeChips(c.mon.types) + '</div>' +
+        '<div class="body">' +
+          '<div class="hp-row"><span>HP</span>' +
+            '<div class="hp-bar"><div class="hp-fill" style="width:' + (ratio * 100) +
+              '%;background:' + hpColor(ratio) + '"></div></div>' +
+            '<span>' + c.hp + "/" + c.maxHp + '</span>' +
+          '</div>' + en +
+        '</div>' +
+      '</div>';
+  }
+
+  function benchHTML(p, switchable) {
+    if (p.bench.length === 0) return '<div class="deck-pile"><span class="pile"></span><span>后备 0</span></div>';
+    var html = p.bench.map(function (c, i) {
+      var ratio = c.hp / c.maxHp;
+      var hc = TYPE_COLOR[c.mon.types[0]] || "#555";
+      return '' +
+        '<div class="mini' + (switchable ? " switchable" : "") + '"' +
+            (switchable ? ' data-switch="' + i + '" title="点击换上这只宝可梦"' : "") + '>' +
+          '<div class="mh" style="background:' + hc + '"><span>' + c.mon.name_zh + '</span>' +
+            '<span>#' + ("00" + c.mon.id).slice(-3) + '</span></div>' +
+          '<div class="ma"><img src="' + c.mon.sprite + '" alt="' + c.mon.name_zh + '" ' +
+            'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+            '<div class="fb"></div></div>' +
+          '<div class="mb">' +
+            '<div class="mhp"><i style="width:' + (ratio * 100) + '%;background:' + hpColor(ratio) + '"></i></div>' +
+            '<div class="mname">' + c.hp + "/" + c.maxHp + '</div>' +
+          '</div>' +
+        '</div>';
+    }).join("");
+    return html;
+  }
+
+  function movesHTML() {
+    var p = state.you;
+    var c = p.active;
+    var d = state.ai.active;
+    var canAct = !busy && !state.over && state.turn === "you";
+    var html = c.moves.map(function (mv, i) {
+      var mult = typeMult(mv.type, d.mon.types);
+      var effCls = mult >= 2 ? "sup" : mult < 1 ? "weak" : "";
+      var effTxt = mult >= 2 ? "克制 ×" + mult : mult === 0 ? "无效" : mult < 1 ? "被抵抗 ×" + mult : "";
+      var disabled = !canAct || c.energy < mv.cost;
+      var costColor = c.energy >= mv.cost ? "" : ' style="color:#e3534a"';
+      return '' +
+        '<button class="move" data-move="' + i + '"' + (disabled ? " disabled" : "") + '>' +
+          '<div class="mn"><span class="type-chip" style="background:' + (TYPE_COLOR[mv.type] || "#888") + '">' +
+            (TYPE_ZH[mv.type] || mv.type) + '</span>' + mv.name +
+            '<span class="cost"' + costColor + '>能量 ' + mv.cost + '</span></div>' +
+          '<div class="md"><span>威力 ' + mv.power + '</span><span>' +
+            (mv.cat === "phys" ? "物理" : "特殊") + '</span></div>' +
+          (effTxt ? '<div class="eff ' + effCls + '">' + effTxt + '</div>' : "") +
+        '</button>';
+    }).join("");
+    return html;
+  }
+
+  function logHTML() {
+    var items = state.log.slice(-14).map(function (e) {
+      return '<div class="e ' + e.cls + '">' + e.msg + '</div>';
+    }).join("");
+    return items;
+  }
+
+  function render() {
+    if (!state) return;
+    var you = state.you, ai = state.ai;
+    var ys = document.getElementById("you-side");
+    var as = document.getElementById("ai-side");
+    if (ys) ys.innerHTML =
+      '<div class="side-label"><span>你</span><span class="tag">牌库 ' + you.deck.length +
+      '</span></div>' + cardHTML("you", you, true) +
+      '<div class="bench">' + benchHTML(you, state.turn === "you" && !busy && !state.over) + '</div>';
+    if (as) as.innerHTML =
+      '<div class="side-label"><span>电脑</span><span class="tag">牌库 ' + ai.deck.length +
+      '</span></div>' + cardHTML("ai", ai, true) +
+      '<div class="bench">' + benchHTML(ai, false) + '</div>';
+
+    var turnTxt = state.over ? "对战结束" : (state.turn === "you" ? "你的回合" : "电脑思考中…");
+    var ti = document.getElementById("turn-indicator");
+    if (ti) ti.textContent = turnTxt;
+
+    var mv = document.getElementById("moves");
+    if (mv) mv.innerHTML = movesHTML();
+    var lg = document.getElementById("log");
+    if (lg) lg.innerHTML = logHTML();
+
+    var canAct = !busy && !state.over && state.turn === "you";
+    var hint = canAct
+      ? '点击技能发动攻击，或点击下方后备宝可梦换上场。每只宝可梦每回合自动获得 1 点能量（上限 ' + MAX_ENERGY + '）。'
+      : (state.over ? "点击「重选宝可梦」再来一局。" : "请稍候，电脑正在行动…");
+    var sh = document.getElementById("switch-hint");
+    if (sh) sh.innerHTML = hint;
+
+    bindEvents();
+  }
+
+  function bindEvents() {
+    var ms = document.querySelectorAll("[data-move]");
+    for (var i = 0; i < ms.length; i++) {
+      (function (el) {
+        el.addEventListener("click", function () { onMove(parseInt(el.getAttribute("data-move"), 10)); });
+      })(ms[i]);
+    }
+    var sw = document.querySelectorAll("[data-switch]");
+    for (var j = 0; j < sw.length; j++) {
+      (function (el) {
+        el.addEventListener("click", function () { onSwitch(parseInt(el.getAttribute("data-switch"), 10)); });
+      })(sw[j]);
+    }
+  }
+
+  function showOver() {
+    var ov = document.getElementById("overlay");
+    var box = document.getElementById("over-box");
+    if (!ov || !box) return;
+    var youWin = state.winner === "you";
+    box.innerHTML =
+      '<div class="emoji">' + (youWin ? "🏆" : "💥") + '</div>' +
+      '<h2>' + (youWin ? "你赢了！" : "你输了…") + '</h2>' +
+      '<p>' + (youWin ? "你的宝可梦战队笑到了最后。" : "电脑的宝可梦战队更胜一筹，再接再厉！") + '</p>' +
+      '<button class="btn" onclick="PK.toSetup()">重选宝可梦</button>';
+    ov.classList.add("show");
+  }
+
+  /* ---------- setup screen ---------- */
+  function showSetup() {
+    var su = document.getElementById("setup");
+    if (!su) return;
+    su.classList.add("show");
+    setup.selected = [];
+    setup.mode = "random";
+    setup.typeFilter = "all";
+    setup.query = "";
+    syncSetupUI();
+    renderPicker();
+    renderTypeFilters();
+  }
+
+  function syncSetupUI() {
+    var segR = document.getElementById("seg-random");
+    var segC = document.getElementById("seg-custom");
+    var panel = document.getElementById("custom-panel");
+    var start = document.getElementById("start-btn");
+    if (segR) segR.classList.toggle("active", setup.mode === "random");
+    if (segC) segC.classList.toggle("active", setup.mode === "custom");
+    if (panel) panel.classList.toggle("hidden", setup.mode !== "custom");
+    if (start) {
+      if (setup.mode === "custom") {
+        start.disabled = setup.selected.length !== DECK_SIZE;
+        start.textContent = setup.selected.length === DECK_SIZE
+          ? "开始对战 (" + DECK_SIZE + ")" : "请选满 " + setup.selected.length + "/" + DECK_SIZE;
+      } else {
+        start.disabled = false;
+        start.textContent = "开始对战（随机）";
+      }
+    }
+    var cnt = document.getElementById("pick-count");
+    if (cnt) cnt.textContent = setup.selected.length;
+  }
+
+  function renderTypeFilters() {
+    var wrap = document.getElementById("pk-types");
+    if (!wrap) return;
+    var html = '<button class="tf' + (setup.typeFilter === "all" ? " on" : "") + '" data-tf="all">全部</button>';
+    Object.keys(TYPE_ZH).forEach(function (t) {
+      html += '<button class="tf' + (setup.typeFilter === t ? " on" : "") + '" data-tf="' + t +
+        '" style="background:' + (TYPE_COLOR[t] || "#888") + '">' + (TYPE_ZH[t]) + '</button>';
+    });
+    wrap.innerHTML = html;
+    var btns = wrap.querySelectorAll("[data-tf]");
+    for (var i = 0; i < btns.length; i++) {
+      (function (el) {
+        el.addEventListener("click", function () {
+          setup.typeFilter = el.getAttribute("data-tf");
+          renderTypeFilters();
+          renderPicker();
+        });
+      })(btns[i]);
+    }
+  }
+
+  function renderPicker() {
+    var grid = document.getElementById("pk-grid");
+    if (!grid) return;
+    var q = setup.query.trim().toLowerCase();
+    var selIds = {};
+    setup.selected.forEach(function (m) { selIds[m.id] = true; });
+    var html = "";
+    LIST.forEach(function (m) {
+      var matchType = setup.typeFilter === "all" || m.types.indexOf(setup.typeFilter) >= 0;
+      var matchQ = !q || m.name_zh.indexOf(q) >= 0 || m.name.indexOf(q) >= 0 ||
+        String(m.id) === q || ("#" + m.id) === q;
+      if (!matchType || !matchQ) return;
+      var sel = selIds[m.id];
+      var hc = TYPE_COLOR[m.types[0]] || "#555";
+      html += '<div class="pk' + (sel ? " sel" : "") + '" data-pk="' + m.id + '">' +
+        (sel ? '<div class="pk-check">✓</div>' : '') +
+        '<div class="pk-art" style="background:' + hc + '22">' +
+          '<img src="' + m.sprite + '" alt="' + m.name_zh + '" ' +
+            'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+          '<div class="pk-fb">' + m.id + '</div>' +
+        '</div>' +
+        '<div class="pk-name">' + m.name_zh + '</div>' +
+        '<div class="pk-types">' + typeChips(m.types) + '</div>' +
+      '</div>';
+    });
+    grid.innerHTML = html;
+    var cells = grid.querySelectorAll("[data-pk]");
+    for (var i = 0; i < cells.length; i++) {
+      (function (el) {
+        el.addEventListener("click", function () {
+          togglePick(parseInt(el.getAttribute("data-pk"), 10));
+        });
+      })(cells[i]);
+    }
+  }
+
+  function togglePick(id) {
+    var idx = -1;
+    for (var i = 0; i < setup.selected.length; i++) {
+      if (setup.selected[i].id === id) { idx = i; break; }
+    }
+    if (idx >= 0) {
+      setup.selected.splice(idx, 1);
+    } else {
+      if (setup.selected.length >= DECK_SIZE) return; // full
+      for (var k = 0; k < LIST.length; k++) {
+        if (LIST[k].id === id) { setup.selected.push(LIST[k]); break; }
+      }
+    }
+    syncSetupUI();
+    renderPicker();
+  }
+
+  function confirmStart() {
+    if (setup.mode === "custom") {
+      if (setup.selected.length !== DECK_SIZE) return;
+      beginGame(setup.selected.slice());
+    } else {
+      beginGame(null);
+    }
+  }
+
+  /* ---------- wiring setup events ---------- */
+  function wireSetup() {
+    var segR = document.getElementById("seg-random");
+    var segC = document.getElementById("seg-custom");
+    var start = document.getElementById("start-btn");
+    var search = document.getElementById("pk-search");
+    var clearBtn = document.getElementById("pk-clear");
+    var fillBtn = document.getElementById("pk-fill");
+    var closeBtn = document.getElementById("setup-close");
+    if (segR) segR.addEventListener("click", function () { setup.mode = "random"; syncSetupUI(); });
+    if (segC) segC.addEventListener("click", function () { setup.mode = "custom"; syncSetupUI(); });
+    if (start) start.addEventListener("click", confirmStart);
+    if (search) search.addEventListener("input", function () {
+      setup.query = search.value || ""; renderPicker();
+    });
+    if (clearBtn) clearBtn.addEventListener("click", function () {
+      setup.selected = []; syncSetupUI(); renderPicker();
+    });
+    if (fillBtn) fillBtn.addEventListener("click", function () {
+      var pool = shuffle(LIST);
+      setup.selected = pool.slice(0, DECK_SIZE);
+      syncSetupUI(); renderPicker();
+    });
+    if (closeBtn) closeBtn.addEventListener("click", function () {
+      // resume current game if exists, else start random
+      if (state && !state.over) { hideOverlays(); }
+      else { beginGame(null); }
+    });
+  }
+
+  window.PK = {
+    start: function () { showSetup(); },
+    restart: function () {
+      document.getElementById("overlay").classList.remove("show");
+      var su = document.getElementById("setup");
+      if (su) su.classList.remove("show");
+      busy = false;
+      newGame(null); startTurn("you");
+    }, // headless/test: random game
+    toSetup: function () { showSetup(); },
+    _state: function () { return state; },
+    _useMove: onMove,
+    _switch: onSwitch,
+    _beginCustom: function (mons) { beginGame(mons); }
+  };
+
+  // boot
+  if (typeof document !== "undefined" && document.getElementById) {
+    wireSetup();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", function () { showSetup(); });
+    } else {
+      showSetup();
+    }
+  }
+})();
+
+</script>
+</body>
+</html>
