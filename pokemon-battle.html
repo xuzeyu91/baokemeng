@@ -481,12 +481,18 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
   var BENCH_START = 4;
   var MAX_ENERGY = 3;
 
+  var STRIKE_MS = 260;
+  var IMPACT_MS = 130;
+  var FAINT_MS = 950;
+  var SWITCH_MS = 500;
+  var AI_PAUSE_MS = 750;
+
   var state = null;
   var busy = false;
   var setup = { mode: "random", selected: [], typeFilter: "all", query: "" };
 
   if (typeof console !== "undefined" && console.log) {
-    console.log("[PK] v4 loaded: synchronous battle flow (animations disabled)");
+    console.log("[PK] v5 loaded: animated async battle flow");
   }
 
   /* ---------- helpers ---------- */
@@ -593,13 +599,13 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
     return { dmg: dmg, mult: mult };
   }
 
-  function useMove(side, moveIdx) {
+  function useMove(side, moveIdx, callback) {
     var me = state[side];
     var foe = state[side === "you" ? "ai" : "you"];
     var foeSide = side === "you" ? "ai" : "you";
     var attacker = me.active, defender = foe.active;
     var move = attacker.moves[moveIdx];
-    if (attacker.energy < move.cost) return;
+    if (attacker.energy < move.cost) { if (callback) callback(); return; }
     attacker.energy -= move.cost;
 
     var r = rollDamage(attacker, defender, move);
@@ -612,14 +618,17 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
                defender.mon.name_zh + " 造成 " + r.dmg + " 点伤害。" + effTxt;
     log(side, line);
 
-    // --- sync: update state & render immediately ---
-    if (defender.hp <= 0) {
-      handleFaint(foeSide);
-    }
+    // show energy change / hp bar drop before the impact animation
     render();
+    animateStrike(side, move, r);
 
-    // --- advance turn ---
-    if (!state.over) afterMove(side);
+    setTimeout(function () {
+      if (defender.hp <= 0) {
+        handleFaint(foeSide, callback);
+      } else if (callback) {
+        callback();
+      }
+    }, IMPACT_MS);
   }
 
   function afterMove(side) {
@@ -628,32 +637,44 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
     else startTurn("you");
   }
 
-  function handleFaint(side) {
+  function handleFaint(side, callback) {
     var p = state[side];
     var dead = p.active;
     dead.fainted = true;
     log("kill", p.name + "的" + dead.mon.name_zh + " 倒下了！");
 
-    if (p.bench.length > 0) {
-      var best = 0;
-      for (var i = 1; i < p.bench.length; i++) {
-        if (p.bench[i].hp > p.bench[best].hp) best = i;
-      }
-      var promoted = p.bench.splice(best, 1)[0];
-      p.active = promoted;
-      log("sys", p.name + " 派出 " + promoted.mon.name_zh + " 上场！");
-    } else if (p.deck.length > 0) {
-      p.active = p.deck.shift();
-      log("sys", p.name + " 从牌库抽出 " + p.active.mon.name_zh + " 上场！");
-    } else {
-      state.over = true;
-      state.winner = side === "you" ? "ai" : "you";
-      log("kill", p.name + " 已无宝可梦可派，" + (state.winner === "you" ? "你" : "电脑") + " 获胜！");
-      render();
-      showOver();
-      return;
-    }
+    // keep the fainted card visible for a moment so the player notices it
     render();
+    animateFaint(side);
+
+    setTimeout(function () {
+      if (p.bench.length > 0) {
+        var best = 0;
+        for (var i = 1; i < p.bench.length; i++) {
+          if (p.bench[i].hp > p.bench[best].hp) best = i;
+        }
+        var promoted = p.bench.splice(best, 1)[0];
+        p.active = promoted;
+        log("sys", p.name + " 派出 " + promoted.mon.name_zh + " 上场！");
+      } else if (p.deck.length > 0) {
+        p.active = p.deck.shift();
+        log("sys", p.name + " 从牌库抽出 " + p.active.mon.name_zh + " 上场！");
+      } else {
+        state.over = true;
+        state.winner = side === "you" ? "ai" : "you";
+        log("kill", p.name + " 已无宝可梦可派，" + (state.winner === "you" ? "你" : "电脑") + " 获胜！");
+        render();
+        showOver();
+        busy = false;
+        if (callback) callback();
+        return;
+      }
+      render();
+      animateSwitch(side);
+      setTimeout(function () {
+        if (callback) callback();
+      }, SWITCH_MS);
+    }, FAINT_MS);
   }
 
   function doSwitch(side, benchIdx) {
@@ -666,7 +687,7 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
     log("sys", who + " 换上 " + incoming.mon.name_zh + "（" + p.active.mon.name_zh + " 退居后备）。");
   }
 
-  /* ---------- turn flow (fully synchronous — zero setTimeout) ---------- */
+  /* ---------- turn flow ---------- */
   function startTurn(side) {
     if (state.over) return;
     var p = state[side];
@@ -692,49 +713,65 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
     var me = state.ai, foe = state.you;
     var a = me.active, d = foe.active;
 
-    var choices = [];
-    for (var i = 0; i < a.moves.length; i++) {
-      var mv = a.moves[i];
-      if (a.energy < mv.cost) continue;
-      var exp = expectedDamage(a, d, mv);
-      choices.push({ i: i, exp: exp, ko: exp >= d.hp });
-    }
-    if (choices.length === 0) {
-      busy = false; startTurn("you"); return;
-    }
-    choices.sort(function (x, y) { return (y.ko - x.ko) || (y.exp - x.exp); });
-    var pick = choices[0];
-
-    if (!pick.ko && a.hp / a.maxHp < 0.35 && me.bench.length > 0) {
-      var bestBench = 0;
-      for (var j = 1; j < me.bench.length; j++) {
-        if (me.bench[j].maxHp > me.bench[bestBench].maxHp) bestBench = j;
+    setTimeout(function () {
+      var choices = [];
+      for (var i = 0; i < a.moves.length; i++) {
+        var mv = a.moves[i];
+        if (a.energy < mv.cost) continue;
+        var exp = expectedDamage(a, d, mv);
+        choices.push({ i: i, exp: exp, ko: exp >= d.hp });
       }
-      if (me.bench[bestBench].maxHp > a.maxHp) {
-        doSwitch("ai", bestBench);
-        render();
-        busy = false;
-        startTurn("you");
-        return;
+      if (choices.length === 0) {
+        busy = false; startTurn("you"); return;
       }
-    }
+      choices.sort(function (x, y) { return (y.ko - x.ko) || (y.exp - x.exp); });
+      var pick = choices[0];
 
-    // useMove is now fully synchronous
-    useMove("ai", pick.i);
+      if (!pick.ko && a.hp / a.maxHp < 0.35 && me.bench.length > 0) {
+        var bestBench = 0;
+        for (var j = 1; j < me.bench.length; j++) {
+          if (me.bench[j].maxHp > me.bench[bestBench].maxHp) bestBench = j;
+        }
+        if (me.bench[bestBench].maxHp > a.maxHp) {
+          doSwitch("ai", bestBench);
+          render();
+          animateSwitch("ai");
+          setTimeout(function () {
+            busy = false;
+            startTurn("you");
+          }, SWITCH_MS);
+          return;
+        }
+      }
+
+      useMove("ai", pick.i, function () {
+        if (!state.over) {
+          busy = false;
+          startTurn("you");
+        } else {
+          busy = false;
+        }
+      });
+    }, AI_PAUSE_MS);
   }
 
   /* human actions */
   function onMove(idx) {
     if (busy || state.over || state.turn !== "you") return;
     busy = true;
-    useMove("you", idx);
+    useMove("you", idx, function () {
+      afterMove("you");
+    });
   }
   function onSwitch(idx) {
     if (busy || state.over || state.turn !== "you") return;
     busy = true;
     doSwitch("you", idx);
     render();
-    endHumanTurn();
+    animateSwitch("you");
+    setTimeout(function () {
+      endHumanTurn();
+    }, SWITCH_MS);
   }
 
   /* ---------- animations (browser only; guarded for headless) ---------- */
