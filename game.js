@@ -1,3 +1,4 @@
+
 /* 宝可梦卡牌对战 — game logic (vanilla JS) */
 (function () {
   "use strict";
@@ -12,6 +13,23 @@
     ground:"#E0C068", flying:"#A890F0", psychic:"#F85888", bug:"#A8B820",
     rock:"#B8A038", ghost:"#705898", dragon:"#7038F8"
   };
+
+  var STATUS_ZH = {
+    poison: "中毒", burn: "灼烧", paralysis: "麻痹", sleep: "睡眠", freeze: "冰冻"
+  };
+  var STATUS_COLOR = {
+    poison: "#A040A0", burn: "#F08030", paralysis: "#E8B800",
+    sleep: "#9B7EDE", freeze: "#5FB6D6"
+  };
+  // 哪些属性可造成异常状态及其对应类型
+  var TYPE_STATUS = {
+    poison: "poison", fire: "burn", electric: "paralysis",
+    ice: "freeze", grass: "sleep", psychic: "sleep", ghost: "sleep"
+  };
+  function statusTurns(type) {
+    if (type === "sleep" || type === "freeze") return 2 + Math.floor(Math.random() * 3); // 2~4 回合
+    return 0; // 中毒/灼烧/麻痹 持续型
+  }
 
   // 每属性 4 个技能名（顺序：1费 / 1费 / 2费 / 3费），用于组成 4 技能体系
   var MOVE_KIT = {
@@ -34,14 +52,21 @@
 
   var DECK_SIZE = 12;
   var BENCH_START = 4;
-  var MAX_ENERGY = 3;
+  var MAX_ENERGY = 5;
+
+  var STRIKE_MS = 260;
+  var IMPACT_MS = 540;
+  var RECOVER_MS = 600;
+  var FAINT_MS = 950;
+  var SWITCH_MS = 500;
+  var AI_PAUSE_MS = 750;
 
   var state = null;
   var busy = false;
   var setup = { mode: "random", selected: [], typeFilter: "all", query: "" };
 
   if (typeof console !== "undefined" && console.log) {
-    console.log("[PK] v4 loaded: synchronous battle flow (animations disabled)");
+    console.log("[PK] v5 loaded: animated async battle flow");
   }
 
   /* ---------- helpers ---------- */
@@ -73,16 +98,19 @@
     var t2 = mon.types[1] || "normal";
     var k1 = MOVE_KIT[t1] || MOVE_KIT.normal;
     var k2 = MOVE_KIT[t2] || MOVE_KIT.normal;
+    var m2 = { name: k1[2], type: t1, power: movePower(mon.sp_attack, 1), cost: 2, cat: "spec" };
+    var m3 = { name: k2[3], type: t2, power: movePower(mon.attack,     2), cost: 3, cat: "phys" };
+    var s1 = TYPE_STATUS[t1]; if (s1) { m2.status = s1; m2.statusChance = 0.20; }
+    var s2 = TYPE_STATUS[t2]; if (s2) { m3.status = s2; m3.statusChance = 0.35; }
     return [
       { name: k1[0], type: t1, power: movePower(mon.attack,     0), cost: 1, cat: "phys" },
       { name: k2[1], type: t2, power: movePower(mon.sp_attack, 0), cost: 1, cat: "spec" },
-      { name: k1[2], type: t1, power: movePower(mon.sp_attack, 1), cost: 2, cat: "spec" },
-      { name: k2[3], type: t2, power: movePower(mon.attack,     2), cost: 3, cat: "phys" }
+      m2, m3
     ];
   }
   function makeCard(mon) {
     return {
-      mon: mon, maxHp: mon.hp, hp: mon.hp, energy: 0,
+      mon: mon, maxHp: mon.hp, hp: mon.hp, energy: 0, status: null,
       fainted: false, moves: genMoves(mon)
     };
   }
@@ -97,12 +125,12 @@
       var active = cards[0];
       var bench = cards.slice(1, 1 + BENCH_START);
       var deck = cards.slice(1 + BENCH_START);
-      return { name: name, active: active, bench: bench, deck: deck };
+      return { name: name, active: active, bench: bench, deck: deck, graveyard: [] };
     }
     state = {
       you: buildPlayer("你", youMons),
       ai: buildPlayer("电脑", aiMons),
-      turn: "you", over: false, winner: null, log: []
+      turn: "you", firstMover: "you", over: false, winner: null, log: []
     };
   }
 
@@ -123,7 +151,7 @@
     hideOverlays();
     setup.selected = [];
     newGame(youMons);
-    startTurn("you");
+    startRound();
   }
 
   /* ---------- logging ---------- */
@@ -137,7 +165,9 @@
     var atk = move.cat === "phys" ? attacker.mon.attack : attacker.mon.sp_attack;
     var def = move.cat === "phys" ? defender.mon.defense : defender.mon.sp_defense;
     var mult = typeMult(move.type, defender.mon.types);
-    return Math.max(1, Math.floor(move.power * (atk / (def + 10)) * 0.5 * mult));
+    var dmg = Math.max(1, Math.floor(move.power * (atk / (def + 10)) * 0.5 * mult));
+    if (attacker.status && attacker.status.type === "burn" && move.cat === "phys") dmg = Math.floor(dmg * 0.5);
+    return dmg;
   }
   function rollDamage(attacker, defender, move) {
     var atk = move.cat === "phys" ? attacker.mon.attack : attacker.mon.sp_attack;
@@ -145,16 +175,17 @@
     var mult = typeMult(move.type, defender.mon.types);
     var variance = 0.85 + Math.random() * 0.15;
     var dmg = Math.max(1, Math.floor(move.power * (atk / (def + 10)) * 0.5 * mult * variance));
+    if (attacker.status && attacker.status.type === "burn" && move.cat === "phys") dmg = Math.floor(dmg * 0.5);
     return { dmg: dmg, mult: mult };
   }
 
-  function useMove(side, moveIdx) {
+  function useMove(side, moveIdx, callback) {
     var me = state[side];
     var foe = state[side === "you" ? "ai" : "you"];
     var foeSide = side === "you" ? "ai" : "you";
     var attacker = me.active, defender = foe.active;
     var move = attacker.moves[moveIdx];
-    if (attacker.energy < move.cost) return;
+    if (attacker.energy < move.cost) { if (callback) callback(); return; }
     attacker.energy -= move.cost;
 
     var r = rollDamage(attacker, defender, move);
@@ -167,48 +198,74 @@
                defender.mon.name_zh + " 造成 " + r.dmg + " 点伤害。" + effTxt;
     log(side, line);
 
-    // --- sync: update state & render immediately ---
-    if (defender.hp <= 0) {
-      handleFaint(foeSide);
-    }
+    // show energy change / hp bar drop before the impact animation
     render();
+    animateStrike(side, move, r);
 
-    // --- advance turn ---
-    if (!state.over) afterMove(side);
+    setTimeout(function () {
+      if (defender.hp <= 0) {
+        handleFaint(foeSide, callback);
+      } else {
+        if (move.status && !defender.status && Math.random() < move.statusChance) {
+          defender.status = { type: move.status, turns: statusTurns(move.status) };
+          log("eff", foe.name + "的" + defender.mon.name_zh + " 陷入了" + STATUS_ZH[move.status] + "状态！");
+        }
+        if (callback) callback();
+      }
+    }, IMPACT_MS);
   }
 
   function afterMove(side) {
     if (state.over) return;
-    if (side === "you") endHumanTurn();
-    else startTurn("you");
+    var other = side === "you" ? "ai" : "you";
+    if (side === state.firstMover) {
+      beginTurn(other);   // 先手行动完毕，轮到后手
+    } else {
+      startRound();       // 后手也行动完毕，进入下一回合
+    }
   }
 
-  function handleFaint(side) {
+  function handleFaint(side, callback) {
     var p = state[side];
     var dead = p.active;
     dead.fainted = true;
     log("kill", p.name + "的" + dead.mon.name_zh + " 倒下了！");
 
-    if (p.bench.length > 0) {
-      var best = 0;
-      for (var i = 1; i < p.bench.length; i++) {
-        if (p.bench[i].hp > p.bench[best].hp) best = i;
-      }
-      var promoted = p.bench.splice(best, 1)[0];
-      p.active = promoted;
-      log("sys", p.name + " 派出 " + promoted.mon.name_zh + " 上场！");
-    } else if (p.deck.length > 0) {
-      p.active = p.deck.shift();
-      log("sys", p.name + " 从牌库抽出 " + p.active.mon.name_zh + " 上场！");
-    } else {
-      state.over = true;
-      state.winner = side === "you" ? "ai" : "you";
-      log("kill", p.name + " 已无宝可梦可派，" + (state.winner === "you" ? "你" : "电脑") + " 获胜！");
-      render();
-      showOver();
-      return;
-    }
+    // keep the fainted card visible for a moment so the player notices it
     render();
+    animateFaint(side);
+
+    setTimeout(function () {
+      if (p.bench.length > 0) {
+        p.graveyard.push(dead);
+        var best = 0;
+        for (var i = 1; i < p.bench.length; i++) {
+          if (p.bench[i].hp > p.bench[best].hp) best = i;
+        }
+        var promoted = p.bench.splice(best, 1)[0];
+        p.active = promoted;
+        log("sys", p.name + " 派出 " + promoted.mon.name_zh + " 上场！");
+      } else if (p.deck.length > 0) {
+        p.graveyard.push(dead);
+        p.active = p.deck.shift();
+        log("sys", p.name + " 从牌库抽出 " + p.active.mon.name_zh + " 上场！");
+      } else {
+        // 无替补：最终倒下者留在 active 上，不重复计入墓地
+        state.over = true;
+        state.winner = side === "you" ? "ai" : "you";
+        log("kill", p.name + " 已无宝可梦可派，" + (state.winner === "you" ? "你" : "电脑") + " 获胜！");
+        render();
+        showOver();
+        busy = false;
+        if (callback) callback();
+        return;
+      }
+      render();
+      animateSwitch(side);
+      setTimeout(function () {
+        if (callback) callback();
+      }, SWITCH_MS);
+    }, FAINT_MS);
   }
 
   function doSwitch(side, benchIdx) {
@@ -221,25 +278,78 @@
     log("sys", who + " 换上 " + incoming.mon.name_zh + "（" + p.active.mon.name_zh + " 退居后备）。");
   }
 
-  /* ---------- turn flow (fully synchronous — zero setTimeout) ---------- */
-  function startTurn(side) {
-    if (state.over) return;
-    var p = state[side];
-    p.active.energy = Math.min(MAX_ENERGY, p.active.energy + 1);
-    if (p.active.energy > 0 && typeof animateEnergy === "function") animateEnergy(side);
-    state.turn = side;
-    busy = side === "ai";
-    render();
-    if (side === "ai") {
-      aiAct();
-    }
+  /* ---------- turn flow ---------- */
+  function decideFirstMover() {
+    var y = state.you.active, a = state.ai.active;
+    if (y.mon.speed > a.mon.speed) return "you";
+    if (a.mon.speed > y.mon.speed) return "ai";
+    return Math.random() < 0.5 ? "you" : "ai";
   }
 
-  function endHumanTurn() {
+  function startRound() {
     if (state.over) return;
-    busy = true;
-    render();
-    startTurn("ai");
+    var first = decideFirstMover();
+    state.firstMover = first;
+    var fm = state[first].active;
+    log("sys", "速度判定：" + (first === "you" ? "你" : "电脑") + " 的 " + fm.mon.name_zh +
+      " 速度更快（" + fm.mon.speed + "），本回合先手！");
+    beginTurn(first);
+  }
+
+  function beginTurn(side) {
+    if (state.over) return;
+    var p = state[side];
+    state.turn = side;
+    p.active.energy = Math.min(MAX_ENERGY, p.active.energy + 1);
+    if (p.active.energy > 0 && typeof animateEnergy === "function") animateEnergy(side);
+
+    // 回合开始结算异常状态
+    var skip = false;
+    var st = p.active.status;
+    if (st) {
+      if (st.type === "poison" || st.type === "burn") {
+        var pct = st.type === "poison" ? 0.0625 : 0.075;
+        var sd = Math.max(1, Math.floor(p.active.maxHp * pct));
+        p.active.hp = Math.max(0, p.active.hp - sd);
+        log("sys", p.name + "的" + p.active.mon.name_zh + " 因" + STATUS_ZH[st.type] + "损失 " + sd + " 点体力！");
+        if (p.active.hp <= 0) {
+          render();
+          handleFaint(side, function () { afterMove(side); });
+          return;
+        }
+      }
+      if (st.type === "sleep" || st.type === "freeze") {
+        st.turns -= 1;
+        if (st.turns <= 0) {
+          p.active.status = null;
+          log("sys", p.name + "的" + p.active.mon.name_zh + " 从" + STATUS_ZH[st.type] + "中恢复了！");
+        } else {
+          skip = true;
+          log("sys", p.name + "的" + p.active.mon.name_zh + " 处于" + STATUS_ZH[st.type] + "状态，无法行动！");
+        }
+      }
+      if (st.type === "paralysis") {
+        if (Math.random() < 0.25) {
+          skip = true;
+          log("sys", p.name + "的" + p.active.mon.name_zh + " 麻痹了，无法行动！");
+        }
+      }
+    }
+
+    if (skip) {
+      busy = true;
+      render();
+      setTimeout(function () { afterMove(side); }, side === "ai" ? AI_PAUSE_MS : 450);
+      return;
+    }
+    if (side === "ai") {
+      busy = true;
+      render();
+      aiAct();
+    } else {
+      busy = false;
+      render();
+    }
   }
 
   function aiAct() {
@@ -247,53 +357,235 @@
     var me = state.ai, foe = state.you;
     var a = me.active, d = foe.active;
 
-    var choices = [];
-    for (var i = 0; i < a.moves.length; i++) {
-      var mv = a.moves[i];
-      if (a.energy < mv.cost) continue;
-      var exp = expectedDamage(a, d, mv);
-      choices.push({ i: i, exp: exp, ko: exp >= d.hp });
-    }
-    if (choices.length === 0) {
-      busy = false; startTurn("you"); return;
-    }
-    choices.sort(function (x, y) { return (y.ko - x.ko) || (y.exp - x.exp); });
-    var pick = choices[0];
-
-    if (!pick.ko && a.hp / a.maxHp < 0.35 && me.bench.length > 0) {
-      var bestBench = 0;
-      for (var j = 1; j < me.bench.length; j++) {
-        if (me.bench[j].maxHp > me.bench[bestBench].maxHp) bestBench = j;
+    setTimeout(function () {
+      var choices = [];
+      for (var i = 0; i < a.moves.length; i++) {
+        var mv = a.moves[i];
+        if (a.energy < mv.cost) continue;
+        var exp = expectedDamage(a, d, mv);
+        choices.push({ i: i, exp: exp, ko: exp >= d.hp });
       }
-      if (me.bench[bestBench].maxHp > a.maxHp) {
-        doSwitch("ai", bestBench);
-        render();
-        busy = false;
-        startTurn("you");
+      if (choices.length === 0) {
+        if (me.active.energy < MAX_ENERGY) {
+          useRecover("ai", function () { afterMove("ai"); });
+        } else {
+          afterMove("ai");
+        }
         return;
       }
-    }
+      choices.sort(function (x, y) { return (y.ko - x.ko) || (y.exp - x.exp); });
+      var pick = choices[0];
 
-    // useMove is now fully synchronous
-    useMove("ai", pick.i);
+      if (!pick.ko && a.hp / a.maxHp < 0.35 && me.bench.length > 0) {
+        var bestBench = 0;
+        for (var j = 1; j < me.bench.length; j++) {
+          if (me.bench[j].maxHp > me.bench[bestBench].maxHp) bestBench = j;
+        }
+        if (me.bench[bestBench].maxHp > a.maxHp) {
+          doSwitch("ai", bestBench);
+          render();
+          animateSwitch("ai");
+          setTimeout(function () {
+            afterMove("ai");
+          }, SWITCH_MS);
+          return;
+        }
+      }
+
+      useMove("ai", pick.i, function () {
+        afterMove("ai");
+      });
+    }, AI_PAUSE_MS);
   }
 
   /* human actions */
   function onMove(idx) {
     if (busy || state.over || state.turn !== "you") return;
     busy = true;
-    useMove("you", idx);
+    useMove("you", idx, function () {
+      afterMove("you");
+    });
   }
   function onSwitch(idx) {
     if (busy || state.over || state.turn !== "you") return;
     busy = true;
     doSwitch("you", idx);
     render();
-    endHumanTurn();
+    animateSwitch("you");
+    setTimeout(function () {
+      afterMove("you");
+    }, SWITCH_MS);
   }
 
-  // Card IDs are used by the renderer only. No animation or timer depends on them.
+  /* 恢复能量支援技（独立动作，不计入 4 技能组） */
+  function onRecover() {
+    if (busy || state.over || state.turn !== "you") return;
+    busy = true;
+    useRecover("you", function () { afterMove("you"); });
+  }
+  function useRecover(side, callback) {
+    var me = state[side];
+    var before = me.active.energy;
+    me.active.energy = Math.min(MAX_ENERGY, me.active.energy + 2);
+    var gained = me.active.energy - before;
+    var who = side === "you" ? "你" : "电脑";
+    var line = who + "的" + me.active.mon.name_zh + " 凝聚力量，恢复 " + gained + " 点能量。";
+    if (me.active.status) {
+      line += "同时解除了" + STATUS_ZH[me.active.status.type] + "状态！";
+      me.active.status = null;
+    }
+    log(side, line);
+    render();
+    if (window.SkillFX && window.SkillFX.recover) window.SkillFX.recover(side, gained);
+    animateRecover(side, gained);
+    busy = true;
+    setTimeout(function () { if (callback) callback(); }, RECOVER_MS);
+  }
+  function animateRecover(side, gained) {
+    try {
+      var card = document.getElementById(elId(side));
+      if (!card) return;
+      card.classList.add("recover-aura");
+      var c = centerOf(card);
+      var p = document.createElement("div");
+      p.className = "dmg-txt energy"; p.textContent = "⚡+" + gained;
+      p.style.left = (c.x + 60) + "px"; p.style.top = (c.y - 40) + "px";
+      var fx = fxLayer();
+      if (fx) fx.appendChild(p);
+      setTimeout(function () { try { if (card) card.classList.remove("recover-aura"); } catch (_) {} }, 820);
+      setTimeout(function () { try { if (p && p.parentNode) p.parentNode.removeChild(p); } catch (_) {} }, 900);
+    } catch (e) { console.warn("[PK] recover:", e); }
+  }
+
+  /* ---------- animations (browser only; guarded for headless) ---------- */
+  function fxLayer() {
+    if (typeof document === "undefined" || !document.body) return null;
+    var fx = document.getElementById("fx");
+    if (!fx) { fx = document.createElement("div"); fx.id = "fx"; document.body.appendChild(fx); }
+    return fx;
+  }
   function elId(side) { return side === "you" ? "you-active-card" : "ai-active-card"; }
+  function centerOf(el) {
+    if (el && typeof el.getBoundingClientRect === "function") {
+      var r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    return { x: (window.innerWidth || 600) / 2, y: (window.innerHeight || 600) / 2 };
+  }
+
+  function animateStrike(side, move, r) {
+    try {
+      var fx = fxLayer();
+      if (!fx) return;
+      var atk = document.getElementById(elId(side));
+      var def = document.getElementById(elId(side === "you" ? "ai" : "you"));
+      if (atk) {
+        atk.classList.add(side === "you" ? "lunge-r" : "lunge-l");
+        atk.classList.add("charge"); // 出手前蓄力光晕
+      }
+
+      var defEl = def;
+      var runImpact = function () {
+        try {
+          if (atk) atk.classList.remove("charge");
+          if (defEl) {
+            // 精灵抖动 + 卡牌闪白击退（保留 3D 侧身）
+            defEl.classList.add("hit-shake", side === "you" ? "hit-r" : "hit-l");
+            setTimeout(function () {
+              if (defEl) defEl.classList.remove("hit-shake", "hit-r", "hit-l");
+            }, 480);
+          }
+          spawnDamage(defEl, r);
+          flashEffect(r.mult);
+          if (r.mult >= 2) {
+            var f = document.querySelector(".field");
+            if (f) { f.classList.remove("quake"); void f.offsetWidth; f.classList.add("quake"); }
+          }
+        } catch(e2) { console.warn("[PK] strike cb:", e2); }
+      };
+
+      if (window.SkillFX && document.getElementById("fx3d")) {
+        window.SkillFX.cast(side, move, r, { onImpact: runImpact });
+      } else {
+        setTimeout(runImpact, IMPACT_MS);
+      }
+    } catch(e) { console.warn("[PK] animateStrike:", e); }
+  }
+
+  function spawnDamage(defEl, r) {
+    try {
+      var fx = fxLayer(); if (!fx) return;
+      var c = centerOf(defEl);
+      var d = document.createElement("div");
+      d.className = "dmg-num " + (r.mult >= 2 ? "sup" : r.mult < 1 ? "weak" : "");
+      d.textContent = "-" + r.dmg;
+      d.style.left = (c.x + (Math.random() * 24 - 12)) + "px";
+      d.style.top = (c.y - 20) + "px";
+      fx.appendChild(d);
+      setTimeout(function () { try { if (d && d.parentNode) d.parentNode.removeChild(d); }catch(_){} }, 1000);
+
+      if (r.mult === 0) {
+        var no = document.createElement("div");
+        no.className = "dmg-txt weak";
+        no.textContent = "没有效果";
+        no.style.left = c.x + "px"; no.style.top = (c.y + 16) + "px";
+        fx.appendChild(no);
+        setTimeout(function () { try { if (no && no.parentNode) no.parentNode.removeChild(no); }catch(_){} }, 1100);
+      }
+      if (defEl) {
+        var burst = document.createElement("div");
+        burst.className = "impact " + (r.mult >= 2 ? "sup" : r.mult < 1 ? "weak" : "");
+        burst.style.left = c.x + "px"; burst.style.top = c.y + "px";
+        fx.appendChild(burst);
+        setTimeout(function () { try { if (burst && burst.parentNode) burst.parentNode.removeChild(burst); }catch(_){} }, 380);
+      }
+    } catch(e) { console.warn("[PK] spawnDamage:", e); }
+  }
+
+  function flashEffect(mult) {
+    try {
+      var fx = fxLayer(); if (!fx || mult === 1) return;
+      var f = document.createElement("div");
+      f.className = "flash " + (mult >= 2 ? "sup" : "weak");
+      fx.appendChild(f);
+      setTimeout(function () { try { if (f && f.parentNode) f.parentNode.removeChild(f); }catch(_){} }, 320);
+    } catch(e) { console.warn("[PK] flash:", e); }
+  }
+
+  function animateFaint(side) {
+    try {
+      var fx = fxLayer(); if (!fx) return;
+      var card = document.getElementById(elId(side));
+      if (card) {
+        card.classList.add("faint");
+        var c = centerOf(card);
+        var ko = document.createElement("div");
+        ko.className = "dmg-txt ko"; ko.textContent = "K.O.";
+        ko.style.left = c.x + "px"; ko.style.top = c.y + "px";
+        fx.appendChild(ko);
+        setTimeout(function () { try { if (ko && ko.parentNode) ko.parentNode.removeChild(ko); }catch(_){} }, 1400);
+      }
+    } catch(e) { console.warn("[PK] faint:", e); }
+  }
+
+  function animateEnergy(side) {
+    try {
+      var fx = fxLayer(); if (!fx) return;
+      var card = document.getElementById(elId(side));
+      if (card) card.classList.add("energy-gain");
+      var c = centerOf(card);
+      var p = document.createElement("div");
+      p.className = "dmg-txt energy"; p.textContent = "⚡+1";
+      p.style.left = (c.x + 60) + "px"; p.style.top = (c.y - 40) + "px";
+      fx.appendChild(p);
+      setTimeout(function () { try { if (p && p.parentNode) p.parentNode.removeChild(p); }catch(_){} }, 900);
+    } catch(e) { console.warn("[PK] energy:", e); }
+  }
+
+  function animateSwitch(side) {
+    var card = document.getElementById(elId(side));
+    if (card) card.classList.add("slide-in");
+  }
 
   function hideOverlays() {
     var ov = document.getElementById("overlay");
@@ -324,14 +616,16 @@
     var c = p.active;
     var ratio = c.hp / c.maxHp;
     var headColor = TYPE_COLOR[c.mon.types[0]] || "#555";
+    var opp = side === "you" ? state.ai.active : state.you.active;
+    var faster = opp && c.mon.speed > opp.mon.speed;
     var en = withEnergy
       ? '<div class="energy"><span class="lbl">能量</span>' + energyDots(c.energy) + "</div>"
       : "";
     return '' +
-      '<div class="card" id="' + elId(side) + '" style="border-color:' + headColor + '">' +
+      '<div class="card" id="' + elId(side) + '" style="border-color:' + headColor + ';--head:' + headColor + ';--ry:' + (side === "you" ? "9deg" : "-9deg") + '">' +
         '<div class="head" style="background:' + headColor + '">' +
           '<span class="nm">' + c.mon.name_zh + '</span>' +
-          '<span class="no">#' + ("00" + c.mon.id).slice(-3) + '</span>' +
+          '<span class="no">#' + ("00" + c.mon.id).slice(-3) + (faster ? '<span class="first">先手</span>' : '') + '</span>' +
         '</div>' +
         '<div class="art">' +
           '<img src="' + c.mon.sprite + '" alt="' + c.mon.name_zh + '" ' +
@@ -344,7 +638,12 @@
             '<div class="hp-bar"><div class="hp-fill" style="width:' + (ratio * 100) +
               '%;background:' + hpColor(ratio) + '"></div></div>' +
             '<span>' + c.hp + "/" + c.maxHp + '</span>' +
-          '</div>' + en +
+          '</div>' +
+          '<div class="spd-row"><span>速度</span><span' + (faster ? ' class="fast"' : '') + '>' +
+            c.mon.speed + (faster ? ' ⚡' : '') + '</span></div>' +
+          (c.status ? '<div class="status-badge" style="background:' + (STATUS_COLOR[c.status.type] || "#888") + '">' +
+            STATUS_ZH[c.status.type] + (c.status.turns ? '(' + c.status.turns + ')' : '') + '</div>' : "") +
+          en +
         '</div>' +
       '</div>';
   }
@@ -364,11 +663,51 @@
             '<div class="fb"></div></div>' +
           '<div class="mb">' +
             '<div class="mhp"><i style="width:' + (ratio * 100) + '%;background:' + hpColor(ratio) + '"></i></div>' +
-            '<div class="mname">' + c.hp + "/" + c.maxHp + '</div>' +
+            '<div class="mname">' + c.hp + "/" + c.maxHp + (c.status ? ' <span class="mini-status" style="background:' + (STATUS_COLOR[c.status.type] || "#888") + '">' + STATUS_ZH[c.status.type] + '</span>' : '') + '</div>' +
           '</div>' +
         '</div>';
     }).join("");
     return html;
+  }
+
+  // 12 格阵型：出战(高亮) / 后备(可换) / 牌库(牌背) / 已倒下(灰)
+  function formationHTML(p, switchable) {
+    var cells = [];
+    cells.push(rosterCell(p.active, p.active.fainted ? "dead" : "active", p.active.status));
+    p.bench.forEach(function (c, i) {
+      cells.push(rosterCell(c, switchable ? "bench-sw" : "bench", c.status, i));
+    });
+    p.deck.forEach(function () { cells.push(rosterCell(null, "deck", null)); });
+    (p.graveyard || []).forEach(function (c) { cells.push(rosterCell(c, "dead", c.status)); });
+    return cells.join("");
+  }
+  function rosterCell(c, kind, status, switchIdx) {
+    if (kind === "deck") {
+      return '<div class="fc deck" title="牌库（未公开）"><span>?</span></div>';
+    }
+    var mon = c.mon;
+    var hc = TYPE_COLOR[mon.types[0]] || "#555";
+    var cls = "fc";
+    if (kind === "active") cls += " active";
+    else if (kind === "dead") cls += " dead";
+    else if (kind === "bench-sw") cls += " switchable";
+    var tag = kind === "active" ? '<span class="fc-tag">战</span>'
+      : kind === "dead" ? '<span class="fc-tag">✕</span>' : "";
+    var ratio = c.hp / c.maxHp;
+    var hpBar = (kind === "active" || kind === "bench" || kind === "bench-sw")
+      ? '<div class="fc-hp"><i style="width:' + (ratio * 100) + '%;background:' + hpColor(ratio) + '"></i></div>'
+      : '';
+    var stBadge = status ? '<span class="fc-st" style="background:' + (STATUS_COLOR[status.type] || "#888") + '">' + STATUS_ZH[status.type] + '</span>' : '';
+    return '' +
+      '<div class="' + cls + '"' + (kind === "bench-sw" ? ' data-switch="' + switchIdx + '" title="点击换上这只宝可梦"' : '') +
+        ' style="border-color:' + hc + '">' +
+        '<div class="fc-art" style="background:' + hc + '22">' +
+          '<img src="' + mon.sprite + '" alt="' + mon.name_zh + '" ' +
+            'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+          '<div class="fb">' + mon.id + '</div>' +
+        '</div>' +
+        hpBar + stBadge + tag +
+      '</div>';
   }
 
   function movesHTML() {
@@ -390,8 +729,15 @@
           '<div class="md"><span>威力 ' + mv.power + '</span><span>' +
             (mv.cat === "phys" ? "物理" : "特殊") + '</span></div>' +
           (effTxt ? '<div class="eff ' + effCls + '">' + effTxt + '</div>' : "") +
+          (mv.status ? '<div class="eff status-hint">可使对手' + STATUS_ZH[mv.status] + '</div>' : "") +
         '</button>';
     }).join("");
+    var canRecover = canAct && c.energy < MAX_ENERGY;
+    html += '<button class="move recover' + (canRecover ? "" : " disabled") + '" data-recover="1">' +
+        '<div class="mn"><span class="type-chip recover">回复</span>聚气 · 回复能量' +
+        '<span class="cost">0 能量</span></div>' +
+        '<div class="md"><span>恢复 2 能量</span><span>支援</span></div>' +
+      '</button>';
     return html;
   }
 
@@ -402,19 +748,29 @@
     return items;
   }
 
+  function aliveCount(p) {
+    var n = p.bench.length + p.deck.length;
+    if (p.active && !p.active.fainted) n += 1;
+    return n;
+  }
+
   function render() {
     if (!state) return;
     var you = state.you, ai = state.ai;
     var ys = document.getElementById("you-side");
     var as = document.getElementById("ai-side");
     if (ys) ys.innerHTML =
-      '<div class="side-label"><span>你</span><span class="tag">牌库 ' + you.deck.length +
+      '<div class="side-label"><span>你</span>' +
+      '<span class="tag">剩余 ' + aliveCount(you) + '/' + DECK_SIZE + '</span>' +
+      '<span class="tag">牌库 ' + you.deck.length +
       '</span></div>' + cardHTML("you", you, true) +
-      '<div class="bench">' + benchHTML(you, state.turn === "you" && !busy && !state.over) + '</div>';
+      '<div class="formation">' + formationHTML(you, state.turn === "you" && !busy && !state.over) + '</div>';
     if (as) as.innerHTML =
-      '<div class="side-label"><span>电脑</span><span class="tag">牌库 ' + ai.deck.length +
+      '<div class="side-label"><span>电脑</span>' +
+      '<span class="tag">剩余 ' + aliveCount(ai) + '/' + DECK_SIZE + '</span>' +
+      '<span class="tag">牌库 ' + ai.deck.length +
       '</span></div>' + cardHTML("ai", ai, true) +
-      '<div class="bench">' + benchHTML(ai, false) + '</div>';
+      '<div class="formation">' + formationHTML(ai, false) + '</div>';
 
     var turnTxt = state.over ? "对战结束" : (state.turn === "you" ? "你的回合" : "电脑思考中…");
     var ti = document.getElementById("turn-indicator");
@@ -427,7 +783,7 @@
 
     var canAct = !busy && !state.over && state.turn === "you";
     var hint = canAct
-      ? '你有 4 个技能：前两个各消耗 1 能量、随时可用，攒满 ' + MAX_ENERGY + ' 点能量即可释放 3 费大招。每回合自动恢复 1 点能量。'
+      ? '你有 4 个攻击技能 + 1 个「聚气·回复能量」支援技（0 消耗、恢复 2 能量、可随时使用）。每回合自动恢复 1 点能量，攒够 3 点可放 3 费大招，能量上限 ' + MAX_ENERGY + ' 点。'
       : (state.over ? "点击「重选宝可梦」再来一局。" : "请稍候，电脑正在行动…");
     var sh = document.getElementById("switch-hint");
     if (sh) sh.innerHTML = hint;
@@ -447,6 +803,12 @@
       (function (el) {
         el.addEventListener("click", function () { onSwitch(parseInt(el.getAttribute("data-switch"), 10)); });
       })(sw[j]);
+    }
+    var rec = document.querySelectorAll("[data-recover]");
+    for (var k = 0; k < rec.length; k++) {
+      (function (el) {
+        el.addEventListener("click", function () { onRecover(); });
+      })(rec[k]);
     }
   }
 
@@ -619,7 +981,7 @@
       var su = document.getElementById("setup");
       if (su) su.classList.remove("show");
       busy = false;
-      newGame(null); startTurn("you");
+      newGame(null); startRound();
     }, // headless/test: random game
     toSetup: function () { showSetup(); },
     _state: function () { return state; },

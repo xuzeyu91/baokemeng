@@ -85,7 +85,13 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
   padding: 10px 12px; color:#fff; display:flex; justify-content:space-between; align-items:center;
 }
 .card .head .nm { font-weight: 800; font-size: 16px; text-shadow: 0 1px 2px #0006; }
-.card .head .no { font-size: 12px; opacity:.85; font-weight:700; }
+.card .head .no { font-size: 12px; opacity:.85; font-weight:700; display:flex; align-items:center; gap:6px; }
+.card .head .no .first {
+  background:#ffd54a; color:#5a3d00; font-size:10px; padding:1px 6px; border-radius:10px;
+  font-weight:800; letter-spacing:.5px; box-shadow:0 0 8px #ffd54a;
+}
+.card .spd-row { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); font-weight:700; margin-top:6px; }
+.card .spd-row .fast { color:#e8a200; }
 .card .art {
   background: linear-gradient(180deg,#f3f5fb,#dfe5f2);
   height: 132px; display:flex; align-items:center; justify-content:center; position:relative;
@@ -110,6 +116,16 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 .energy .dot { width:13px; height:13px; border-radius:50%; background:#d7dce6; border:1px solid #c2c8d4; }
 .energy .dot.on { background: radial-gradient(circle at 30% 30%, #ffe27a, #f0a800); border-color:#c98a00; box-shadow:0 0 6px #ffcf3a; }
 
+.card .status-badge {
+  display:inline-block; margin-top:6px; padding:2px 10px; border-radius:20px;
+  color:#fff; font-size:11px; font-weight:800; letter-spacing:.5px;
+  box-shadow:0 1px 4px #0003;
+}
+.mini .mini-status {
+  display:inline-block; padding:0 5px; border-radius:8px; color:#fff; font-size:10px; font-weight:700;
+}
+.eff.status-hint { background:#fff4e0; color:#b9740a; border:1px solid #f0c98a; font-weight:700; }
+
 /* Bench */
 .bench { display:flex; gap:8px; flex-wrap:wrap; }
 .mini {
@@ -127,6 +143,38 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 .mini .mhp { height:7px; background:#e6e9f0; border-radius:5px; overflow:hidden; }
 .mini .mhp i { display:block; height:100%; background:var(--hp-good); }
 .mini .mname { font-size:10px; color:var(--ink); font-weight:700; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* 12 格阵型：横向小卡片，紧凑高度 */
+.formation { display:grid; grid-template-columns:repeat(4, 1fr); gap:5px; margin-top:8px; }
+.fc {
+  position:relative; border:2px solid #fff; border-radius:7px; overflow:hidden;
+  background:var(--panel); box-shadow:0 2px 6px rgba(0,0,0,.15);
+  display:flex; align-items:center; height:32px;
+}
+.fc .fc-art {
+  width:42%; height:100%; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative;
+}
+.fc .fc-art img { width:86%; height:86%; object-fit:contain; image-rendering:pixelated; }
+.fc .fc-art .fb { display:none; width:22px; height:22px; border-radius:50%; background: radial-gradient(circle at 50% 38%, #fff 0 30%, #e3534a 31% 100%); border:2px solid #fff; }
+.fc .fc-hp { position:absolute; bottom:3px; left:46%; right:4px; height:4px; background:#e6e9f0; border-radius:4px; overflow:hidden; }
+.fc .fc-hp i { display:block; height:100%; }
+.fc.active { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent), 0 2px 8px rgba(0,0,0,.2); }
+.fc.active .fc-art { background:linear-gradient(180deg,#fff,#ffe9c2); }
+.fc.switchable { cursor:pointer; }
+.fc.switchable:hover { transform:translateY(-2px); border-color:var(--accent); }
+.fc.dead { filter:grayscale(1) brightness(.7); opacity:.55; }
+.fc.dead .fc-art { background:#cfd5e2; }
+.fc.deck { background:repeating-linear-gradient(45deg,#3a4a6b,#3a4a6b 6px,#46597f 6px,#46597f 12px); border-color:#5a6b8f; }
+.fc.deck span { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#cdd7ee; font-weight:800; font-size:14px; }
+.fc-tag {
+  position:absolute; top:1px; left:1px; background:var(--accent); color:#fff;
+  font-size:8px; font-weight:800; padding:0 4px; border-radius:5px; z-index:2; line-height:12px;
+}
+.fc.dead .fc-tag { background:#888; }
+.fc-st {
+  position:absolute; top:1px; right:1px; color:#fff; font-size:7px; font-weight:800;
+  padding:0 3px; border-radius:5px; z-index:2; line-height:12px;
+}
 
 .deck-pile {
   display:flex; align-items:center; gap:6px; color:#cdd7ee; font-size:12px; font-weight:700;
