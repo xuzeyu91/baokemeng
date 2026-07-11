@@ -185,6 +185,44 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
   border:2px solid #fff; box-shadow:0 3px 6px #0004;
 }
 
+/* Hover preview */
+.pk-preview {
+  position: fixed; z-index: 9999; width: 220px; background: var(--panel);
+  border-radius: 14px; overflow: hidden; box-shadow: 0 12px 36px rgba(0,0,0,.35);
+  border: 3px solid #fff; pointer-events: none; opacity: 0; visibility: hidden;
+  transform: translateY(6px); transition: opacity .15s, transform .15s, visibility .15s;
+}
+.pk-preview.show { opacity: 1; visibility: visible; transform: translateY(0); }
+.pk-preview .pv-art {
+  height: 100px; display: flex; align-items: center; justify-content: center; position: relative;
+}
+.pk-preview .pv-art img { width: 88px; height: 88px; object-fit: contain; image-rendering: pixelated; }
+.pk-preview .pv-head {
+  padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; color: #fff;
+}
+.pk-preview .pv-nm { font-weight: 800; font-size: 15px; text-shadow: 0 1px 2px #0006; }
+.pk-preview .pv-no { font-size: 12px; opacity: .85; font-weight: 700; }
+.pk-preview .pv-types { display: flex; gap: 6px; padding: 6px 10px 2px; flex-wrap: wrap; }
+.pk-preview .pv-body { padding: 4px 10px 10px; }
+.pk-preview .pv-hp { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-weight: 700; }
+.pk-preview .pv-hp .hp-bar { flex: 1; height: 10px; }
+.pk-preview .pv-dead { font-size: 12px; font-weight: 800; color: var(--hp-low); margin-top: 4px; }
+.pk-preview .pv-body .status-badge { margin-top: 4px; }
+.pk-preview .pv-body .status-badge {
+  display: inline-block; padding: 2px 10px; border-radius: 20px;
+  color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .5px;
+  box-shadow: 0 1px 4px #0003;
+}
+.pk-preview .pv-stats {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 4px; margin-top: 8px;
+  text-align: center;
+}
+.pk-preview .pv-stats div { background: #f0f3fa; border-radius: 6px; padding: 4px 2px; }
+.pk-preview .pv-stats span { display: block; font-size: 10px; color: var(--muted); font-weight: 700; }
+.pk-preview .pv-stats b { font-size: 13px; color: var(--ink); }
+.pk-preview .pv-energy { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.pk-preview .pv-energy .lbl { font-size: 11px; color: var(--muted); font-weight: 700; }
+
 /* Action panel */
 .actions {
   background: var(--panel); border-radius: 16px; padding: 14px;

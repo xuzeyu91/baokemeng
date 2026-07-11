@@ -671,17 +671,17 @@
   }
 
   // 12 格阵型：出战(高亮) / 后备(可换) / 牌库(牌背) / 已倒下(灰)
-  function formationHTML(p, switchable) {
+  function formationHTML(p, switchable, side) {
     var cells = [];
-    cells.push(rosterCell(p.active, p.active.fainted ? "dead" : "active", p.active.status));
+    cells.push(rosterCell(p.active, p.active.fainted ? "dead" : "active", p.active.status, null, side));
     p.bench.forEach(function (c, i) {
-      cells.push(rosterCell(c, switchable ? "bench-sw" : "bench", c.status, i));
+      cells.push(rosterCell(c, switchable ? "bench-sw" : "bench", c.status, i, side));
     });
-    p.deck.forEach(function () { cells.push(rosterCell(null, "deck", null)); });
-    (p.graveyard || []).forEach(function (c) { cells.push(rosterCell(c, "dead", c.status)); });
+    p.deck.forEach(function () { cells.push(rosterCell(null, "deck", null, null, side)); });
+    (p.graveyard || []).forEach(function (c) { cells.push(rosterCell(c, "dead", c.status, null, side)); });
     return cells.join("");
   }
-  function rosterCell(c, kind, status, switchIdx) {
+  function rosterCell(c, kind, status, switchIdx, side) {
     if (kind === "deck") {
       return '<div class="fc deck" title="牌库（未公开）"><span>?</span></div>';
     }
@@ -700,6 +700,7 @@
     var stBadge = status ? '<span class="fc-st" style="background:' + (STATUS_COLOR[status.type] || "#888") + '">' + STATUS_ZH[status.type] + '</span>' : '';
     return '' +
       '<div class="' + cls + '"' + (kind === "bench-sw" ? ' data-switch="' + switchIdx + '" title="点击换上这只宝可梦"' : '') +
+        ' data-pkid="' + mon.id + '" data-side="' + side + '"' +
         ' style="border-color:' + hc + '">' +
         '<div class="fc-art" style="background:' + hc + '22">' +
           '<img src="' + mon.sprite + '" alt="' + mon.name_zh + '" ' +
@@ -764,13 +765,13 @@
       '<span class="tag">剩余 ' + aliveCount(you) + '/' + DECK_SIZE + '</span>' +
       '<span class="tag">牌库 ' + you.deck.length +
       '</span></div>' + cardHTML("you", you, true) +
-      '<div class="formation">' + formationHTML(you, state.turn === "you" && !busy && !state.over) + '</div>';
+      '<div class="formation">' + formationHTML(you, state.turn === "you" && !busy && !state.over, "you") + '</div>';
     if (as) as.innerHTML =
       '<div class="side-label"><span>电脑</span>' +
       '<span class="tag">剩余 ' + aliveCount(ai) + '/' + DECK_SIZE + '</span>' +
       '<span class="tag">牌库 ' + ai.deck.length +
       '</span></div>' + cardHTML("ai", ai, true) +
-      '<div class="formation">' + formationHTML(ai, false) + '</div>';
+      '<div class="formation">' + formationHTML(ai, false, "ai") + '</div>';
 
     var turnTxt = state.over ? "对战结束" : (state.turn === "you" ? "你的回合" : "电脑思考中…");
     var ti = document.getElementById("turn-indicator");
@@ -809,6 +810,112 @@
       (function (el) {
         el.addEventListener("click", function () { onRecover(); });
       })(rec[k]);
+    }
+    bindPreviewEvents();
+  }
+
+  /* ---------- hover preview ---------- */
+  function findCardById(pkId, side) {
+    var p = state[side];
+    if (!p) return null;
+    if (p.active && p.active.mon.id == pkId) return p.active;
+    for (var i = 0; i < p.bench.length; i++) {
+      if (p.bench[i].mon.id == pkId) return p.bench[i];
+    }
+    if (p.graveyard) {
+      for (var j = 0; j < p.graveyard.length; j++) {
+        if (p.graveyard[j].mon.id == pkId) return p.graveyard[j];
+      }
+    }
+    return null;
+  }
+
+  function previewHTML(c) {
+    var mon = c.mon;
+    var hc = TYPE_COLOR[mon.types[0]] || "#555";
+    var ratio = c.hp / c.maxHp;
+    var hpc = hpColor(ratio);
+    var typesHTML = mon.types.map(function (t) {
+      return '<span class="type-chip" style="background:' + (TYPE_COLOR[t] || "#888") + '">' + (TYPE_ZH[t] || t) + '</span>';
+    }).join("");
+    var statusHTML = c.status
+      ? '<span class="status-badge" style="background:' + (STATUS_COLOR[c.status.type] || "#888") + '">' + STATUS_ZH[c.status.type] + '</span>'
+      : "";
+    var energyDots = "";
+    for (var i = 0; i < MAX_ENERGY; i++) {
+      energyDots += '<span class="dot' + (i < c.energy ? " on" : "") + '"></span>';
+    }
+    var dead = c.fainted;
+    return '' +
+      '<div class="pv-art" style="background:linear-gradient(180deg,#f3f5fb,#dfe5f2)' + (dead ? ";filter:grayscale(1)" : "") + '">' +
+        '<img src="' + mon.sprite + '" alt="' + mon.name_zh + '" ' +
+          'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+        '<div class="fb" style="display:none;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#fff 0 30%,#e3534a 31% 100%);border:3px solid #fff;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;">' + mon.id + '</div>' +
+      '</div>' +
+      '<div class="pv-head" style="background:' + hc + '">' +
+        '<span class="pv-nm">' + mon.name_zh + '</span>' +
+        '<span class="pv-no">#' + mon.id + '</span>' +
+      '</div>' +
+      '<div class="pv-types">' + typesHTML + '</div>' +
+      '<div class="pv-body">' +
+        '<div class="pv-hp">' +
+          '<span>HP</span>' +
+          '<div class="hp-bar"><div class="hp-fill" style="width:' + (ratio * 100) + '%;background:' + hpc + '"></div></div>' +
+          '<span>' + c.hp + '/' + c.maxHp + '</span>' +
+        '</div>' +
+        (dead ? '<div class="pv-dead">已倒下</div>' : '') +
+        statusHTML +
+        '<div class="pv-stats">' +
+          '<div><span>攻击</span><b>' + mon.attack + '</b></div>' +
+          '<div><span>防御</span><b>' + mon.defense + '</b></div>' +
+          '<div><span>特攻</span><b>' + mon.sp_attack + '</b></div>' +
+          '<div><span>特防</span><b>' + mon.sp_defense + '</b></div>' +
+          '<div><span>速度</span><b>' + mon.speed + '</b></div>' +
+        '</div>' +
+        '<div class="pv-energy">' +
+          '<span class="lbl">能量</span>' +
+          '<div class="energy">' + energyDots + '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function showPkPreview(el, pkId, side) {
+    var c = findCardById(pkId, side);
+    if (!c) return;
+    var pv = document.getElementById("pk-preview");
+    if (!pv) return;
+    pv.innerHTML = previewHTML(c);
+    pv.classList.add("show");
+    positionPreview(pv, el);
+  }
+
+  function positionPreview(pv, el) {
+    var rect = el.getBoundingClientRect();
+    var pvW = 220, pvH = pv.offsetHeight || 300;
+    var x = rect.right + 8;
+    var y = rect.top;
+    if (x + pvW > window.innerWidth - 8) x = rect.left - pvW - 8;
+    if (x < 8) x = Math.max(8, Math.min(rect.left, window.innerWidth - pvW - 8));
+    if (y + pvH > window.innerHeight - 8) y = window.innerHeight - pvH - 8;
+    if (y < 8) y = 8;
+    pv.style.left = x + "px";
+    pv.style.top = y + "px";
+  }
+
+  function hidePkPreview() {
+    var pv = document.getElementById("pk-preview");
+    if (pv) { pv.classList.remove("show"); pv.innerHTML = ""; }
+  }
+
+  function bindPreviewEvents() {
+    var cells = document.querySelectorAll(".fc:not(.deck)[data-pkid]");
+    for (var i = 0; i < cells.length; i++) {
+      (function (el) {
+        el.addEventListener("mouseenter", function () {
+          showPkPreview(el, el.getAttribute("data-pkid"), el.getAttribute("data-side"));
+        });
+        el.addEventListener("mouseleave", hidePkPreview);
+      })(cells[i]);
     }
   }
 
