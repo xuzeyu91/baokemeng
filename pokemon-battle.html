@@ -407,7 +407,7 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
       <div class="log" id="log"></div>
     </div>
   </div>
-  <div class="foot">提示：绿色技能代表克制当前对手，能量不足的技能会变灰。</div>
+  <div class="foot">提示：绿色技能克制当前对手；能量不足的技能会变灰。每回合自动恢复 1 点能量，攒满 3 点可放 3 费大招。</div>
 </div>
 <div class="overlay" id="overlay"><div class="over-box" id="over-box"></div></div>
 <div class="overlay setup" id="setup">
@@ -458,13 +458,23 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
     rock:"#B8A038", ghost:"#705898", dragon:"#7038F8"
   };
 
-  // physical / special move name per type
-  var MOVE_NAME = {
-    normal:["撞击","舍身冲撞"], fire:["火花","喷射火焰"], water:["水枪","水炮"],
-    electric:["电击","十万伏特"], grass:["藤鞭","飞叶快刀"], ice:["冰砾","冰冻光束"],
-    fighting:["手刀","百万吨重拳"], poison:["毒针","污泥炸弹"], ground:["泥巴射击","地震"],
-    flying:["啄","空气斩"], psychic:["念力","精神强念"], bug:["虫咬","虫鸣"],
-    rock:["落石","岩石封锁"], ghost:["影子拳","暗影球"], dragon:["龙息","龙之波动"]
+  // 每属性 4 个技能名（顺序：1费 / 1费 / 2费 / 3费），用于组成 4 技能体系
+  var MOVE_KIT = {
+    normal:["撞击","电光一闪","舍身冲撞","终极冲击"],
+    fire:["火花","火苗","喷射火焰","大字爆炎"],
+    water:["水枪","泡沫","水炮","水流尾"],
+    electric:["电击","电光","十万伏特","打雷"],
+    grass:["藤鞭","飞叶快刀","日光束","飞叶风暴"],
+    ice:["冰砾","冰晶","冰冻光束","暴风雪"],
+    fighting:["手刀","踢腿","百万吨重拳","近身战"],
+    poison:["毒针","毒雾","污泥炸弹","毒爆弹"],
+    ground:["泥巴射击","落拳","地震","地裂"],
+    flying:["啄","空气斩","勇鸟猛攻","神鸟猛击"],
+    psychic:["念力","幻象光","精神强念","预知未来"],
+    bug:["虫咬","虫鸣","十字剪","蝶舞"],
+    rock:["落石","岩石封锁","尖石攻击","岩崩"],
+    ghost:["影子拳","暗影爪","暗影球","潜灵奇袭"],
+    dragon:["龙息","龙之波动","龙爪","逆鳞"]
   };
 
   var DECK_SIZE = 12;
@@ -497,14 +507,22 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
     }
     return m;
   }
+  // 依据费用档位（0=1费, 1=2费, 2=3费）把基础数值换算成技能威力
+  function movePower(base, tier) {
+    if (tier === 0) return clamp(Math.round(base * 0.42) + 14, 30, 75);
+    if (tier === 1) return clamp(Math.round(base * 0.62) + 24, 48, 115);
+    return clamp(Math.round(base * 0.85) + 34, 68, 160);
+  }
   function genMoves(mon) {
     var t1 = mon.types[0];
     var t2 = mon.types[1] || "normal";
-    var p1 = clamp(Math.round(mon.attack * 0.55) + 20, 40, 100);
-    var p2 = clamp(Math.round(mon.sp_attack * 0.55) + 20, 40, 100);
+    var k1 = MOVE_KIT[t1] || MOVE_KIT.normal;
+    var k2 = MOVE_KIT[t2] || MOVE_KIT.normal;
     return [
-      { name: MOVE_NAME[t1][0], type: t1, power: p1, cost: 1, cat: "phys" },
-      { name: MOVE_NAME[t2][1] || MOVE_NAME[t2][0], type: t2, power: p2, cost: 2, cat: "spec" }
+      { name: k1[0], type: t1, power: movePower(mon.attack,     0), cost: 1, cat: "phys" },
+      { name: k2[1], type: t2, power: movePower(mon.sp_attack, 0), cost: 1, cat: "spec" },
+      { name: k1[2], type: t1, power: movePower(mon.sp_attack, 1), cost: 2, cat: "spec" },
+      { name: k2[3], type: t2, power: movePower(mon.attack,     2), cost: 3, cat: "phys" }
     ];
   }
   function makeCard(mon) {
@@ -653,6 +671,7 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
     if (state.over) return;
     var p = state[side];
     p.active.energy = Math.min(MAX_ENERGY, p.active.energy + 1);
+    if (p.active.energy > 0 && typeof animateEnergy === "function") animateEnergy(side);
     state.turn = side;
     busy = side === "ai";
     render();
@@ -962,7 +981,7 @@ window.TYPE_ZH = {"normal": "一般", "fire": "火", "water": "水", "electric":
 
     var canAct = !busy && !state.over && state.turn === "you";
     var hint = canAct
-      ? '点击技能发动攻击，或点击下方后备宝可梦换上场。每只宝可梦每回合自动获得 1 点能量（上限 ' + MAX_ENERGY + '）。'
+      ? '你有 4 个技能：前两个各消耗 1 能量、随时可用，攒满 ' + MAX_ENERGY + ' 点能量即可释放 3 费大招。每回合自动恢复 1 点能量。'
       : (state.over ? "点击「重选宝可梦」再来一局。" : "请稍候，电脑正在行动…");
     var sh = document.getElementById("switch-hint");
     if (sh) sh.innerHTML = hint;

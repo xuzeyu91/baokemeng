@@ -57,6 +57,26 @@ assert(E.psychic.ghost === 1, "psychic>ghost 1x (gen1: ghost not weak to psychic
 
 console.log(ok ? "DATASET OK (151 pokemon, 15 types, chart valid)" : "DATASET HAS ISSUES");
 
+// ---- 2b. 4-move kit structure for ALL 151 pokemon ----
+let moveKitOk = true;
+const expectCosts = [1, 1, 2, 3];
+for (let s = 0; s < L.length; s += 12) {
+  const deck = L.slice(s, s + 12);
+  window.PK._beginCustom(deck);
+  const st = window.PK._state();
+  [st.you.active, ...st.you.bench, ...st.you.deck].forEach(card => {
+    const mv = card.moves;
+    if (mv.length !== 4) { moveKitOk = false; console.log("FAIL: mon", card.mon.id, "has", mv.length, "moves"); }
+    for (let i = 0; i < 4; i++) {
+      if (mv[i].cost !== expectCosts[i]) { moveKitOk = false; console.log("FAIL: mon", card.mon.id, "move", i, "cost", mv[i].cost); }
+      if (typeof mv[i].power !== "number" || mv[i].power <= 0) { moveKitOk = false; console.log("FAIL: mon", card.mon.id, "move", i, "bad power"); }
+      if (!TZ[mv[i].type]) { moveKitOk = false; console.log("FAIL: mon", card.mon.id, "move", i, "bad type", mv[i].type); }
+    }
+  });
+}
+assert(moveKitOk, "every mon has 4 moves with costs [1,1,2,3], valid power & type");
+console.log(ok ? "MOVE KIT OK (4 moves per mon, costs [1,1,2,3], all 151 covered)" : "MOVE KIT ISSUES");
+
 // ---- 3. full auto battle (human always uses move 0) ----
 let wins = { you: 0, ai: 0 }, battles = 30, maxTurns = 0;
 for (let b = 0; b < battles; b++) {
