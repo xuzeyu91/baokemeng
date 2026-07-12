@@ -223,6 +223,25 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 .pk-preview .pv-energy { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .pk-preview .pv-energy .lbl { font-size: 11px; color: var(--muted); font-weight: 700; }
 
+/* Evolution chain strip inside previews */
+.pk-preview .pv-evo {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+  margin-top: 9px; padding-top: 9px; border-top: 1px dashed #d7dded;
+}
+.pk-preview .evo-node {
+  display: inline-flex; flex-direction: column; align-items: center;
+  background: #f4f6fc; border: 1px solid #e4e9f5; border-radius: 8px;
+  padding: 3px 5px 2px; min-width: 44px;
+}
+.pk-preview .evo-node img {
+  width: 26px; height: 26px; object-fit: contain; image-rendering: pixelated;
+}
+.pk-preview .evo-node .evo-lab { font-size: 9px; color: var(--muted); font-weight: 700; line-height: 1.1; }
+.pk-preview .evo-node b { font-size: 10px; color: var(--ink); line-height: 1.15; }
+.pk-preview .evo-node.cur { background: #fff4d6; border-color: #f3d27a; }
+.pk-preview .evo-arrow { color: #9aa3b8; font-weight: 800; font-size: 13px; }
+.pk-preview .evo-tag { font-size: 10px; color: var(--muted); font-weight: 700; padding: 2px 6px; }
+
 /* Action panel */
 .actions {
   background: var(--panel); border-radius: 16px; padding: 14px;
@@ -242,6 +261,22 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 .move .eff.sup { color:#d23b2e; }
 .move .eff.weak { color:#2f8f4e; }
 .move .cost { margin-left:auto; font-size:11px; color:#9aa3b5; }
+.move.mega {
+  border-color:#f0c33b; background:linear-gradient(180deg,#fff8e3,#ffeec2);
+  box-shadow:0 0 0 1px #f3d27a inset;
+}
+.move.mega:hover:not(:disabled) { border-color:#e3a008; background:#fff0c4; }
+.move.mega .mn { color:#8a5a00; }
+
+/* Mega Evolution chip + floating text + flash */
+.type-chip.mega { background:#f0c33b !important; color:#5b3d00; font-weight:800; }
+.dmg-txt.mega { color:#ffd23b; font-size:18px; font-weight:900; text-shadow:0 2px 6px #0008; }
+.mega-flash { animation: megaFlash .85s ease; }
+@keyframes megaFlash {
+  0% { box-shadow:0 0 0 0 #ffe27a; filter:brightness(1); }
+  35% { box-shadow:0 0 26px 10px #ffe27a; filter:brightness(1.6) saturate(1.4); }
+  100% { box-shadow:0 0 0 0 #ffe27a; filter:brightness(1); }
+}
 
 .switch-hint { font-size:12px; color:var(--muted); margin-top:10px; }
 .switch-hint b { color:var(--accent2); }

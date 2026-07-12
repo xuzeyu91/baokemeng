@@ -57,6 +57,7 @@
   var DECK_SIZE = 12;
   var BENCH_START = 4;
   var MAX_ENERGY = 5;
+  var MEGA_COST = 2; // energy cost to Mega Evolve (once per battle)
 
   var STRIKE_MS = 260;
   var IMPACT_MS = 540;
@@ -129,7 +130,7 @@
       var active = cards[0];
       var bench = cards.slice(1, 1 + BENCH_START);
       var deck = cards.slice(1 + BENCH_START);
-      return { name: name, active: active, bench: bench, deck: deck, graveyard: [] };
+      return { name: name, active: active, bench: bench, deck: deck, graveyard: [], megaUsed: false };
     }
     state = {
       you: buildPlayer("你", youMons),
@@ -362,6 +363,13 @@
     var a = me.active, d = foe.active;
 
     setTimeout(function () {
+      // Mega Evolution (once per battle, when affordable)
+      if (a.mon.mega && a.mon.mega.length && !me.megaUsed && a.energy >= MEGA_COST) {
+        if (a.hp / a.maxHp < 0.7 || Math.random() < 0.5) {
+          useMega("ai", 0, function () { afterMove("ai"); });
+          return;
+        }
+      }
       var choices = [];
       for (var i = 0; i < a.moves.length; i++) {
         var mv = a.moves[i];
@@ -459,6 +467,52 @@
       setTimeout(function () { try { if (card) card.classList.remove("recover-aura"); } catch (_) {} }, 820);
       setTimeout(function () { try { if (p && p.parentNode) p.parentNode.removeChild(p); } catch (_) {} }, 900);
     } catch (e) { console.warn("[PK] recover:", e); }
+  }
+
+  /* Mega Evolution: transform active card into its mega form (once per battle) */
+  function onMega(i) {
+    if (busy || state.over || state.turn !== "you") return;
+    busy = true;
+    useMega("you", i, function () { afterMove("you"); });
+  }
+  function useMega(side, i, callback) {
+    var me = state[side];
+    var c = me.active;
+    if (!c.mon.mega || !c.mon.mega[i] || me.megaUsed || c.energy < MEGA_COST) {
+      if (callback) callback();
+      return;
+    }
+    var mf = c.mon.mega[i];
+    var origName = c.mon.name_zh;
+    c.energy -= MEGA_COST;
+    var ratio = c.maxHp > 0 ? c.hp / c.maxHp : 1;
+    c.mon = mf;                 // swap to mega form (carries its own stats/types/sprite)
+    c.maxHp = mf.hp;
+    c.hp = Math.max(1, Math.round(ratio * mf.hp));
+    c.moves = genMoves(c.mon);  // rebuild moves from mega stats/types
+    me.megaUsed = true;         // one Mega Evolution per battle (whole team)
+    var who = side === "you" ? "你" : "电脑";
+    log(side, who + "的" + origName + " 超级进化为 " + mf.name_zh + "！");
+    render();
+    animateMega(side);
+    busy = true;
+    setTimeout(function () { if (callback) callback(); }, 720);
+  }
+  function animateMega(side) {
+    try {
+      var fx = fxLayer();
+      var card = document.getElementById(elId(side));
+      if (card) card.classList.add("mega-flash");
+      var c = centerOf(card);
+      if (fx) {
+        var p = document.createElement("div");
+        p.className = "dmg-txt mega"; p.textContent = "超级进化!";
+        p.style.left = c.x + "px"; p.style.top = (c.y - 30) + "px";
+        fx.appendChild(p);
+        setTimeout(function () { try { if (p && p.parentNode) p.parentNode.removeChild(p); } catch (_) {} }, 1100);
+      }
+      setTimeout(function () { try { if (card) card.classList.remove("mega-flash"); } catch (_) {} }, 900);
+    } catch (e) { console.warn("[PK] mega:", e); }
   }
 
   /* ---------- animations (browser only; guarded for headless) ---------- */
@@ -743,6 +797,22 @@
         '<span class="cost">0 能量</span></div>' +
         '<div class="md"><span>恢复 2 能量</span><span>支援</span></div>' +
       '</button>';
+    // Mega Evolution buttons (once per battle, costs MEGA_COST energy)
+    if (c.mon.mega && c.mon.mega.length && !state.you.megaUsed) {
+      c.mon.mega.forEach(function (mf, mi) {
+        var canMega = canAct && c.energy >= MEGA_COST;
+        var suffix = c.mon.mega.length > 1
+          ? (mf.name_zh.indexOf("X") >= 0 ? " X" : mf.name_zh.indexOf("Y") >= 0 ? " Y" : "")
+          : "";
+        html += '<button class="move mega' + (canMega ? "" : " disabled") + '" data-mega="' + mi + '"' +
+          (canMega ? "" : " disabled") + '>' +
+          '<div class="mn"><span class="type-chip mega">MEGA</span>超级进化' + suffix +
+            '<span class="cost">能量 ' + MEGA_COST + '</span></div>' +
+          '<div class="md"><span>' + mf.types.map(function (t) { return TYPE_ZH[t] || t; }).join("/") + '</span>' +
+            '<span>攻 ' + mf.attack + ' · 速 ' + mf.speed + '</span></div>' +
+        '</button>';
+      });
+    }
     return html;
   }
 
@@ -815,6 +885,12 @@
         el.addEventListener("click", function () { onRecover(); });
       })(rec[k]);
     }
+    var meg = document.querySelectorAll("[data-mega]");
+    for (var q = 0; q < meg.length; q++) {
+      (function (el) {
+        el.addEventListener("click", function () { onMega(parseInt(el.getAttribute("data-mega"), 10)); });
+      })(meg[q]);
+    }
     bindPreviewEvents();
   }
 
@@ -880,6 +956,7 @@
           '<span class="lbl">能量</span>' +
           '<div class="energy">' + energyDots + '</div>' +
         '</div>' +
+        evoHTML(c.mon) +
       '</div>';
   }
 
@@ -923,8 +1000,45 @@
     }
   }
 
-  /* ---------- hover preview (setup picker) ---------- */
-  function setupPreviewHTML(mon) {
+/* ---------- hover preview (setup picker) ---------- */
+function byId(id) {
+  if (id == null) return null;
+  for (var k = 0; k < LIST.length; k++) if (LIST[k].id === id) return LIST[k];
+  return null;
+}
+// Evolution-chain strip: prev <- current -> next(s). Returns "" when the
+// mon has no evolution data (e.g. a transformed mega form).
+function evoHTML(mon) {
+  if (mon.evolves_from === undefined && mon.evolves_to === undefined) return "";
+  var prev = mon.evolves_from != null ? byId(mon.evolves_from) : null;
+  var nexts = (mon.evolves_to || []).map(byId).filter(Boolean);
+  if (!prev && nexts.length === 0) return "";
+  var h = '<div class="pv-evo">';
+  if (prev) {
+    h += '<span class="evo-node">' +
+      '<img src="' + prev.sprite + '" alt="' + prev.name_zh + '" ' +
+        'onerror="this.style.visibility=\'hidden\'">' +
+      '<span class="evo-lab">进化前</span><b>' + prev.name_zh + '</b></span>';
+  } else {
+    h += '<span class="evo-tag">初始形态</span>';
+  }
+  h += '<span class="evo-arrow">→</span>' +
+       '<span class="evo-node cur"><b>' + mon.name_zh + '</b><span class="evo-lab">当前</span></span>';
+  if (nexts.length) {
+    h += '<span class="evo-arrow">→</span>';
+    nexts.forEach(function (nx) {
+      h += '<span class="evo-node">' +
+        '<img src="' + nx.sprite + '" alt="' + nx.name_zh + '" ' +
+          'onerror="this.style.visibility=\'hidden\'">' +
+        '<span class="evo-lab">进化后</span><b>' + nx.name_zh + '</b></span>';
+    });
+  } else {
+    h += '<span class="evo-tag">最终形态</span>';
+  }
+  h += '</div>';
+  return h;
+}
+function setupPreviewHTML(mon) {
     var hc = TYPE_COLOR[mon.types[0]] || "#555";
     var typesHTML = mon.types.map(function (t) {
       return '<span class="type-chip" style="background:' + (TYPE_COLOR[t] || "#888") + '">' + (TYPE_ZH[t] || t) + '</span>';
@@ -949,6 +1063,7 @@
           '<div><span>特防</span><b>' + mon.sp_defense + '</b></div>' +
           '<div><span>速度</span><b>' + mon.speed + '</b></div>' +
         '</div>' +
+        evoHTML(mon) +
       '</div>';
   }
 
@@ -1215,6 +1330,7 @@
     _state: function () { return state; },
     _useMove: onMove,
     _switch: onSwitch,
+    _mega: onMega,
     _beginCustom: function (mons) { beginGame(mons); }
   };
 

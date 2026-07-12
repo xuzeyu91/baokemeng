@@ -5,7 +5,8 @@
 # Gen2 data + steel/dark chart sourced from gen2_data.py; Gen3 from gen3_data.py;
 # Gen4 from gen4_data.py; Gen5 from gen5_data.py; Gen6 from gen6_data.py;
 # Gen7 from gen7_data.py; Gen8 from gen8_data.py; Gen9 from gen9_data.py
-# (all PokeAPI fetches). Sprite URLs point to PokeAPI.
+# (all PokeAPI fetches). Evolution chains + official Mega-Evolution forms sourced
+# from gen_evo_data.py (also PokeAPI). Sprite URLs point to PokeAPI.
 
 from gen2_data import GEN2_DATA, STEEL_DARK_CHART
 from gen3_data import GEN3_DATA
@@ -15,6 +16,7 @@ from gen6_data import GEN6_DATA
 from gen7_data import GEN7_DATA
 from gen8_data import GEN8_DATA
 from gen9_data import GEN9_DATA
+from gen_evo_data import EVO_FROM, EVO_TO, MEGA_DATA
 
 # Each entry: id, en, zh, [types], hp, atk, def, spa, spd, spe
 DATA = [
@@ -277,6 +279,9 @@ for row in DATA:
         "hp": hp, "attack": atk, "defense": df,
         "sp_attack": spa, "sp_defense": spd, "speed": spe,
         "sprite": f"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/{pid}.png",
+        "evolves_from": EVO_FROM.get(pid),
+        "evolves_to": EVO_TO.get(pid, []),
+        "mega": MEGA_DATA.get(pid, []),
     })
 
 import json

@@ -39,6 +39,17 @@ L.forEach(p => {
   ["hp","attack","defense","sp_attack","sp_defense","speed"].forEach(s =>
     assert(typeof p[s] === "number" && p[s] > 0, s + " for " + p.id));
   p.types.forEach(t => assert(TZ[t], "type_zh for " + t));
+  // evolution + mega fields present and well-typed
+  assert(Array.isArray(p.evolves_to), "evolves_to array for " + p.id);
+  assert(p.evolves_from === null || typeof p.evolves_from === "number", "evolves_from null/number for " + p.id);
+  assert(Array.isArray(p.mega), "mega array for " + p.id);
+  p.mega.forEach(m => {
+    assert(m.isMega === true, "mega flag for base " + p.id);
+    assert(m.types.length >= 1 && m.types.length <= 2, "mega types for base " + p.id);
+    ["hp","attack","defense","sp_attack","sp_defense","speed"].forEach(s =>
+      assert(typeof m[s] === "number" && m[s] > 0, "mega " + s + " for base " + p.id));
+    assert(!!m.name_zh, "mega zh name for base " + p.id);
+  });
   // matrix complete
   types.forEach(d => assert(E[t = p.types[0]] !== undefined, "matrix row " + t));
 });
@@ -82,6 +93,17 @@ assert(E.steel.fairy === 2, "steel>fairy 2x");
 assert(E.bug.fairy === 0.5, "bug>fairy 0.5x");
 assert(E.dark.fairy === 0.5, "dark>fairy 0.5x");
 assert(E.fighting.fairy === 0.5, "fighting>fairy 0.5x");
+
+// ---- evolution chain + mega spot checks ----
+const byId = id => L.find(p => p.id === id);
+assert(byId(4).evolves_to.length === 1 && byId(4).evolves_to[0] === 5, "charmander -> charmeleon");
+assert(byId(5).evolves_from === 4 && byId(5).evolves_to[0] === 6, "charmeleon chain 4->5->6");
+assert(byId(6).evolves_from === 5, "charizard evolves_from charmander? no, from charmeleon(5)");
+assert(byId(133).evolves_to.length === 8, "eevee has 8 evolutions");
+assert(byId(6).mega.length === 2 && byId(6).mega[0].isMega, "charizard 2 mega forms");
+assert(byId(3).mega.length === 1, "venusaur 1 mega form");
+assert(byId(888).mega.length === 0, "zacian is not a mega base");
+assert(L.filter(p => p.mega.length > 0).length === 47, "47 mega base species (got " + L.filter(p => p.mega.length > 0).length + ")");
 
 console.log(ok ? "DATASET OK (1025 pokemon, 18 types, chart valid)" : "DATASET HAS ISSUES");
 
@@ -144,4 +166,26 @@ assert(st2.you.deck.length === 7, "custom deck 7");
 assert(st2.ai.active.mon.id !== 1, "ai avoids player's #1");
 
 console.log(ok ? "CUSTOM DECK OK (12 chosen, 4 bench, 7 deck)" : "CUSTOM DECK ISSUES");
+
+// ---- 5. Mega Evolution mechanics (player path) ----
+global.setTimeout = function () { return 0; }; // no-op: isolate mega effects from turn flow
+const megaTeam = [byId(6), byId(4), byId(5), byId(7), byId(8), byId(9), byId(1), byId(2), byId(3), byId(10), byId(11), byId(12)];
+window.PK._beginCustom(megaTeam);
+let ms = window.PK._state();
+ms.you.active.mon = byId(6);            // force active = Charizard (has mega)
+ms.you.active.energy = 5;
+ms.turn = "you"; busy = false;
+const beforeName = ms.you.active.mon.name_zh;
+window.PK._mega(0);                      // Mega Evolve into X form
+const ac = ms.you.active;
+assert(ac.mon.name_zh === "喷火龙 超级进化 X", "charizard mega -> X name (got " + ac.mon.name_zh + ")");
+assert(ac.mon.types.join("/") === "fire/dragon", "mega X is fire/dragon");
+assert(ms.you.megaUsed === true, "megaUsed flag set");
+assert(ac.energy === 3, "mega cost 2 energy (got " + ac.energy + ")");
+assert(ac.maxHp === 78, "mega maxHp updated (got " + ac.maxHp + ")");
+assert(ac.moves.length === 4, "mega moves rebuilt (got " + ac.moves.length + ")");
+window.PK._mega(0);                      // second mega attempt must be blocked
+assert(ac.mon.name_zh === "喷火龙 超级进化 X", "no second mega (still X)");
+console.log(ok ? "MEGA OK (player path: transform, cost, once-per-battle, moves rebuilt)" : "MEGA ISSUES");
+
 console.log("All battles terminated without infinite loop. SIM OK");
