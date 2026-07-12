@@ -699,6 +699,12 @@
           '</div>' +
           '<div class="spd-row"><span>速度</span><span' + (faster ? ' class="fast"' : '') + '>' +
             c.mon.speed + (faster ? ' ⚡' : '') + '</span></div>' +
+          '<div class="stat-row">' +
+            '<span>攻<b>' + c.mon.attack + '</b></span>' +
+            '<span>防<b>' + c.mon.defense + '</b></span>' +
+            '<span>特攻<b>' + c.mon.sp_attack + '</b></span>' +
+            '<span>特防<b>' + c.mon.sp_defense + '</b></span>' +
+          '</div>' +
           (c.status ? '<div class="status-badge" style="background:' + (STATUS_COLOR[c.status.type] || "#888") + '">' +
             STATUS_ZH[c.status.type] + (c.status.turns ? '(' + c.status.turns + ')' : '') + '</div>' : "") +
           en +
