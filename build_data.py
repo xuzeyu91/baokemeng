@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
-# Author-built dataset of the 649 Pokemon (Gen1 151 + Gen2 100 + Gen3 135 + Gen4 107 + Gen5 156)
-# with stats, types and Chinese names, plus the 17-type (15 + steel/dark) effectiveness chart.
+# Author-built dataset of the 721 Pokemon (Gen1 151 + Gen2 100 + Gen3 135 + Gen4 107
+# + Gen5 156 + Gen6 72) with stats, types and Chinese names, plus the 18-type
+# (15 + steel/dark + fairy) effectiveness chart.
 # Gen2 data + steel/dark chart sourced from gen2_data.py; Gen3 from gen3_data.py;
-# Gen4 from gen4_data.py; Gen5 from gen5_data.py (all PokeAPI fetches). Sprite URLs point to PokeAPI.
+# Gen4 from gen4_data.py; Gen5 from gen5_data.py; Gen6 from gen6_data.py
+# (all PokeAPI fetches). Sprite URLs point to PokeAPI.
 
 from gen2_data import GEN2_DATA, STEEL_DARK_CHART
 from gen3_data import GEN3_DATA
 from gen4_data import GEN4_DATA
 from gen5_data import GEN5_DATA
+from gen6_data import GEN6_DATA
 
 # Each entry: id, en, zh, [types], hp, atk, def, spa, spd, spe
 DATA = [
@@ -183,20 +186,18 @@ DATA += GEN4_DATA
 # the fetcher already mapped any fairy typing to normal.
 DATA += GEN5_DATA
 
-def _no_fairy(row):
-    rid, en, zh, types, hp, atk, df, spa, spd, spe = row
-    return (rid, en, zh, ["normal" if t == "fairy" else t for t in types],
-            hp, atk, df, spa, spd, spe)
-DATA = [_no_fairy(r) for r in DATA]
+# Append Gen6 (650-721) fetched from PokeAPI. Gen6 INTRODUCES the 'fairy' type,
+# so its fetcher keeps fairy typing (not mapped to normal).
+DATA += GEN6_DATA
 
 TYPE_NAMES = ["normal","fire","water","electric","grass","ice","fighting","poison",
-              "ground","flying","psychic","bug","rock","ghost","dragon","steel","dark"]
+              "ground","flying","psychic","bug","rock","ghost","dragon","steel","dark","fairy"]
 
 TYPE_ZH = {
     "normal":"一般","fire":"火","water":"水","electric":"电","grass":"草",
     "ice":"冰","fighting":"格斗","poison":"毒","ground":"地面","flying":"飞行",
     "psychic":"超能力","bug":"虫","rock":"岩石","ghost":"幽灵","dragon":"龙",
-    "steel":"钢","dark":"恶"
+    "steel":"钢","dark":"恶","fairy":"妖精"
 }
 
 # Gen-1 type effectiveness: attacker -> {defender: multiplier}
@@ -218,9 +219,27 @@ CHART = {
 "dragon":   {"dragon":2},
 }
 
-# Merge Gen2 steel/dark interactions (deep merge, never clobber Gen1 rows),
-# then build full 17x17 matrix
+# Gen6 fairy interactions. Fairy (attacker) is super-effective vs dragon/fighting/dark,
+# not very effective vs fire/poison/steel. As defender, fairy takes 2x from poison/steel,
+# 0.5x from bug/dark/fighting, and is immune (0) to dragon.
+FAIRY_CHART = {
+    "fairy":   {"dragon":2, "dark":2, "fighting":2, "fire":0.5, "poison":0.5, "steel":0.5},
+    "dragon":  {"fairy":0},
+    "poison":  {"fairy":2},
+    "steel":   {"fairy":2},
+    "bug":     {"fairy":0.5},
+    "dark":    {"fairy":0.5},
+    "fighting":{"fairy":0.5},
+}
+
+# Merge Gen2 steel/dark + Gen6 fairy interactions (deep merge, never clobber Gen1 rows),
+# then build full 18x18 matrix
 for _t, _rels in STEEL_DARK_CHART.items():
+    if _t not in CHART:
+        CHART[_t] = {}
+    for _d, _m in _rels.items():
+        CHART[_t][_d] = _m
+for _t, _rels in FAIRY_CHART.items():
     if _t not in CHART:
         CHART[_t] = {}
     for _d, _m in _rels.items():
@@ -246,7 +265,7 @@ for row in DATA:
 
 import json
 with open("data.js", "w", encoding="utf-8") as f:
-    f.write("// Auto-generated dataset of the 649 Pokemon (Gen1+Gen2+Gen3+Gen4+Gen5, offline-built).\n")
+    f.write("// Auto-generated dataset of the 721 Pokemon (Gen1+Gen2+Gen3+Gen4+Gen5+Gen6, offline-built).\n")
     f.write("window.POKEMON_LIST = " + json.dumps(pokemon, ensure_ascii=False) + ";\n")
     f.write("window.TYPE_EFFECT = " + json.dumps(eff, ensure_ascii=False) + ";\n")
     f.write("window.TYPE_ZH = " + json.dumps(TYPE_ZH, ensure_ascii=False) + ";\n")

@@ -12,7 +12,7 @@
     grass:"#78C850", ice:"#98D8D8", fighting:"#C03028", poison:"#A040A0",
     ground:"#E0C068", flying:"#A890F0", psychic:"#F85888", bug:"#A8B820",
     rock:"#B8A038", ghost:"#705898", dragon:"#7038F8",
-    steel:"#B8B8D0", dark:"#705848"
+    steel:"#B8B8D0", dark:"#705848", fairy:"#EE99AC"
   };
 
   var STATUS_ZH = {
@@ -50,7 +50,8 @@
     ghost:["影子拳","暗影爪","暗影球","潜灵奇袭"],
     dragon:["龙息","龙之波动","龙爪","逆鳞"],
     steel:["金属爪","铁头","铁尾","钢铁冲击"],
-    dark:["咬住","恶意追击","恶之波动","暗夜爆裂"]
+    dark:["咬住","恶意追击","恶之波动","暗夜爆裂"],
+    fairy:["妖精之风","魔法闪耀","月亮之力","嬉闹"]
   };
 
   var DECK_SIZE = 12;
@@ -982,7 +983,8 @@
       { key: "gen2", label: "第二部 (城都 #152-251)" },
       { key: "gen3", label: "第三部 (丰缘 #252-386)" },
       { key: "gen4", label: "第四部 (神奥 #387-493)" },
-      { key: "gen5", label: "第五部 (合众 #494-649)" }
+      { key: "gen5", label: "第五部 (合众 #494-649)" },
+      { key: "gen6", label: "第六部 (卡洛斯 #650-721)" }
     ];
     var html = "";
     gens.forEach(function (g) {
@@ -1038,7 +1040,8 @@
         (setup.genFilter === "gen2" && m.id >= 152 && m.id <= 251) ||
         (setup.genFilter === "gen3" && m.id >= 252 && m.id <= 386) ||
         (setup.genFilter === "gen4" && m.id >= 387 && m.id <= 493) ||
-        (setup.genFilter === "gen5" && m.id >= 494);
+        (setup.genFilter === "gen5" && m.id >= 494 && m.id <= 649) ||
+        (setup.genFilter === "gen6" && m.id >= 650);
       if (!matchType || !matchQ || !matchGen) return;
       var sel = selIds[m.id];
       var hc = TYPE_COLOR[m.types[0]] || "#555";

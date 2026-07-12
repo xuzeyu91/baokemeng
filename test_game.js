@@ -30,9 +30,9 @@ const L = window.POKEMON_LIST, E = window.TYPE_EFFECT, TZ = window.TYPE_ZH;
 let ok = true;
 function assert(c, m) { if (!c) { ok = false; console.log("FAIL:", m); } }
 
-assert(L.length === 649, "count == 649 (got " + L.length + ")");
+assert(L.length === 721, "count == 721 (got " + L.length + ")");
 const types = Object.keys(E);
-assert(types.length === 17, "17 types (got " + types.length + ")");
+assert(types.length === 18, "18 types (got " + types.length + ")");
 L.forEach(p => {
   assert(p.name_zh && p.name_zh.length > 0, "zh name for " + p.id);
   assert(p.types.length >= 1 && p.types.length <= 2, "types 1-2 for " + p.id);
@@ -42,7 +42,7 @@ L.forEach(p => {
   // matrix complete
   types.forEach(d => assert(E[t = p.types[0]] !== undefined, "matrix row " + t));
 });
-// matrix fully populated 15x15
+// matrix fully populated 18x18
 types.forEach(a => types.forEach(b => assert(E[a][b] !== undefined, "cell " + a + "/" + b)));
 
 // ---- 2. known type multipliers ----
@@ -69,9 +69,23 @@ assert(E.fighting.dark === 2, "fighting>dark 2x");
 assert(E.bug.dark === 2, "bug>dark 2x");
 assert(E.steel.steel === 0.5, "steel>steel 0.5x");
 
-console.log(ok ? "DATASET OK (649 pokemon, 17 types, chart valid)" : "DATASET HAS ISSUES");
+// ---- Gen6 (fairy) known multipliers ----
+assert(E.fairy.dragon === 2, "fairy>dragon 2x");
+assert(E.fairy.dark === 2, "fairy>dark 2x");
+assert(E.fairy.fighting === 2, "fairy>fighting 2x");
+assert(E.fairy.fire === 0.5, "fairy>fire 0.5x");
+assert(E.fairy.poison === 0.5, "fairy>poison 0.5x");
+assert(E.fairy.steel === 0.5, "fairy>steel 0.5x");
+assert(E.dragon.fairy === 0, "dragon>fairy 0x (fairy immune to dragon)");
+assert(E.poison.fairy === 2, "poison>fairy 2x");
+assert(E.steel.fairy === 2, "steel>fairy 2x");
+assert(E.bug.fairy === 0.5, "bug>fairy 0.5x");
+assert(E.dark.fairy === 0.5, "dark>fairy 0.5x");
+assert(E.fighting.fairy === 0.5, "fighting>fairy 0.5x");
 
-// ---- 2b. 4-move kit structure for ALL 649 pokemon ----
+console.log(ok ? "DATASET OK (721 pokemon, 18 types, chart valid)" : "DATASET HAS ISSUES");
+
+// ---- 2b. 4-move kit structure for ALL 721 pokemon ----
 let moveKitOk = true;
 const expectCosts = [1, 1, 2, 3];
 const decks = [];
@@ -91,7 +105,7 @@ for (const deck of decks) {
   });
 }
 assert(moveKitOk, "every mon has 4 moves with costs [1,1,2,3], valid power & type");
-console.log(ok ? "MOVE KIT OK (4 moves per mon, costs [1,1,2,3], all 649 covered)" : "MOVE KIT ISSUES");
+console.log(ok ? "MOVE KIT OK (4 moves per mon, costs [1,1,2,3], all 721 covered)" : "MOVE KIT ISSUES");
 
 // ---- 3. full auto battle (human always uses move 0) ----
 let wins = { you: 0, ai: 0 }, battles = 30, maxTurns = 0;
