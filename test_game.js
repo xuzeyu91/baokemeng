@@ -71,11 +71,13 @@ assert(E.steel.steel === 0.5, "steel>steel 0.5x");
 
 console.log(ok ? "DATASET OK (251 pokemon, 17 types, chart valid)" : "DATASET HAS ISSUES");
 
-// ---- 2b. 4-move kit structure for ALL 151 pokemon ----
+// ---- 2b. 4-move kit structure for ALL 251 pokemon ----
 let moveKitOk = true;
 const expectCosts = [1, 1, 2, 3];
-for (let s = 0; s < L.length; s += 12) {
-  const deck = L.slice(s, s + 12);
+const decks = [];
+for (let s = 0; s + 12 <= L.length; s += 12) decks.push(L.slice(s, s + 12));
+decks.push(L.slice(L.length - 12, L.length)); // tail coverage (240-251)
+for (const deck of decks) {
   window.PK._beginCustom(deck);
   const st = window.PK._state();
   [st.you.active, ...st.you.bench, ...st.you.deck].forEach(card => {
