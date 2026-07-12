@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# Author-built dataset of the 898 Pokemon (Gen1 151 + Gen2 100 + Gen3 135 + Gen4 107
-# + Gen5 156 + Gen6 72 + Gen7 88 + Gen8 89) with stats, types and Chinese names, plus
-# the 18-type (15 + steel/dark + fairy) effectiveness chart.
+# Author-built dataset of the 1025 Pokemon (Gen1 151 + Gen2 100 + Gen3 135 + Gen4 107
+# + Gen5 156 + Gen6 72 + Gen7 88 + Gen8 89 + Gen9 127) with stats, types and Chinese
+# names, plus the 18-type (15 + steel/dark + fairy) effectiveness chart.
 # Gen2 data + steel/dark chart sourced from gen2_data.py; Gen3 from gen3_data.py;
 # Gen4 from gen4_data.py; Gen5 from gen5_data.py; Gen6 from gen6_data.py;
-# Gen7 from gen7_data.py; Gen8 from gen8_data.py (all PokeAPI fetches).
-# Sprite URLs point to PokeAPI.
+# Gen7 from gen7_data.py; Gen8 from gen8_data.py; Gen9 from gen9_data.py
+# (all PokeAPI fetches). Sprite URLs point to PokeAPI.
 
 from gen2_data import GEN2_DATA, STEEL_DARK_CHART
 from gen3_data import GEN3_DATA
@@ -14,6 +14,7 @@ from gen5_data import GEN5_DATA
 from gen6_data import GEN6_DATA
 from gen7_data import GEN7_DATA
 from gen8_data import GEN8_DATA
+from gen9_data import GEN9_DATA
 
 # Each entry: id, en, zh, [types], hp, atk, def, spa, spd, spe
 DATA = [
@@ -201,6 +202,10 @@ DATA += GEN7_DATA
 # (fairy already real since Gen6), so fairy typing is kept.
 DATA += GEN8_DATA
 
+# Append Gen9 (899-1025, Hisui + Paldea) fetched from PokeAPI. Gen9 has no new
+# types (fairy already real since Gen6), so fairy typing is kept.
+DATA += GEN9_DATA
+
 TYPE_NAMES = ["normal","fire","water","electric","grass","ice","fighting","poison",
               "ground","flying","psychic","bug","rock","ghost","dragon","steel","dark","fairy"]
 
@@ -276,7 +281,7 @@ for row in DATA:
 
 import json
 with open("data.js", "w", encoding="utf-8") as f:
-    f.write("// Auto-generated dataset of the 898 Pokemon (Gen1+Gen2+Gen3+Gen4+Gen5+Gen6+Gen7+Gen8, offline-built).\n")
+    f.write("// Auto-generated dataset of the 1025 Pokemon (Gen1+Gen2+Gen3+Gen4+Gen5+Gen6+Gen7+Gen8+Gen9, offline-built).\n")
     f.write("window.POKEMON_LIST = " + json.dumps(pokemon, ensure_ascii=False) + ";\n")
     f.write("window.TYPE_EFFECT = " + json.dumps(eff, ensure_ascii=False) + ";\n")
     f.write("window.TYPE_ZH = " + json.dumps(TYPE_ZH, ensure_ascii=False) + ";\n")
