@@ -30,7 +30,7 @@ const L = window.POKEMON_LIST, E = window.TYPE_EFFECT, TZ = window.TYPE_ZH;
 let ok = true;
 function assert(c, m) { if (!c) { ok = false; console.log("FAIL:", m); } }
 
-assert(L.length === 809, "count == 809 (got " + L.length + ")");
+assert(L.length === 898, "count == 898 (got " + L.length + ")");
 const types = Object.keys(E);
 assert(types.length === 18, "18 types (got " + types.length + ")");
 L.forEach(p => {
@@ -83,14 +83,14 @@ assert(E.bug.fairy === 0.5, "bug>fairy 0.5x");
 assert(E.dark.fairy === 0.5, "dark>fairy 0.5x");
 assert(E.fighting.fairy === 0.5, "fighting>fairy 0.5x");
 
-console.log(ok ? "DATASET OK (809 pokemon, 18 types, chart valid)" : "DATASET HAS ISSUES");
+console.log(ok ? "DATASET OK (898 pokemon, 18 types, chart valid)" : "DATASET HAS ISSUES");
 
 // ---- 2b. 4-move kit structure for ALL 721 pokemon ----
 let moveKitOk = true;
 const expectCosts = [1, 1, 2, 3];
 const decks = [];
 for (let s = 0; s + 12 <= L.length; s += 12) decks.push(L.slice(s, s + 12));
-decks.push(L.slice(L.length - 12, L.length)); // tail coverage (375-386)
+decks.push(L.slice(L.length - 12, L.length)); // tail coverage (887-898)
 for (const deck of decks) {
   window.PK._beginCustom(deck);
   const st = window.PK._state();
@@ -105,7 +105,7 @@ for (const deck of decks) {
   });
 }
 assert(moveKitOk, "every mon has 4 moves with costs [1,1,2,3], valid power & type");
-console.log(ok ? "MOVE KIT OK (4 moves per mon, costs [1,1,2,3], all 809 covered)" : "MOVE KIT ISSUES");
+console.log(ok ? "MOVE KIT OK (4 moves per mon, costs [1,1,2,3], all 898 covered)" : "MOVE KIT ISSUES");
 
 // ---- 3. full auto battle (human always uses move 0) ----
 let wins = { you: 0, ai: 0 }, battles = 30, maxTurns = 0;
