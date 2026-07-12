@@ -66,7 +66,7 @@
 
   var state = null;
   var busy = false;
-  var setup = { mode: "random", selected: [], typeFilter: "all", query: "" };
+  var setup = { mode: "random", selected: [], typeFilter: "all", genFilter: "all", query: "" };
 
   if (typeof console !== "undefined" && console.log) {
     console.log("[PK] v5 loaded: animated async battle flow");
@@ -943,9 +943,11 @@
     setup.selected = [];
     setup.mode = "random";
     setup.typeFilter = "all";
+    setup.genFilter = "all";
     setup.query = "";
     syncSetupUI();
     renderPicker();
+    renderGenFilters();
     renderTypeFilters();
   }
 
@@ -969,6 +971,31 @@
     }
     var cnt = document.getElementById("pick-count");
     if (cnt) cnt.textContent = setup.selected.length;
+  }
+
+  function renderGenFilters() {
+    var wrap = document.getElementById("pk-gen");
+    if (!wrap) return;
+    var gens = [
+      { key: "all", label: "全部" },
+      { key: "gen1", label: "第一部 (初代 #1-151)" },
+      { key: "gen2", label: "第二部 (城都 #152-251)" }
+    ];
+    var html = "";
+    gens.forEach(function (g) {
+      html += '<button class="gf' + (setup.genFilter === g.key ? " on" : "") + '" data-gf="' + g.key + '">' + g.label + '</button>';
+    });
+    wrap.innerHTML = html;
+    var btns = wrap.querySelectorAll("[data-gf]");
+    for (var i = 0; i < btns.length; i++) {
+      (function (el) {
+        el.addEventListener("click", function () {
+          setup.genFilter = el.getAttribute("data-gf");
+          renderGenFilters();
+          renderPicker();
+        });
+      })(btns[i]);
+    }
   }
 
   function renderTypeFilters() {
@@ -1003,7 +1030,10 @@
       var matchType = setup.typeFilter === "all" || m.types.indexOf(setup.typeFilter) >= 0;
       var matchQ = !q || m.name_zh.indexOf(q) >= 0 || m.name.indexOf(q) >= 0 ||
         String(m.id) === q || ("#" + m.id) === q;
-      if (!matchType || !matchQ) return;
+      var matchGen = setup.genFilter === "all" ||
+        (setup.genFilter === "gen1" && m.id <= 151) ||
+        (setup.genFilter === "gen2" && m.id > 151);
+      if (!matchType || !matchQ || !matchGen) return;
       var sel = selIds[m.id];
       var hc = TYPE_COLOR[m.types[0]] || "#555";
       html += '<div class="pk' + (sel ? " sel" : "") + '" data-pk="' + m.id + '">' +

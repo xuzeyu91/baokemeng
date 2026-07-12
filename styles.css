@@ -275,8 +275,8 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 .overlay.setup { background:#0a0f1fdd; }
 .setup-box {
   position: relative;
-  background: #fff; border-radius: 18px; padding: 22px 24px 20px;
-  width: min(760px, 94vw); max-height: 90vh; overflow: auto;
+  background: #fff; border-radius: 18px; padding: 24px 28px 22px;
+  width: min(920px, 94vw); max-height: 92vh; overflow: auto;
   box-shadow: var(--shadow);
 }
 .setup-box h2 { font-size: 22px; color: var(--ink); }
@@ -310,6 +310,14 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 .mini-btn.ghost { background: #eef1f8; color: var(--muted); }
 .mini-btn:hover { filter: brightness(1.05); }
 
+.gen-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.gf {
+  border: 2px solid #e3e8f2; border-radius: 20px; padding: 5px 16px; font-size: 13px;
+  font-weight: 700; color: var(--muted); background: #f7f9fd; cursor: pointer;
+  transition: .12s; white-space: nowrap;
+}
+.gf.on { border-color: var(--accent2); background: #eef3ff; color: var(--accent2); opacity: 1; }
+
 .type-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .tf {
   border: none; border-radius: 20px; padding: 4px 11px; font-size: 11px;
@@ -318,36 +326,36 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 .tf.on { opacity: 1; outline: 2px solid #fff; box-shadow: 0 0 0 2px #3b6fd6; }
 
 .pk-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
-  gap: 8px; max-height: 46vh; overflow: auto; padding: 4px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px; max-height: 52vh; overflow: auto; padding: 6px;
   background: #f4f6fb; border-radius: 12px;
 }
 .pk {
-  position: relative; background: #fff; border: 2px solid #e3e8f2; border-radius: 10px;
-  padding: 6px 4px 5px; text-align: center; cursor: pointer; transition: .12s; user-select: none;
+  position: relative; background: #fff; border: 2px solid #e3e8f2; border-radius: 12px;
+  padding: 8px 5px 7px; text-align: center; cursor: pointer; transition: .12s; user-select: none;
 }
 .pk:hover { transform: translateY(-2px); border-color: var(--accent2); }
 .pk.sel { border-color: var(--accent2); background: #eef3ff; box-shadow: 0 0 0 2px #3b6fd6 inset; }
 .pk-check {
-  position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; border-radius: 50%;
-  background: var(--accent2); color: #fff; font-size: 12px; font-weight: 800;
+  position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent2); color: #fff; font-size: 13px; font-weight: 800;
   display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow);
 }
 .pk-art {
-  height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  margin-bottom: 3px;
+  height: 60px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 4px;
 }
-.pk-art img { width: 44px; height: 44px; object-fit: contain; image-rendering: pixelated; }
+.pk-art img { width: 54px; height: 54px; object-fit: contain; image-rendering: pixelated; }
 .pk-fb {
   display: none; width: 34px; height: 34px; border-radius: 50%;
   background: radial-gradient(circle at 50% 38%, #fff 0 30%, #e3534a 31% 100%);
   border: 2px solid #fff; color: #fff; font-weight: 800; font-size: 12px;
   align-items: center; justify-content: center;
 }
-.pk-name { font-size: 11px; font-weight: 700; color: var(--ink); white-space: nowrap;
+.pk-name { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
-.pk-types { display: flex; gap: 3px; justify-content: center; margin-top: 2px; flex-wrap: wrap; }
-.pk-types .type-chip { font-size: 9px; padding: 1px 6px; }
+.pk-types { display: flex; gap: 3px; justify-content: center; margin-top: 3px; flex-wrap: wrap; }
+.pk-types .type-chip { font-size: 10px; padding: 2px 7px; }
 
 .pick-foot { font-size: 12px; color: var(--muted); margin-top: 10px; text-align: center; }
 .pick-foot b { color: var(--accent2); font-size: 14px; }
