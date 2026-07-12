@@ -979,7 +979,8 @@
     var gens = [
       { key: "all", label: "全部" },
       { key: "gen1", label: "第一部 (初代 #1-151)" },
-      { key: "gen2", label: "第二部 (城都 #152-251)" }
+      { key: "gen2", label: "第二部 (城都 #152-251)" },
+      { key: "gen3", label: "第三部 (丰缘 #252-386)" }
     ];
     var html = "";
     gens.forEach(function (g) {
@@ -1032,7 +1033,8 @@
         String(m.id) === q || ("#" + m.id) === q;
       var matchGen = setup.genFilter === "all" ||
         (setup.genFilter === "gen1" && m.id <= 151) ||
-        (setup.genFilter === "gen2" && m.id > 151);
+        (setup.genFilter === "gen2" && m.id >= 152 && m.id <= 251) ||
+        (setup.genFilter === "gen3" && m.id >= 252);
       if (!matchType || !matchQ || !matchGen) return;
       var sel = selIds[m.id];
       var hc = TYPE_COLOR[m.types[0]] || "#555";

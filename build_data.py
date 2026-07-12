@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-# Author-built dataset of the 251 Pokemon (Gen1 151 + Gen2 100) with stats,
-# types and Chinese names, plus the 17-type (15 + steel/dark) effectiveness chart.
-# Gen2 data + steel/dark chart sourced from gen2_data.py (PokeAPI fetch).
-# Sprite URLs point to PokeAPI (load when online; game has an offline fallback).
+# Author-built dataset of the 386 Pokemon (Gen1 151 + Gen2 100 + Gen3 135) with
+# stats, types and Chinese names, plus the 17-type (15 + steel/dark) effectiveness chart.
+# Gen2 data + steel/dark chart sourced from gen2_data.py; Gen3 sourced from gen3_data.py
+# (both PokeAPI fetches). Sprite URLs point to PokeAPI (load when online; game has fallback).
 
 from gen2_data import GEN2_DATA, STEEL_DARK_CHART
+from gen3_data import GEN3_DATA
 
 # Each entry: id, en, zh, [types], hp, atk, def, spa, spd, spe
 DATA = [
@@ -167,6 +168,11 @@ DATA += GEN2_DATA
 # In Gen2 the 'fairy' type did not exist; modern API typings apply it to several
 # Gen2 mons (togepi / clefairy / marill / snubbull lines). Map fairy -> normal so
 # the dataset stays within the 17-type Gen2 frame.
+
+# Append Gen3 (252-386) fetched from PokeAPI. Gen3 introduces no new types
+# (fairy is Gen6); the fetcher already mapped any fairy typing to normal.
+DATA += GEN3_DATA
+
 def _no_fairy(row):
     rid, en, zh, types, hp, atk, df, spa, spd, spe = row
     return (rid, en, zh, ["normal" if t == "fairy" else t for t in types],
@@ -230,7 +236,7 @@ for row in DATA:
 
 import json
 with open("data.js", "w", encoding="utf-8") as f:
-    f.write("// Auto-generated dataset of the 251 Pokemon (Gen1+Gen2, offline-built).\n")
+    f.write("// Auto-generated dataset of the 386 Pokemon (Gen1+Gen2+Gen3, offline-built).\n")
     f.write("window.POKEMON_LIST = " + json.dumps(pokemon, ensure_ascii=False) + ";\n")
     f.write("window.TYPE_EFFECT = " + json.dumps(eff, ensure_ascii=False) + ";\n")
     f.write("window.TYPE_ZH = " + json.dumps(TYPE_ZH, ensure_ascii=False) + ";\n")
