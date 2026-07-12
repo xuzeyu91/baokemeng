@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宝可梦 · 大厅</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .hub-cards {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    margin-top: 26px;
+  }
+  .hub-card {
+    display: block; text-decoration: none; color: var(--ink);
+    background: var(--panel); border-radius: 18px; padding: 26px 24px;
+    box-shadow: var(--shadow); border: 3px solid #fff;
+    transition: transform .12s, border-color .12s; position: relative; overflow: hidden;
+  }
+  .hub-card:hover { transform: translateY(-4px); border-color: var(--accent); }
+  .hub-emoji { font-size: 46px; margin-bottom: 10px; }
+  .hub-card h2 { font-size: 22px; margin-bottom: 8px; }
+  .hub-card p { color: var(--muted); font-size: 13px; line-height: 1.7; }
+  .hub-go {
+    display: inline-block; margin-top: 14px; font-weight: 800; color: var(--accent2);
+    font-size: 14px;
+  }
+  .hub-card .badge {
+    position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 800;
+    background: #eef3ff; color: var(--accent2); padding: 3px 10px; border-radius: 20px;
+  }
+  @media (max-width: 720px) { .hub-cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="title">
+      <div class="logo"></div>
+      <div>
+        <h1>宝可梦</h1>
+        <small>选择你想要的游戏模式</small>
+      </div>
+    </div>
+  </header>
+
+  <div class="hub-cards">
+    <a class="hub-card" href="pokemon-battle.html">
+      <span class="badge">经典</span>
+      <div class="hub-emoji">⚔️</div>
+      <h2>卡牌对战</h2>
+      <p>选 12 只宝可梦组队，能量管理 + 属性克制 + 超级进化，和电脑一决高下。</p>
+      <span class="hub-go">进入 →</span>
+    </a>
+    <a class="hub-card" href="rpg.html">
+      <span class="badge">新</span>
+      <div class="hub-emoji">🗺️</div>
+      <h2>RPG 冒险</h2>
+      <p>在地图里自由行走，捕捉野生宝可梦，挑战训练家，赢取经验、升级让自己的宝可梦变强。</p>
+      <span class="hub-go">进入 →</span>
+    </a>
+  </div>
+
+  <div class="foot">提示：RPG 模式进度会自动保存在浏览器中（localStorage），可随时继续冒险。</div>
+</div>
+</body>
+</html>

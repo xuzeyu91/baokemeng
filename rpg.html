@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宝可梦 RPG 冒险</title>
+<link rel="stylesheet" href="rpg.css">
+</head>
+<body>
+  <div class="rpg-topbar">
+    <div class="rpg-brand">
+      <span class="logo"></span>
+      <div>
+        <h1>宝可梦 RPG 冒险</h1>
+        <small>地图探索 · 捕捉 · 对战 · 升级</small>
+      </div>
+    </div>
+    <div class="rpg-topbtns">
+      <button class="rpg-btn" id="rpg-menu">队伍</button>
+      <button class="rpg-btn ghost" id="rpg-hub">返回大厅</button>
+      <button class="rpg-btn ghost" id="rpg-reset">重置存档</button>
+    </div>
+  </div>
+
+  <div class="rpg-layout">
+    <div class="rpg-mapwrap">
+      <canvas id="rpg-map" width="640" height="480"></canvas>
+      <div class="rpg-toast" id="rpg-toast"></div>
+    </div>
+
+    <aside class="rpg-side">
+      <div class="rpg-hud-card">
+        <div class="rpg-hud-title">我的队伍 <span class="rpg-ball" id="rpg-ball">🔘 10</span></div>
+        <div class="rpg-party" id="rpg-party"></div>
+      </div>
+      <div class="rpg-hint" id="rpg-hint">
+        用 <b>方向键 / WASD</b> 走路，或在草丛里走动会遇到野生宝可梦。
+        走到黄色的「宝可梦中心」可以回满体力，撞上训练家会触发对战。
+      </div>
+      <div class="rpg-dpad">
+        <button class="rpg-dbtn up"    data-dir="up">▲</button>
+        <button class="rpg-dbtn left"  data-dir="left">◀</button>
+        <button class="rpg-dbtn down"  data-dir="down">▼</button>
+        <button class="rpg-dbtn right" data-dir="right">▶</button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- 对战遮罩 -->
+  <div class="rpg-battle hidden" id="rpg-battle">
+    <div class="rpg-battle-box">
+      <div class="rpg-battle-top">
+        <div class="rpg-foe" id="rpg-foe"></div>
+        <div class="rpg-you" id="rpg-you"></div>
+      </div>
+      <div class="rpg-battle-log" id="rpg-battle-log"></div>
+      <div class="rpg-battle-actions" id="rpg-battle-actions"></div>
+    </div>
+  </div>
+
+  <!-- 初始宝可梦选择 -->
+  <div class="rpg-modal hidden" id="rpg-starter">
+    <div class="rpg-modal-box">
+      <h2>选择你的初始宝可梦</h2>
+      <p class="rpg-modal-sub">它将陪伴你踏上冒险旅程（等级 5，初始携带 10 个精灵球）。</p>
+      <div class="rpg-starter-grid" id="rpg-starter-grid"></div>
+    </div>
+  </div>
+
+  <!-- 队伍详情 -->
+  <div class="rpg-modal hidden" id="rpg-partymodal">
+    <div class="rpg-modal-box">
+      <h2>我的队伍</h2>
+      <div class="rpg-partydetail" id="rpg-partydetail"></div>
+      <button class="rpg-btn" id="rpg-partymodal-close">关闭</button>
+    </div>
+  </div>
+
+  <div id="rpg-fx"></div>
+  <script src="data.js?v=2"></script>
+  <script src="rpg.js?v=2"></script>
+</body>
+</html>
