@@ -113,10 +113,13 @@
   var MON_BY_ID = {};
   for (var i = 0; i < LIST.length; i++) MON_BY_ID[LIST[i].id] = LIST[i];
 
-  // 野生宝可梦池：只出现基础形态（未进化），避免早期草丛刷出进化型/血牛碾压玩家
+  // 野生宝可梦池：只出现基础形态（未进化），且 HP/防御/总种族不过高，避免早期草丛刷出钢板/血牛碾压玩家
   function baseStatTotal(mon) { return mon.hp + mon.attack + mon.defense + mon.sp_attack + mon.sp_defense + mon.speed; }
-  var WILD_COMMON = LIST.filter(function (mon) { return mon.evolves_from === null && baseStatTotal(mon) <= 350; });
-  var WILD_RARE = LIST.filter(function (mon) { return mon.evolves_from === null && baseStatTotal(mon) > 350 && baseStatTotal(mon) <= 420; });
+  function isEligibleWild(mon) {
+    return mon.evolves_from === null && mon.hp <= 90 && mon.defense <= 100 && baseStatTotal(mon) <= 420;
+  }
+  var WILD_COMMON = LIST.filter(function (mon) { return isEligibleWild(mon) && baseStatTotal(mon) <= 350; });
+  var WILD_RARE = LIST.filter(function (mon) { return isEligibleWild(mon) && baseStatTotal(mon) > 350 && baseStatTotal(mon) <= 420; });
 
   /* ---------- 地图 ---------- */
   // # 树(阻挡)  ~ 水(阻挡)  . 安全地面  , 高草(遇敌)  C 宝可梦中心  P 出生点
