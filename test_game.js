@@ -30,9 +30,9 @@ const L = window.POKEMON_LIST, E = window.TYPE_EFFECT, TZ = window.TYPE_ZH;
 let ok = true;
 function assert(c, m) { if (!c) { ok = false; console.log("FAIL:", m); } }
 
-assert(L.length === 151, "count == 151 (got " + L.length + ")");
+assert(L.length === 251, "count == 251 (got " + L.length + ")");
 const types = Object.keys(E);
-assert(types.length === 15, "15 types (got " + types.length + ")");
+assert(types.length === 17, "17 types (got " + types.length + ")");
 L.forEach(p => {
   assert(p.name_zh && p.name_zh.length > 0, "zh name for " + p.id);
   assert(p.types.length >= 1 && p.types.length <= 2, "types 1-2 for " + p.id);
@@ -55,7 +55,21 @@ assert(E.grass.fire === 0.5, "grass>fire 0.5x");
 assert(E.ghost.psychic === 0, "ghost>psychic 0x (gen1 bug)");
 assert(E.psychic.ghost === 1, "psychic>ghost 1x (gen1: ghost not weak to psychic)");
 
-console.log(ok ? "DATASET OK (151 pokemon, 15 types, chart valid)" : "DATASET HAS ISSUES");
+// ---- Gen2 (steel/dark) known multipliers ----
+assert(E.steel.ice === 2, "steel>ice 2x");
+assert(E.steel.rock === 2, "steel>rock 2x");
+assert(E.dark.psychic === 2, "dark>psychic 2x");
+assert(E.dark.ghost === 2, "dark>ghost 2x");
+assert(E.fire.steel === 2, "fire>steel 2x");
+assert(E.fighting.steel === 2, "fighting>steel 2x");
+assert(E.ground.steel === 2, "ground>steel 2x");
+assert(E.poison.steel === 0, "poison>steel 0x (steel immune to poison)");
+assert(E.psychic.dark === 0, "psychic>dark 0x (dark immune to psychic)");
+assert(E.fighting.dark === 2, "fighting>dark 2x");
+assert(E.bug.dark === 2, "bug>dark 2x");
+assert(E.steel.steel === 0.5, "steel>steel 0.5x");
+
+console.log(ok ? "DATASET OK (251 pokemon, 17 types, chart valid)" : "DATASET HAS ISSUES");
 
 // ---- 2b. 4-move kit structure for ALL 151 pokemon ----
 let moveKitOk = true;
@@ -75,7 +89,7 @@ for (let s = 0; s < L.length; s += 12) {
   });
 }
 assert(moveKitOk, "every mon has 4 moves with costs [1,1,2,3], valid power & type");
-console.log(ok ? "MOVE KIT OK (4 moves per mon, costs [1,1,2,3], all 151 covered)" : "MOVE KIT ISSUES");
+console.log(ok ? "MOVE KIT OK (4 moves per mon, costs [1,1,2,3], all 251 covered)" : "MOVE KIT ISSUES");
 
 // ---- 3. full auto battle (human always uses move 0) ----
 let wins = { you: 0, ai: 0 }, battles = 30, maxTurns = 0;

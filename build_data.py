@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
-# Author-built dataset of the 151 Gen-1 Pokemon (stats, types, Chinese names)
-# and the Gen-1 15-type effectiveness chart.
+# Author-built dataset of the 251 Pokemon (Gen1 151 + Gen2 100) with stats,
+# types and Chinese names, plus the 17-type (15 + steel/dark) effectiveness chart.
+# Gen2 data + steel/dark chart sourced from gen2_data.py (PokeAPI fetch).
 # Sprite URLs point to PokeAPI (load when online; game has an offline fallback).
+
+from gen2_data import GEN2_DATA, STEEL_DARK_CHART
 
 # Each entry: id, en, zh, [types], hp, atk, def, spa, spd, spe
 DATA = [
@@ -158,13 +161,26 @@ DATA = [
 (151,"mew","梦幻",["psychic"],100,100,100,100,100,100),
 ]
 
+# Append Gen2 (152-251) fetched from PokeAPI
+DATA += GEN2_DATA
+
+# In Gen2 the 'fairy' type did not exist; modern API typings apply it to several
+# Gen2 mons (togepi / clefairy / marill / snubbull lines). Map fairy -> normal so
+# the dataset stays within the 17-type Gen2 frame.
+def _no_fairy(row):
+    rid, en, zh, types, hp, atk, df, spa, spd, spe = row
+    return (rid, en, zh, ["normal" if t == "fairy" else t for t in types],
+            hp, atk, df, spa, spd, spe)
+DATA = [_no_fairy(r) for r in DATA]
+
 TYPE_NAMES = ["normal","fire","water","electric","grass","ice","fighting","poison",
-              "ground","flying","psychic","bug","rock","ghost","dragon"]
+              "ground","flying","psychic","bug","rock","ghost","dragon","steel","dark"]
 
 TYPE_ZH = {
     "normal":"一般","fire":"火","water":"水","electric":"电","grass":"草",
     "ice":"冰","fighting":"格斗","poison":"毒","ground":"地面","flying":"飞行",
-    "psychic":"超能力","bug":"虫","rock":"岩石","ghost":"幽灵","dragon":"龙"
+    "psychic":"超能力","bug":"虫","rock":"岩石","ghost":"幽灵","dragon":"龙",
+    "steel":"钢","dark":"恶"
 }
 
 # Gen-1 type effectiveness: attacker -> {defender: multiplier}
@@ -186,7 +202,13 @@ CHART = {
 "dragon":   {"dragon":2},
 }
 
-# Build full 15x15 matrix
+# Merge Gen2 steel/dark interactions (deep merge, never clobber Gen1 rows),
+# then build full 17x17 matrix
+for _t, _rels in STEEL_DARK_CHART.items():
+    if _t not in CHART:
+        CHART[_t] = {}
+    for _d, _m in _rels.items():
+        CHART[_t][_d] = _m
 eff = {}
 for a in TYPE_NAMES:
     eff[a] = {d: 1.0 for d in TYPE_NAMES}
@@ -208,7 +230,7 @@ for row in DATA:
 
 import json
 with open("data.js", "w", encoding="utf-8") as f:
-    f.write("// Auto-generated dataset of the 151 Gen-1 Pokemon (offline-built).\n")
+    f.write("// Auto-generated dataset of the 251 Pokemon (Gen1+Gen2, offline-built).\n")
     f.write("window.POKEMON_LIST = " + json.dumps(pokemon, ensure_ascii=False) + ";\n")
     f.write("window.TYPE_EFFECT = " + json.dumps(eff, ensure_ascii=False) + ";\n")
     f.write("window.TYPE_ZH = " + json.dumps(TYPE_ZH, ensure_ascii=False) + ";\n")

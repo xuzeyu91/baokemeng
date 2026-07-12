@@ -11,7 +11,8 @@
     normal:"#A8A878", fire:"#F08030", water:"#6890F0", electric:"#F8D030",
     grass:"#78C850", ice:"#98D8D8", fighting:"#C03028", poison:"#A040A0",
     ground:"#E0C068", flying:"#A890F0", psychic:"#F85888", bug:"#A8B820",
-    rock:"#B8A038", ghost:"#705898", dragon:"#7038F8"
+    rock:"#B8A038", ghost:"#705898", dragon:"#7038F8",
+    steel:"#B8B8D0", dark:"#705848"
   };
 
   var STATUS_ZH = {
@@ -47,7 +48,9 @@
     bug:["虫咬","虫鸣","十字剪","蝶舞"],
     rock:["落石","岩石封锁","尖石攻击","岩崩"],
     ghost:["影子拳","暗影爪","暗影球","潜灵奇袭"],
-    dragon:["龙息","龙之波动","龙爪","逆鳞"]
+    dragon:["龙息","龙之波动","龙爪","逆鳞"],
+    steel:["金属爪","铁头","铁尾","钢铁冲击"],
+    dark:["咬住","恶意追击","恶之波动","暗夜爆裂"]
   };
 
   var DECK_SIZE = 12;
