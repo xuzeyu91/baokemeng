@@ -818,7 +818,7 @@
     bindPreviewEvents();
   }
 
-  /* ---------- hover preview ---------- */
+  /* ---------- hover preview (battle) ---------- */
   function findCardById(pkId, side) {
     var p = state[side];
     if (!p) return null;
@@ -917,6 +917,78 @@
       (function (el) {
         el.addEventListener("mouseenter", function () {
           showPkPreview(el, el.getAttribute("data-pkid"), el.getAttribute("data-side"));
+        });
+        el.addEventListener("mouseleave", hidePkPreview);
+      })(cells[i]);
+    }
+  }
+
+  /* ---------- hover preview (setup picker) ---------- */
+  function setupPreviewHTML(mon) {
+    var hc = TYPE_COLOR[mon.types[0]] || "#555";
+    var typesHTML = mon.types.map(function (t) {
+      return '<span class="type-chip" style="background:' + (TYPE_COLOR[t] || "#888") + '">' + (TYPE_ZH[t] || t) + '</span>';
+    }).join("");
+    return '' +
+      '<div class="pv-art" style="background:linear-gradient(180deg,#f3f5fb,#dfe5f2)">' +
+        '<img src="' + mon.sprite + '" alt="' + mon.name_zh + '" ' +
+          'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
+        '<div class="fb" style="display:none;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#fff 0 30%,#e3534a 31% 100%);border:3px solid #fff;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;">' + mon.id + '</div>' +
+      '</div>' +
+      '<div class="pv-head" style="background:' + hc + '">' +
+        '<span class="pv-nm">' + mon.name_zh + '</span>' +
+        '<span class="pv-no">#' + mon.id + '</span>' +
+      '</div>' +
+      '<div class="pv-types">' + typesHTML + '</div>' +
+      '<div class="pv-body">' +
+        '<div class="pv-stats">' +
+          '<div><span>HP</span><b>' + mon.hp + '</b></div>' +
+          '<div><span>攻击</span><b>' + mon.attack + '</b></div>' +
+          '<div><span>防御</span><b>' + mon.defense + '</b></div>' +
+          '<div><span>特攻</span><b>' + mon.sp_attack + '</b></div>' +
+          '<div><span>特防</span><b>' + mon.sp_defense + '</b></div>' +
+          '<div><span>速度</span><b>' + mon.speed + '</b></div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function showSetupPreview(el, pkId) {
+    var mon = null;
+    for (var k = 0; k < LIST.length; k++) {
+      if (LIST[k].id === pkId) { mon = LIST[k]; break; }
+    }
+    if (!mon) return;
+    var pv = document.getElementById("pk-preview");
+    if (!pv) return;
+    pv.innerHTML = setupPreviewHTML(mon);
+    pv.classList.add("show");
+    positionSetupPreview(pv, el);
+  }
+
+  function positionSetupPreview(pv, el) {
+    var rect = el.getBoundingClientRect();
+    var pvW = 220;
+    // Prefer showing to the right of the card
+    var x = rect.right + 8;
+    var y = rect.top;
+    // Flip left if too close to right edge
+    if (x + pvW > window.innerWidth - 8) x = rect.left - pvW - 8;
+    // Fallback: center within viewport
+    if (x < 8) x = Math.max(8, Math.min(rect.left, window.innerWidth - pvW - 8));
+    // Clamp vertical
+    var maxH = window.innerHeight - 16;
+    if (y + maxH > window.innerHeight) y = window.innerHeight - maxH;
+    if (y < 8) y = 8;
+    pv.style.left = x + "px";
+    pv.style.top = y + "px";
+  }
+
+  function bindPickerHoverEvents() {
+    var cells = document.querySelectorAll(".pk[data-pk]");
+    for (var i = 0; i < cells.length; i++) {
+      (function (el) {
+        el.addEventListener("mouseenter", function () {
+          showSetupPreview(el, parseInt(el.getAttribute("data-pk"), 10));
         });
         el.addEventListener("mouseleave", hidePkPreview);
       })(cells[i]);
@@ -1065,6 +1137,7 @@
         });
       })(cells[i]);
     }
+    bindPickerHoverEvents();
   }
 
   function togglePick(id) {
