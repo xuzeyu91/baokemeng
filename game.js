@@ -1056,7 +1056,8 @@
       { key: "gen3", label: "第三部 (丰缘 #252-386)" },
       { key: "gen4", label: "第四部 (神奥 #387-493)" },
       { key: "gen5", label: "第五部 (合众 #494-649)" },
-      { key: "gen6", label: "第六部 (卡洛斯 #650-721)" }
+      { key: "gen6", label: "第六部 (卡洛斯 #650-721)" },
+      { key: "gen7", label: "第七部 (阿罗拉 #722-809)" }
     ];
     var html = "";
     gens.forEach(function (g) {
@@ -1113,7 +1114,8 @@
         (setup.genFilter === "gen3" && m.id >= 252 && m.id <= 386) ||
         (setup.genFilter === "gen4" && m.id >= 387 && m.id <= 493) ||
         (setup.genFilter === "gen5" && m.id >= 494 && m.id <= 649) ||
-        (setup.genFilter === "gen6" && m.id >= 650);
+        (setup.genFilter === "gen6" && m.id >= 650 && m.id <= 721) ||
+        (setup.genFilter === "gen7" && m.id >= 722);
       if (!matchType || !matchQ || !matchGen) return;
       var sel = selIds[m.id];
       var hc = TYPE_COLOR[m.types[0]] || "#555";
