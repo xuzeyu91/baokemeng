@@ -58,6 +58,10 @@
   var BENCH_START = 4;
   var MAX_ENERGY = 5;
   var MEGA_COST = 2; // energy cost to Mega Evolve (once per battle)
+  var DYNAMAX_COST = 3;        // energy cost to Dynamax (once per battle)
+  var DYNAMAX_TURNS = 3;       // number of boosted "Max Move" attack turns after activation
+  var DYNAMAX_HP_MULT = 1.5;   // max-HP multiplier while Dynamaxed
+  var DYNAMAX_POWER_MULT = 1.4; // move-power multiplier for Max Moves (极巨招式)
 
   var STRIKE_MS = 260;
   var IMPACT_MS = 540;
@@ -113,6 +117,22 @@
       m2, m3
     ];
   }
+  // 极巨招式：保留同一套招式的属性/类型/费用，威力提升并以「极巨」前缀重命名。
+  // 与超级进化不同，极巨化不改变物种，而是把现有招式临时升级为极巨招式。
+  function genMaxMoves(mon) {
+    return genMoves(mon).map(function (mv) {
+      return {
+        name: "极巨" + mv.name,
+        type: mv.type,
+        power: clamp(Math.round(mv.power * DYNAMAX_POWER_MULT), 40, 220),
+        cost: mv.cost,
+        cat: mv.cat,
+        status: mv.status,
+        statusChance: mv.statusChance,
+        max: true
+      };
+    });
+  }
   function makeCard(mon) {
     return {
       mon: mon, maxHp: mon.hp, hp: mon.hp, energy: 0, status: null,
@@ -130,7 +150,7 @@
       var active = cards[0];
       var bench = cards.slice(1, 1 + BENCH_START);
       var deck = cards.slice(1 + BENCH_START);
-      return { name: name, active: active, bench: bench, deck: deck, graveyard: [], megaUsed: false };
+      return { name: name, active: active, bench: bench, deck: deck, graveyard: [], megaUsed: false, dynamaxUsed: false };
     }
     state = {
       you: buildPlayer("你", youMons),
@@ -222,6 +242,16 @@
 
   function afterMove(side) {
     if (state.over) return;
+    // 回合结束结算极巨化计时：发动回合不计数，之后每回合 -1，归零则恢复原状
+    var p = state[side];
+    if (p.active.dynamaxTurns > 0) {
+      if (p.active._dynamaxJustActivated) {
+        p.active._dynamaxJustActivated = false;
+      } else {
+        p.active.dynamaxTurns -= 1;
+        if (p.active.dynamaxTurns <= 0) revertDynamax(side);
+      }
+    }
     var other = side === "you" ? "ai" : "you";
     if (side === state.firstMover) {
       beginTurn(other);   // 先手行动完毕，轮到后手
@@ -364,9 +394,16 @@
 
     setTimeout(function () {
       // Mega Evolution (once per battle, when affordable)
-      if (a.mon.mega && a.mon.mega.length && !me.megaUsed && a.energy >= MEGA_COST) {
+      if (a.mon.mega && a.mon.mega.length && !me.megaUsed && !me.dynamaxUsed && a.energy >= MEGA_COST) {
         if (a.hp / a.maxHp < 0.7 || Math.random() < 0.5) {
           useMega("ai", 0, function () { afterMove("ai"); });
+          return;
+        }
+      }
+      // Dynamax (once per battle, mutually exclusive with Mega, when affordable)
+      if (!me.dynamaxUsed && !me.megaUsed && a.dynamaxTurns === 0 && a.energy >= DYNAMAX_COST) {
+        if (a.hp / a.maxHp < 0.7 || Math.random() < 0.4) {
+          useDynamax("ai", function () { afterMove("ai"); });
           return;
         }
       }
@@ -513,6 +550,71 @@
       }
       setTimeout(function () { try { if (card) card.classList.remove("mega-flash"); } catch (_) {} }, 900);
     } catch (e) { console.warn("[PK] mega:", e); }
+  }
+
+  /* Dynamax: temporary 3-turn power-up (HP boost + Max Moves). Does NOT change
+     species. Once per battle, mutually exclusive with Mega Evolution. */
+  function onDynamax() {
+    if (busy || state.over || state.turn !== "you") return;
+    var me = state.you, c = me.active;
+    // guard: invalid state -> no-op, do NOT consume the turn
+    if (me.dynamaxUsed || me.megaUsed || c.dynamaxTurns > 0 || c.energy < DYNAMAX_COST) return;
+    busy = true;
+    useDynamax("you", function () { afterMove("you"); });
+  }
+  function useDynamax(side, callback) {
+    var me = state[side];
+    var c = me.active;
+    if (me.dynamaxUsed || me.megaUsed || c.dynamaxTurns > 0 || c.energy < DYNAMAX_COST) {
+      if (callback) callback();
+      return;
+    }
+    var baseName = c.mon.name_zh;
+    c.energy -= DYNAMAX_COST;
+    // 体型暴涨：提升最大 HP 并按比例同步当前 HP（物种不变，c.mon.hp 即原始上限）
+    var newMax = Math.max(c.maxHp, Math.round(c.maxHp * DYNAMAX_HP_MULT));
+    var ratio = c.maxHp > 0 ? c.hp / c.maxHp : 1;
+    c.maxHp = newMax;
+    c.hp = Math.max(1, Math.round(ratio * newMax));
+    // 招式临时升级为极巨招式（发动后由 afterMove 逐回合计时，归零自动还原）
+    c.moves = genMaxMoves(c.mon);
+    c.dynamaxTurns = DYNAMAX_TURNS;
+    c._dynamaxJustActivated = true;
+    me.dynamaxUsed = true; // 每场仅一次（全队共享）
+    var who = side === "you" ? "你" : "电脑";
+    log(side, who + "的" + baseName + " 极巨化，体型暴涨！(持续 " + DYNAMAX_TURNS + " 回合)");
+    render();
+    animateDynamax(side);
+    busy = true;
+    setTimeout(function () { if (callback) callback(); }, 720);
+  }
+  function revertDynamax(side) {
+    var me = state[side];
+    var c = me.active;
+    if (!c || c.dynamaxTurns === undefined) return;
+    var ratio = c.maxHp > 0 ? c.hp / c.maxHp : 1;
+    c.maxHp = c.mon.hp;                 // 还原原始最大 HP（极巨化期间 c.mon 未改变）
+    c.hp = Math.max(1, Math.round(ratio * c.maxHp));
+    c.moves = genMoves(c.mon);          // 还原普通招式
+    c.dynamaxTurns = 0;
+    c._dynamaxJustActivated = false;
+    log("sys", me.name + "的" + c.mon.name_zh + " 极巨化结束了，恢复原状。");
+  }
+  function animateDynamax(side) {
+    try {
+      var fx = fxLayer();
+      var card = document.getElementById(elId(side));
+      if (card) card.classList.add("dynamax-flash");
+      var c = centerOf(card);
+      if (fx) {
+        var p = document.createElement("div");
+        p.className = "dmg-txt dynamax"; p.textContent = "极巨化!";
+        p.style.left = c.x + "px"; p.style.top = (c.y - 30) + "px";
+        fx.appendChild(p);
+        setTimeout(function () { try { if (p && p.parentNode) p.parentNode.removeChild(p); } catch (_) {} }, 1100);
+      }
+      setTimeout(function () { try { if (card) card.classList.remove("dynamax-flash"); } catch (_) {} }, 900);
+    } catch (e) { console.warn("[PK] dynamax:", e); }
   }
 
   /* ---------- animations (browser only; guarded for headless) ---------- */
@@ -680,9 +782,9 @@
       ? '<div class="energy"><span class="lbl">能量</span>' + energyDots(c.energy) + "</div>"
       : "";
     return '' +
-      '<div class="card" id="' + elId(side) + '" style="border-color:' + headColor + ';--head:' + headColor + ';--ry:' + (side === "you" ? "9deg" : "-9deg") + '">' +
+      '<div class="card' + (c.dynamaxTurns > 0 ? " dynamax" : "") + '" id="' + elId(side) + '" style="border-color:' + headColor + ';--head:' + headColor + ';--ry:' + (side === "you" ? "9deg" : "-9deg") + '">' +
         '<div class="head" style="background:' + headColor + '">' +
-          '<span class="nm">' + c.mon.name_zh + '</span>' +
+          '<span class="nm">' + c.mon.name_zh + (c.dynamaxTurns > 0 ? '<span class="dmax-tag">极巨化</span>' : '') + '</span>' +
           '<span class="no">#' + ("00" + c.mon.id).slice(-3) + (faster ? '<span class="first">先手</span>' : '') + '</span>' +
         '</div>' +
         '<div class="art">' +
@@ -804,7 +906,7 @@
         '<div class="md"><span>恢复 2 能量</span><span>支援</span></div>' +
       '</button>';
     // Mega Evolution buttons (once per battle, costs MEGA_COST energy)
-    if (c.mon.mega && c.mon.mega.length && !state.you.megaUsed) {
+    if (c.mon.mega && c.mon.mega.length && !state.you.megaUsed && !state.you.dynamaxUsed) {
       c.mon.mega.forEach(function (mf, mi) {
         var canMega = canAct && c.energy >= MEGA_COST;
         var suffix = c.mon.mega.length > 1
@@ -818,6 +920,23 @@
             '<span>攻 ' + mf.attack + ' · 速 ' + mf.speed + '</span></div>' +
         '</button>';
       });
+    }
+    // Dynamax button (once per battle, costs DYNAMAX_COST energy, mutually exclusive with Mega)
+    if (!state.you.dynamaxUsed && !state.you.megaUsed) {
+      var canDmax = canAct && c.energy >= DYNAMAX_COST;
+      html += '<button class="move dynamax' + (canDmax ? "" : " disabled") + '" data-dynamax="1"' +
+        (canDmax ? "" : " disabled") + '>' +
+        '<div class="mn"><span class="type-chip dynamax">MAX</span>极巨化' +
+          '<span class="cost">能量 ' + DYNAMAX_COST + '</span></div>' +
+        '<div class="md"><span>体型暴涨 · 最大HP×' + DYNAMAX_HP_MULT + '</span>' +
+          '<span>招式变为极巨招式</span></div>' +
+      '</button>';
+    } else if (c.dynamaxTurns > 0) {
+      html += '<button class="move dynamax is-active" data-dynamax-disabled="1" disabled>' +
+        '<div class="mn"><span class="type-chip dynamax">MAX</span>极巨化中' +
+          '<span class="cost">剩余 ' + c.dynamaxTurns + ' 回合</span></div>' +
+        '<div class="md"><span>极巨招式中</span><span>最大HP 已提升</span></div>' +
+      '</button>';
     }
     return html;
   }
@@ -863,9 +982,15 @@
     if (lg) lg.innerHTML = logHTML();
 
     var canAct = !busy && !state.over && state.turn === "you";
-    var hint = canAct
-      ? '你有 4 个攻击技能 + 1 个「聚气·回复能量」支援技（0 消耗、恢复 2 能量、可随时使用）。每回合自动恢复 1 点能量，攒够 3 点可放 3 费大招，能量上限 ' + MAX_ENERGY + ' 点。'
-      : (state.over ? "点击「重选宝可梦」再来一局。" : "请稍候，电脑正在行动…");
+    var hint;
+    if (canAct) {
+      var specialNote = (!state.you.megaUsed && !state.you.dynamaxUsed && state.you.active.energy >= Math.min(MEGA_COST, DYNAMAX_COST))
+        ? "当能量充足且本场尚未使用时，可发动一次「超级进化」或「极巨化」作为一次性强化（两者互斥）。"
+        : "";
+      hint = '你有 4 个攻击技能 + 1 个「聚气·回复能量」支援技（0 消耗、恢复 2 能量、可随时使用）。每回合自动恢复 1 点能量，攒够 3 点可放 3 费大招，能量上限 ' + MAX_ENERGY + ' 点。' + specialNote;
+    } else {
+      hint = state.over ? "点击「重选宝可梦」再来一局。" : "请稍候，电脑正在行动…";
+    }
     var sh = document.getElementById("switch-hint");
     if (sh) sh.innerHTML = hint;
 
@@ -896,6 +1021,12 @@
       (function (el) {
         el.addEventListener("click", function () { onMega(parseInt(el.getAttribute("data-mega"), 10)); });
       })(meg[q]);
+    }
+    var dmx = document.querySelectorAll("[data-dynamax]");
+    for (var dd = 0; dd < dmx.length; dd++) {
+      (function (el) {
+        el.addEventListener("click", function () { onDynamax(); });
+      })(dmx[dd]);
     }
     bindPreviewEvents();
   }
@@ -1337,6 +1468,7 @@ function setupPreviewHTML(mon) {
     _useMove: onMove,
     _switch: onSwitch,
     _mega: onMega,
+    _dynamax: onDynamax,
     _beginCustom: function (mons) { beginGame(mons); }
   };
 

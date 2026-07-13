@@ -287,6 +287,30 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
   100% { box-shadow:0 0 0 0 #ffe27a; filter:brightness(1); }
 }
 
+/* ---------- Dynamax (极巨化) ---------- */
+.move.dynamax {
+  border-color:#a06bff; background:linear-gradient(180deg,#f3ebff,#e7d6ff);
+  box-shadow:0 0 0 1px #c4a3ff inset;
+}
+.move.dynamax:hover:not(:disabled) { border-color:#7c3aed; background:#ecdcff; }
+.move.dynamax .mn { color:#5b2da8; }
+.move.dynamax.is-active { opacity:.85; cursor:default; }
+.type-chip.dynamax { background:#8b5cf6 !important; color:#fff; font-weight:800; }
+.dmg-txt.dynamax { color:#b07bff; font-size:18px; font-weight:900; text-shadow:0 2px 6px #0008; }
+.dynamax-flash { animation: dynamaxFlash .85s ease; }
+@keyframes dynamaxFlash {
+  0% { box-shadow:0 0 0 0 #c9a3ff; filter:brightness(1); transform:scale(1); }
+  35% { box-shadow:0 0 30px 12px #b07bff; filter:brightness(1.5) saturate(1.5); transform:scale(1.05); }
+  100% { box-shadow:0 0 0 0 #c9a3ff; filter:brightness(1); transform:scale(1); }
+}
+/* 极巨化中：卡面持续微微放大，并标注徽标 */
+.card.dynamax { box-shadow:0 0 0 2px #8b5cf6 inset, 0 8px 22px #8b5cf644; }
+.card.dynamax .art img { transform:scale(1.12); transition:transform .3s ease; }
+.dmax-tag {
+  background:#8b5cf6; color:#fff; font-size:10px; padding:1px 6px;
+  border-radius:8px; margin-left:6px; font-weight:800; vertical-align:middle;
+}
+
 .switch-hint { font-size:12px; color:var(--muted); margin-top:10px; }
 .switch-hint b { color:var(--accent2); }
 

@@ -188,4 +188,54 @@ window.PK._mega(0);                      // second mega attempt must be blocked
 assert(ac.mon.name_zh === "喷火龙 超级进化 X", "no second mega (still X)");
 console.log(ok ? "MEGA OK (player path: transform, cost, once-per-battle, moves rebuilt)" : "MEGA ISSUES");
 
+// ---- 6. Dynamax mechanics (player path + timed revert) ----
+global.setTimeout = function (fn) { fn(); return 0; }; // synchronous: drive turns directly
+const dmaxTeam = [byId(6), byId(4), byId(5), byId(7), byId(8), byId(9), byId(1), byId(2), byId(3), byId(10), byId(11), byId(12)];
+window.PK._beginCustom(dmaxTeam);
+let ds = window.PK._state();
+ds.you.active.mon = byId(6);            // Charizard (any species can Dynamax)
+ds.you.active.energy = 5;
+ds.turn = "you";
+// make the opponent harmless so our mon survives the 3-turn sim (no HP/maxHp pollution)
+[ds.ai.active, ...ds.ai.bench, ...ds.ai.deck].forEach(function (c) {
+  c.mon.attack = 0; c.mon.sp_attack = 0;
+});
+// edge: blocked when not enough energy (no turn consumed)
+ds.you.active.energy = 2; // < DYNAMAX_COST (3)
+window.PK._dynamax();
+assert(ds.you.dynamaxUsed === false, "dynamax blocked when energy < cost (no turn consumed)");
+assert(!ds.you.active.dynamaxTurns, "dynamax not started on insufficient energy");
+// edge: mutually exclusive with Mega
+ds.you.active.energy = 5;
+ds.you.megaUsed = true;
+window.PK._dynamax();
+assert(ds.you.dynamaxUsed === false, "dynamax blocked after mega used");
+ds.you.megaUsed = false;
+// activate
+let e0 = 5; ds.you.active.energy = e0;
+window.PK._dynamax();
+const dc = ds.you.active;
+assert(ds.you.dynamaxUsed === true, "dynamaxUsed flag set");
+// -DYNAMAX_COST, then the auto-beginTurn on the next player turn grants +1
+assert(dc.energy === e0 - 3 + 1, "dynamax cost 3 energy (got " + dc.energy + ", expected " + (e0 - 3 + 1) + ")");
+assert(dc.maxHp === Math.round(78 * 1.5), "dynamax maxHp boosted (got " + dc.maxHp + ")");
+assert(dc.moves.length === 4 && dc.moves[0].name.indexOf("极巨") === 0, "max moves generated (got " + dc.moves[0].name + ")");
+assert(dc.dynamaxTurns === 3, "dynamax turns set to 3 (got " + dc.dynamaxTurns + ")");
+// drive turns until the 3 boosted turns elapse and it auto-reverts
+let loop = 0;
+while (loop < 8 && !ds.over && ds.turn === "you" && ds.you.active.dynamaxTurns) {
+  ds.you.active.energy = Math.max(ds.you.active.energy, 1);
+  window.PK._useMove(0);
+  loop++;
+}
+assert(ds.you.dynamaxUsed === true, "dynamaxUsed stays true after revert");
+assert(ds.you.active.mon.id === 6, "same active survived the sim");
+assert(ds.you.active.dynamaxTurns === 0, "dynamax reverted after 3 turns (got " + ds.you.active.dynamaxTurns + ")");
+assert(ds.you.active.maxHp === 78, "maxHp restored after revert (got " + ds.you.active.maxHp + ")");
+assert(ds.you.active.moves[0].name.indexOf("极巨") !== 0, "normal moves restored after revert (got " + ds.you.active.moves[0].name + ")");
+// cannot dynamax again this battle
+window.PK._dynamax();
+assert(ds.you.dynamaxUsed === true && !ds.you.active.dynamaxTurns, "no second dynamax this battle");
+console.log(ok ? "DYNAMAX OK (activate, cost, HP boost, max moves, timed revert, once-per-battle, mutual exclusion)" : "DYNAMAX ISSUES");
+
 console.log("All battles terminated without infinite loop. SIM OK");
