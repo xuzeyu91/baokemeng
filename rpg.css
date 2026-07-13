@@ -201,13 +201,27 @@ body {
 .rpg-act.catch { background: #e3534a; box-shadow: 0 3px 0 #9e2f29; }
 .rpg-act.run { background: #4a5a7d; box-shadow: 0 3px 0 #2c3850; }
 .rpg-act.ghost { background: #2b3c63; box-shadow: 0 3px 0 #16213c; }
-.rpg-bench { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.rpg-bench button {
-  text-align: left; border: 2px solid #3a4a6b; border-radius: 9px; padding: 7px 9px;
+.rpg-bench { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rpg-bench-pk {
+  display: flex; align-items: center; gap: 8px; text-align: left;
+  border: 2px solid #3a4a6b; border-radius: 10px; padding: 6px 8px;
   background: #182648; color: #eaf0ff; cursor: pointer; font-size: 12px;
+  transition: border-color .12s, transform .08s;
 }
-.rpg-bench button:hover:not(:disabled) { border-color: var(--accent); }
-.rpg-bench button:disabled { opacity: .4; cursor: not-allowed; }
+.rpg-bench-pk:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+.rpg-bench-pk:disabled { opacity: .4; cursor: not-allowed; }
+.bpk-spr { width: 46px; height: 46px; flex: 0 0 46px; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 40%, #2a3a60, #14213f); border-radius: 8px; }
+.bpk-spr img { width: 42px; height: 42px; object-fit: contain; image-rendering: pixelated; }
+.bpk-info { flex: 1 1 auto; min-width: 0; }
+.bpk-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bpk-name small { font-weight: 400; opacity: .7; }
+.bpk-hp { height: 6px; border-radius: 4px; background: #0c1426; overflow: hidden; margin: 4px 0 2px; }
+.bpk-hp span { display: block; height: 100%; width: 100%; border-radius: 4px; }
+.bpk-hp span.good { background: #4cd07a; }
+.bpk-hp span.warn { background: #f3c13a; }
+.bpk-hp span.bad { background: #e3534a; }
+.bpk-hptxt { font-size: 11px; opacity: .8; }
 
 /* ===== Modal ===== */
 .rpg-modal {

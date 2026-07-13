@@ -860,8 +860,17 @@
     if (battle._switch) {
       var bench = battle.you.party.map(function (c, i) {
         if (i === battle.you.idx || c.fainted) return "";
-        return '<button data-bswitch="' + i + '">' + c.mon.name_zh + ' <small>Lv.' + c.level +
-          ' · ' + c.hp + '/' + c.maxHp + '</small></button>';
+        var ratio = Math.max(0, Math.min(1, c.hp / c.maxHp));
+        var hpCls = ratio > 0.5 ? "good" : ratio > 0.2 ? "warn" : "bad";
+        return '' +
+          '<button class="rpg-bench-pk" data-bswitch="' + i + '">' +
+            '<div class="bpk-spr"><img src="' + c.mon.sprite + '" alt="' + c.mon.name_zh + '"></div>' +
+            '<div class="bpk-info">' +
+              '<div class="bpk-name">' + c.mon.name_zh + ' <small>Lv.' + c.level + '</small></div>' +
+              '<div class="bpk-hp"><span class="' + hpCls + '"></span></div>' +
+              '<div class="bpk-hptxt">' + c.hp + '/' + c.maxHp + '</div>' +
+            '</div>' +
+          '</button>';
       }).join("");
       return '<div class="rpg-subrow"><button class="rpg-act ghost" data-bcancel="1">返回</button></div>' +
         '<div class="rpg-bench">' + bench + '</div>';
