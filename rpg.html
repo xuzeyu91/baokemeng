@@ -17,6 +17,7 @@
     </div>
     <div class="rpg-topbtns">
       <button class="rpg-btn" id="rpg-menu">队伍</button>
+      <button class="rpg-btn ghost" id="rpg-levelselect-btn">选关</button>
       <button class="rpg-btn ghost" id="rpg-hub">返回大厅</button>
       <button class="rpg-btn ghost" id="rpg-reset">重置存档</button>
     </div>
@@ -25,17 +26,26 @@
   <div class="rpg-layout">
     <div class="rpg-mapwrap">
       <canvas id="rpg-map" width="960" height="640"></canvas>
+      <div class="rpg-zoom-ctrls">
+        <button class="rpg-zbtn" id="rpg-zoom-in" title="放大">+</button>
+        <span class="rpg-zlvl" id="rpg-zoom-lvl">100%</span>
+        <button class="rpg-zbtn" id="rpg-zoom-out" title="缩小">-</button>
+        <button class="rpg-zbtn" id="rpg-zoom-reset" title="重置">⟲</button>
+      </div>
       <div class="rpg-toast" id="rpg-toast"></div>
     </div>
 
     <aside class="rpg-side">
+      <div class="rpg-hud-card rpg-level-card">
+        <div class="rpg-levelinfo" id="rpg-levelinfo"></div>
+      </div>
       <div class="rpg-hud-card">
         <div class="rpg-hud-title">我的队伍 <span class="rpg-ball" id="rpg-ball">🔘 10</span></div>
         <div class="rpg-party" id="rpg-party"></div>
       </div>
       <div class="rpg-hint" id="rpg-hint">
-        用 <b>方向键 / WASD</b> 走路，或在草丛里走动会遇到野生宝可梦。
-        走到黄色的「宝可梦中心」可以回满体力，撞上训练家会触发对战。
+        共 <b>5 个关卡</b>，由易到难。击败本关<b>所有训练家</b>后，紫色的<b>传送门 ✦</b>会开启，走上去即可进入下一关。
+        用 <b>方向键 / WASD</b> 移动，草丛里会遇到野生宝可梦，黄色「宝可梦中心」可回满体力。
       </div>
       <div class="rpg-dpad">
         <button class="rpg-dbtn up"    data-dir="up">▲</button>
@@ -85,8 +95,49 @@
     </div>
   </div>
 
+  <!-- 关卡开场介绍 -->
+  <div class="rpg-modal hidden" id="rpg-levelintro">
+    <div class="rpg-modal-box">
+      <h2 id="rpg-li-name">关卡</h2>
+      <p class="rpg-modal-sub" id="rpg-li-intro"></p>
+      <button class="rpg-btn" id="rpg-li-go">出发！</button>
+    </div>
+  </div>
+
+  <!-- 通关祝贺 -->
+  <div class="rpg-modal hidden" id="rpg-victory">
+    <div class="rpg-modal-box">
+      <h2>🏆 恭喜成为联盟冠军！</h2>
+      <p class="rpg-modal-sub">你击败了所有关卡的训练家，完成了宝可梦 RPG 冒险！可以继续自由探索，也可以返回大厅。</p>
+      <div class="rpg-level-actions">
+        <button class="rpg-btn" id="rpg-victory-again">继续冒险</button>
+        <button class="rpg-btn ghost" id="rpg-victory-hub">返回大厅</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 选关 -->
+  <div class="rpg-modal hidden" id="rpg-levelselect">
+    <div class="rpg-modal-box">
+      <h2>选择关卡</h2>
+      <p class="rpg-modal-sub">已通关的关卡可随时返回挑战；未解锁的关卡需按顺序推进。</p>
+      <div class="rpg-level-grid" id="rpg-level-grid"></div>
+      <button class="rpg-btn" id="rpg-levelselect-close">关闭</button>
+    </div>
+  </div>
+
+  <!-- 通关奖励 -->
+  <div class="rpg-modal hidden" id="rpg-reward">
+    <div class="rpg-modal-box">
+      <h2 id="rpg-reward-title">通关奖励</h2>
+      <div class="rpg-reward-body" id="rpg-reward-body"></div>
+      <button class="rpg-btn" id="rpg-reward-ok">收下奖励</button>
+    </div>
+  </div>
+
   <div id="rpg-fx"></div>
   <script src="data.js?v=3"></script>
+  <script src="sprite-cache.js"></script>
   <script src="rpg.js?v=3"></script>
 </body>
 </html>

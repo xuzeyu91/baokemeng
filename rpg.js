@@ -162,50 +162,168 @@
   var WILD_COMMON = LIST.filter(function (mon) { return isEligibleWild(mon) && baseStatTotal(mon) <= 350; });
   var WILD_RARE = LIST.filter(function (mon) { return isEligibleWild(mon) && baseStatTotal(mon) > 350 && baseStatTotal(mon) <= 420; });
 
-  /* ---------- 地图 ---------- */
-  // # 树(阻挡)  ~ 水(阻挡)  . 安全地面  , 高草(遇敌)  C 宝可梦中心  P 出生点
-  var MAP = [
-    "##############################",
-    "#C...........................#",
-    "#.......,,,,,......,,,,,.....#",
-    "#.....,,.....,,...,,....,,...#",
-    "#.....,,.....,,...,,....,,...#",
-    "#.......,,,,,......,,,,,.....#",
-    "#............................#",
-    "#......##############........#",
-    "#......#....,,,,....#........#",
-    "#......#...,,,,,,...#........#",
-    "#......#....,,,,....#........#",
-    "#......#....~~~~....#........#",
-    "#......#....~~~~....#........#",
-    "#......##############........#",
-    "#............................#",
-    "#.......,,,,......,,,,.......#",
-    "#......,,,,,,....,,,,,,......#",
-    "#.......,,,,......,,,,.......#",
-    "#........................P...#",
-    "##############################"
-  ];
-  var MAP_W = MAP[0].length, MAP_H = MAP.length;
-  var START = { x: 26, y: 18 };
-  (function findStart() {
-    for (var y = 0; y < MAP_H; y++) {
-      var x = MAP[y].indexOf("P");
-      if (x >= 0) { START = { x: x, y: y }; break; }
+  /* ---------- 关卡系统（多关卡，由易到难） ---------- */
+  var LEVELS = [
+    {
+      name: "初心草原",
+      intro: "新手训练家的起点。野生宝可梦等级很低，先熟悉操作、捕捉伙伴吧！",
+      wild: [3, 6], wildMaxBst: 360,
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.20,
+      trainers: [
+        { id: "l1t1", name: "短裤小子 阿勇", x: 8, y: 9,
+          party: [ { id: 10, level: 4 }, { id: 13, level: 4 }, { id: 14, level: 5 } ] },
+        { id: "l1t2", name: "少女 小茜", x: 22, y: 11,
+          party: [ { id: 16, level: 5 }, { id: 19, level: 5 }, { id: 21, level: 6 } ] }
+      ]
+    },
+    {
+      name: "溪流湿地",
+      intro: "水边潮湿，常见水属性宝可梦。注意水面（蓝色）无法通行。",
+      wild: [6, 11], wildMaxBst: 405, wildTypes: ["water"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: { x: 10, y: 6, w: 9, h: 4 }, grassProb: 0.18,
+      trainers: [
+        { id: "l2t1", name: "渔夫 大叔", x: 6, y: 12,
+          party: [ { id: 118, level: 7 }, { id: 120, level: 8 }, { id: 90, level: 9 } ] },
+        { id: "l2t2", name: "泳装少女 小遥", x: 23, y: 10,
+          party: [ { id: 54, level: 8 }, { id: 55, level: 10 }, { id: 80, level: 9 } ] },
+        { id: "l2t3", name: "水手 阿海", x: 15, y: 4,
+          party: [ { id: 79, level: 7 }, { id: 60, level: 8 }, { id: 87, level: 10 } ] }
+      ]
+    },
+    {
+      name: "岩石山道",
+      intro: "崎岖山路，岩石与地面属性宝可梦盘踞，训练家等级明显提升。",
+      wild: [10, 16], wildMaxBst: 435, wildTypes: ["rock", "ground"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.14,
+      trainers: [
+        { id: "l3t1", name: "登山男 小刚", x: 7, y: 8,
+          party: [ { id: 74, level: 11 }, { id: 95, level: 12 }, { id: 111, level: 13 } ] },
+        { id: "l3t2", name: "矿工 阿石", x: 20, y: 9,
+          party: [ { id: 95, level: 12 }, { id: 127, level: 14 }, { id: 108, level: 13 } ] },
+        { id: "l3t3", name: "岩石训练家 阿岩", x: 14, y: 5,
+          party: [ { id: 74, level: 13 }, { id: 108, level: 14 }, { id: 142, level: 14 } ] }
+      ]
+    },
+    {
+      name: "迷雾森林",
+      intro: "雾气弥漫，幽灵与妖精出没，训练家等级大幅上涨，小心迷路。",
+      wild: [14, 22], wildMaxBst: 470, wildTypes: ["ghost", "fairy", "bug", "grass"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.24,
+      trainers: [
+        { id: "l4t1", name: "女训练家 小霞", x: 6, y: 10,
+          party: [ { id: 25, level: 15 }, { id: 35, level: 15 }, { id: 39, level: 16 } ] },
+        { id: "l4t2", name: "森林男 阿木", x: 22, y: 11,
+          party: [ { id: 69, level: 15 }, { id: 70, level: 17 }, { id: 102, level: 16 } ] },
+        { id: "l4t3", name: "迷雾使者 阿幽", x: 14, y: 4,
+          party: [ { id: 92, level: 16 }, { id: 93, level: 18 }, { id: 94, level: 19 } ] },
+        { id: "l4t4", name: "猎人 阿烈", x: 9, y: 14,
+          party: [ { id: 52, level: 16 }, { id: 63, level: 17 }, { id: 133, level: 19 } ] }
+      ]
+    },
+    {
+      name: "冠军殿堂",
+      intro: "最终决战之地！先击败四天王门将，再挑战冠军，成为新的联盟冠军！",
+      wild: [20, 32], allowEvolved: true, wildMaxBst: 520,
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: { x: 11, y: 7, w: 8, h: 3 }, grassProb: 0.16,
+      trainers: [
+        { id: "l5t1", name: "四天王门将 阿蜜", x: 14, y: 13,
+          party: [ { id: 134, level: 26 }, { id: 135, level: 26 }, { id: 136, level: 26 } ] },
+        { id: "l5t2", name: "冠军 阿渡", x: 27, y: 2,
+          party: [ { id: 6, level: 30 }, { id: 131, level: 28 }, { id: 142, level: 30 }, { id: 149, level: 32 } ] }
+      ]
     }
-  })();
-
-  // 训练家 NPC
-  var TRAINERS = [
-    { id: "t1", name: "训练家 小茂", x: 27, y: 2,
-      party: [ { id: 16, level: 6 }, { id: 19, level: 6 }, { id: 21, level: 7 } ] },
-    { id: "t2", name: "短裤小子 阿勇", x: 3, y: 9,
-      party: [ { id: 10, level: 5 }, { id: 13, level: 5 }, { id: 14, level: 6 } ] },
-    { id: "t3", name: "女训练家 小霞", x: 27, y: 16,
-      party: [ { id: 25, level: 6 }, { id: 35, level: 6 }, { id: 39, level: 7 } ] },
-    { id: "t4", name: "登山男 小刚", x: 15, y: 5,
-      party: [ { id: 74, level: 8 }, { id: 95, level: 8 }, { id: 111, level: 9 } ] }
   ];
+
+  // 每关通关奖励（精灵球 + 赠送宝可梦），monLevel 为该宝可梦加入时的等级
+  var LEVEL_REWARDS = [
+    { balls: 5,  mon: 25,  monLevel: 6 },   // 皮卡丘
+    { balls: 5,  mon: 130, monLevel: 9 },   // 暴鲤龙
+    { balls: 8,  mon: 95,  monLevel: 13 },  // 大岩蛇
+    { balls: 8,  mon: 149, monLevel: 18 },  // 快龙
+    { balls: 15, mon: 150, monLevel: 32 }   // 超梦（冠军奖励）
+  ];
+
+  // 确定性随机（保证每关地图固定，刷新后不变）
+  function lvlRng(seed) {
+    var s = seed >>> 0;
+    return function () {
+      s = (s + 0x6D2B79F5) >>> 0;
+      var t = Math.imul(s ^ (s >>> 15), 1 | s);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // 根据关卡配置生成地图（30x20，匹配画布 960x640）
+  function buildLevelMap(cfg) {
+    var W = 30, H = 20;
+    var reserved = {};
+    function mark(p) { if (p) reserved[p[0] + "," + p[1]] = true; }
+    mark(cfg.center); mark(cfg.start); mark(cfg.goal);
+    cfg.trainers.forEach(function (t) { mark([t.x, t.y]); });
+    var rnd = lvlRng((LEVELS.indexOf(cfg) + 1) * 7919);
+    var pond = cfg.pond;
+    var grid = [];
+    for (var y = 0; y < H; y++) {
+      var row = [];
+      for (var x = 0; x < W; x++) {
+        if (x === 0 || y === 0 || x === W - 1 || y === H - 1) row.push("#");
+        else if (pond && x >= pond.x && x < pond.x + pond.w && y >= pond.y && y < pond.y + pond.h) row.push("~");
+        else if (reserved[x + "," + y]) row.push(".");
+        else if (rnd() < cfg.grassProb) row.push(",");
+        else row.push(".");
+      }
+      grid.push(row);
+    }
+    grid[cfg.center[1]][cfg.center[0]] = "C";
+    grid[cfg.start[1]][cfg.start[0]] = "P";
+    if (cfg.goal) grid[cfg.goal[1]][cfg.goal[0]] = "G";
+    return grid.map(function (r) { return r.join(""); });
+  }
+
+  // 每关可变状态（由 loadLevel 写入）
+  var MAP, MAP_W, MAP_H, START, TRAINERS, WILD_RANGE, CURRENT_WILD_POOL;
+
+  function buildWildPool(cfg) {
+    var pool = LIST.filter(function (mon) {
+      if (cfg.allowEvolved) {
+        if (baseStatTotal(mon) > (cfg.wildMaxBst || 500)) return false;
+      } else {
+        if (!isEligibleWild(mon)) return false;
+        if (baseStatTotal(mon) > (cfg.wildMaxBst || 420)) return false;
+      }
+      if (cfg.wildTypes) {
+        var ok = false;
+        for (var i = 0; i < mon.types.length; i++) if (cfg.wildTypes.indexOf(mon.types[i]) >= 0) { ok = true; break; }
+        if (!ok) return false;
+      }
+      return true;
+    });
+    if (pool.length === 0) pool = WILD_COMMON;
+    return pool;
+  }
+  function loadLevel(idx, withIntro) {
+    var cfg = LEVELS[idx];
+    MAP = buildLevelMap(cfg);
+    MAP_W = MAP[0].length; MAP_H = MAP.length;
+    START = { x: cfg.start[0], y: cfg.start[1] };
+    TRAINERS = cfg.trainers;
+    WILD_RANGE = cfg.wild;
+    CURRENT_WILD_POOL = buildWildPool(cfg);
+    player.x = START.x; player.y = START.y;
+    player.px = player.x * TILE + TILE / 2; player.py = player.y * TILE + TILE / 2;
+    player.tx = player.px; player.ty = player.py; player.moving = false;
+    renderLevelInfo();
+    if (withIntro && cfg.intro) showLevelIntro(cfg);
+  }
+  function levelCleared() {
+    if (!save || !TRAINERS) return false;
+    for (var i = 0; i < TRAINERS.length; i++) {
+      if (!save.defeated[TRAINERS[i].id]) return false;
+    }
+    return true;
+  }
+
+  // 训练家 NPC 改由 LEVELS 配置，loadLevel 写入全局 TRAINERS。
   function trainerAt(x, y) {
     for (var i = 0; i < TRAINERS.length; i++) {
       if (TRAINERS[i].x === x && TRAINERS[i].y === y) return TRAINERS[i];
@@ -215,7 +333,7 @@
 
   /* ---------- 全局状态 ---------- */
   var save = null;          // { party:[member], balls, defeated:{} }
-  var player = { x: START.x, y: START.y, px: 0, py: 0, tx: 0, ty: 0, moving: false };
+  var player = { x: 0, y: 0, px: 0, py: 0, tx: 0, ty: 0, moving: false, starterId: null };
   var inBattle = false;
   var battle = null;
   var imgCache = {};
@@ -223,6 +341,11 @@
   function spriteImg(id) {
     if (!imgCache[id]) {
       var im = new Image();
+      var b = MON_BY_ID[id].sprite.split("/").pop();
+      im.onerror = function () {
+        im.onerror = null;
+        if (window.__SPRITE_ONLINE && window.__SPRITE_ONLINE[b]) im.src = window.__SPRITE_ONLINE[b];
+      };
       im.src = MON_BY_ID[id].sprite;
       imgCache[id] = im;
     }
@@ -237,7 +360,10 @@
           return { id: m.id, level: m.level, exp: m.exp, hp: m.hp, status: m.status || null, moves: m.moves || null };
         }),
         balls: save.balls,
-        defeated: save.defeated
+        defeated: save.defeated,
+        level: save.level,
+        maxLevel: save.maxLevel || 0,
+        champion: !!save.champion
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     } catch (e) { /* localStorage 不可用时忽略 */ }
@@ -266,25 +392,41 @@
 
   /* ---------- 地图渲染 ---------- */
   var canvas, ctx;
+  var mapScale = 1; // 地图缩放倍数
+  var MIN_SCALE = 1, MAX_SCALE = 3, SCALE_STEP = 0.25;
   function drawMap() {
     if (!ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    var scale = mapScale;
+    ctx.save();
+    if (scale > MIN_SCALE) {
+      var halfW = canvas.width / (2 * scale);
+      var halfH = canvas.height / (2 * scale);
+      var camX = clamp(player.px, halfW, MAP_W * TILE - halfW);
+      var camY = clamp(player.py, halfH, MAP_H * TILE - halfH);
+      ctx.translate(canvas.width / 2 - camX * scale, canvas.height / 2 - camY * scale);
+      ctx.scale(scale, scale);
+    }
+
     if (!save) { // 尚未选择初始宝可梦：只画地形
       for (var y = 0; y < MAP_H; y++) for (var x = 0; x < MAP_W; x++) drawTile(x, y, MAP[y][x]);
-      return;
-    }
-    for (var y = 0; y < MAP_H; y++) {
-      for (var x = 0; x < MAP_W; x++) {
-        drawTile(x, y, MAP[y][x]);
+    } else {
+      for (var y = 0; y < MAP_H; y++) {
+        for (var x = 0; x < MAP_W; x++) {
+          drawTile(x, y, MAP[y][x]);
+        }
       }
+      // 训练家
+      TRAINERS.forEach(function (t) {
+        var defeated = save && save.defeated && save.defeated[t.id];
+        drawSpriteOnTile(t.party[0].id, t.x, t.y, defeated ? 0.4 : 1);
+      });
+      // 玩家
+      drawSpriteOnTile(player.starterId || save.party[0].id, -1, -1, 1, true);
     }
-    // 训练家
-    TRAINERS.forEach(function (t) {
-      var defeated = save && save.defeated && save.defeated[t.id];
-      drawSpriteOnTile(t.party[0].id, t.x, t.y, defeated ? 0.4 : 1);
-    });
-    // 玩家
-    drawSpriteOnTile(player.starterId || save.party[0].id, -1, -1, 1, true);
+    ctx.restore();
   }
   function drawTile(x, y, ch) {
     var px = x * TILE, py = y * TILE;
@@ -308,6 +450,17 @@
       ctx.fillRect(px + TILE/2 - 2, py + 4, 4, 24);
       ctx.fillStyle = "#fff";
       ctx.beginPath(); ctx.arc(px + TILE/2, py + TILE/2 + 2, 5, 0, 7); ctx.fill();
+    } else if (ch === "G") {
+      var gOpen = levelCleared();
+      ctx.fillStyle = gOpen ? "#5b34b0" : "#3a3f4a"; ctx.fillRect(px, py, TILE, TILE);
+      ctx.strokeStyle = gOpen ? "#c9b3ff" : "#6b7180"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px + TILE/2, py + TILE/2, TILE/2 - 6, 0, 7); ctx.stroke();
+      ctx.fillStyle = gOpen ? "#e9deff" : "#7b818f";
+      ctx.beginPath(); ctx.arc(px + TILE/2, py + TILE/2, TILE/2 - 11, 0, 7); ctx.fill();
+      if (gOpen) {
+        ctx.fillStyle = "#fff"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("✦", px + TILE/2, py + TILE/2);
+      }
     } else {
       ctx.fillStyle = "#bfe09a"; ctx.fillRect(px, py, TILE, TILE);
     }
@@ -337,6 +490,54 @@
     ctx.restore();
   }
 
+  /* ---------- 地图缩放 ---------- */
+  function setZoom(s) {
+    mapScale = clamp(Math.round(s / SCALE_STEP) * SCALE_STEP, MIN_SCALE, MAX_SCALE);
+    updateZoomUI();
+  }
+  function zoomIn() { setZoom(mapScale + SCALE_STEP); }
+  function zoomOut() { setZoom(mapScale - SCALE_STEP); }
+  function resetZoom() { setZoom(1); }
+  function updateZoomUI() {
+    var el = document.getElementById("rpg-zoom-lvl");
+    if (el) el.textContent = Math.round(mapScale * 100) + "%";
+  }
+  function bindZoomControls() {
+    var zin = document.getElementById("rpg-zoom-in");
+    var zout = document.getElementById("rpg-zoom-out");
+    var zreset = document.getElementById("rpg-zoom-reset");
+    if (zin) zin.addEventListener("click", zoomIn);
+    if (zout) zout.addEventListener("click", zoomOut);
+    if (zreset) zreset.addEventListener("click", resetZoom);
+  }
+
+  /* ---------- 移动端 pinch 缩放 ---------- */
+  function bindPinchZoom() {
+    if (!canvas) return;
+    var startDist = 0, startScale = 1;
+    canvas.addEventListener("touchstart", function (e) {
+      if (e.touches.length === 2) {
+        startDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        startScale = mapScale;
+      }
+    }, { passive: true });
+    canvas.addEventListener("touchmove", function (e) {
+      if (e.touches.length === 2) {
+        var d = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        if (startDist > 0) setZoom(startScale * (d / startDist));
+      }
+    }, { passive: true });
+    canvas.addEventListener("touchend", function () {
+      startDist = 0;
+    }, { passive: true });
+  }
+
   /* ---------- 移动 / 遇敌 ---------- */
   function tryMove(dx, dy) {
     if (inBattle || player.moving || !save) return;
@@ -346,8 +547,19 @@
     if (ch === "#" || ch === "~") return;
     var tr = trainerAt(nx, ny);
     if (tr) {
-      if (save.defeated && save.defeated[tr.id]) { toast(tr.name + "（已战胜）"); return; }
+      if (save.defeated && save.defeated[tr.id]) {
+        // 已战胜的训练家若恰好站在传送门格上，可踩上去进入下一关
+        if (MAP[ny][nx] === "G") {
+          if (!levelCleared()) { toast("先击败本关所有训练家，传送门才会开启！"); return; }
+          advanceLevel(); return;
+        }
+        toast(tr.name + "（已战胜）"); return;
+      }
       triggerTrainer(tr); return;
+    }
+    if (ch === "G") {
+      if (!levelCleared()) { toast("先击败本关所有训练家，传送门才会开启！"); return; }
+      advanceLevel(); return;
     }
     player.x = nx; player.y = ny;
     player.tx = nx * TILE + TILE/2; player.ty = ny * TILE + TILE/2;
@@ -375,13 +587,13 @@
 
   /* ---------- 触发战斗 ---------- */
   function wildSpecies() {
-    var pool = Math.random() < 0.75 ? WILD_COMMON : WILD_RARE;
+    var pool = CURRENT_WILD_POOL || WILD_COMMON;
     return pool[Math.floor(Math.random() * pool.length)];
   }
   function triggerEncounter() {
     var mon = wildSpecies();
     var maxLv = save.party.reduce(function (m, p) { return Math.max(m, p.level); }, 1);
-    var level = Math.max(2, maxLv - 1 + Math.floor(Math.random() * 4));
+    var level = Math.max(WILD_RANGE[0], Math.min(WILD_RANGE[1], maxLv - 1 + Math.floor(Math.random() * 4)));
     var m = makeMember(mon.id, level);
     toast("野生的 " + mon.name_zh + "（Lv." + level + "）出现了！");
     startBattle({ wild: true, name: "野生宝可梦", oppParty: [m] });
@@ -626,9 +838,19 @@
   function finishReturnToMap(result) {
     hideBattle();
     inBattle = false;
-    if (result === "lose") { healParty(); player.x = START.x; player.y = START.y; }
+    if (result === "lose") {
+      healParty();
+      player.x = START.x; player.y = START.y;
+      player.px = player.x * TILE + TILE / 2; player.py = player.y * TILE + TILE / 2;
+      player.tx = player.px; player.ty = player.py;
+    }
     renderPartyHUD();
+    renderLevelInfo();
     drawMap();
+    if (save.level >= LEVELS.length - 1 && levelCleared() && !save.champion) {
+      save.champion = true; saveGame();
+      showLevelReward(LEVELS.length - 1, function () { showVictory(); });
+    }
   }
 
   /* ---------- 升级 / 学习招式 / 进化 ---------- */
@@ -1002,15 +1224,12 @@
   function hideStarter() { var el = document.getElementById("rpg-starter"); if (el) el.classList.add("hidden"); }
 
   function newGame(starterId) {
-    save = { party: [ makeMember(starterId, 5) ], balls: 10, defeated: {} };
+    save = { party: [ makeMember(starterId, 5) ], balls: 10, defeated: {}, level: 0, maxLevel: 0, champion: false };
     player.starterId = starterId;
-    player.x = START.x; player.y = START.y;
-    player.px = player.x * TILE + TILE / 2; player.py = player.y * TILE + TILE / 2;
-    player.tx = player.px; player.ty = player.py; player.moving = false;
-    saveGame();
     hideStarter();
+    saveGame();
     renderPartyHUD();
-    toast("冒险开始！带着 " + MON_BY_ID[starterId].name_zh + " 出发吧！");
+    showLevelSelect(); // 让玩家确认从哪一关开始（初始仅第 1 关可选）
   }
 
   /* ---------- 队伍详情弹窗 ---------- */
@@ -1039,6 +1258,121 @@
   }
   function hidePartyModal() { var el = document.getElementById("rpg-partymodal"); if (el) el.classList.add("hidden"); }
 
+  /* ---------- 关卡 UI ---------- */
+  function renderLevelInfo() {
+    var el = document.getElementById("rpg-levelinfo");
+    if (!el || !save) return;
+    var idx = save.level;
+    var cfg = LEVELS[idx];
+    var total = TRAINERS.length, done = 0;
+    for (var i = 0; i < total; i++) if (save.defeated[TRAINERS[i].id]) done++;
+    el.innerHTML =
+      '<div class="rpg-li-name">关卡 ' + (idx + 1) + ' / ' + LEVELS.length + ' · ' + cfg.name + '</div>' +
+      '<div class="rpg-li-prog">训练家 ' + done + ' / ' + total +
+        (levelCleared() ? ' · <span class="open">传送门已开启 ✦</span>' : '') + '</div>';
+  }
+  function showLevelIntro(cfg) {
+    var modal = document.getElementById("rpg-levelintro");
+    var name = document.getElementById("rpg-li-name");
+    var intro = document.getElementById("rpg-li-intro");
+    var go = document.getElementById("rpg-li-go");
+    if (!modal || !name || !intro || !go) return;
+    name.textContent = "第 " + (LEVELS.indexOf(cfg) + 1) + " 关 · " + cfg.name;
+    intro.textContent = cfg.intro;
+    modal.classList.remove("hidden");
+    go.onclick = function () { modal.classList.add("hidden"); };
+  }
+  function showVictory() {
+    var modal = document.getElementById("rpg-victory");
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    var again = document.getElementById("rpg-victory-again");
+    var hub = document.getElementById("rpg-victory-hub");
+    if (again) again.onclick = function () { modal.classList.add("hidden"); };
+    if (hub) hub.onclick = function () { location.href = "index.html"; };
+  }
+  function showLevelSelect() {
+    var modal = document.getElementById("rpg-levelselect");
+    var grid = document.getElementById("rpg-level-grid");
+    if (!modal || !grid) return;
+    var maxUnlocked = save.maxLevel || 0;
+    grid.innerHTML = LEVELS.map(function (cfg, idx) {
+      var locked = idx > maxUnlocked;
+      var tag = idx < save.level ? "已通过" : (idx === save.level ? "当前" : "可挑战");
+      var stars = "★".repeat(Math.min(5, idx + 1));
+      return '' +
+        '<div class="rpg-lvcard' + (locked ? " locked" : "") + (idx === save.level ? " current" : "") + '" data-lv="' + idx + '">' +
+          '<div class="rpg-lv-no">' + (idx + 1) + '</div>' +
+          '<div class="rpg-lv-name">' + cfg.name + '</div>' +
+          '<div class="rpg-lv-diff">' + stars + '</div>' +
+          '<div class="rpg-lv-lock">' + (locked ? "🔒 未解锁" : tag) + '</div>' +
+        '</div>';
+    }).join("");
+    modal.classList.remove("hidden");
+    var cells = grid.querySelectorAll("[data-lv]");
+    for (var i = 0; i < cells.length; i++) (function (el) {
+      el.addEventListener("click", function () {
+        var idx = +el.getAttribute("data-lv");
+        if (idx > (save.maxLevel || 0)) { toast("该关卡尚未解锁！"); return; }
+        enterLevel(idx);
+      });
+    })(cells[i]);
+  }
+  function hideLevelSelect() { var el = document.getElementById("rpg-levelselect"); if (el) el.classList.add("hidden"); }
+  function enterLevel(idx) {
+    save.level = idx;
+    if (idx > (save.maxLevel || 0)) save.maxLevel = idx;
+    healParty();
+    loadLevel(idx, true);
+    saveGame();
+    hideLevelSelect();
+    toast("进入第 " + (idx + 1) + " 关：" + LEVELS[idx].name);
+    renderLevelInfo();
+  }
+  function grantLevelReward(idx) {
+    var rw = LEVEL_REWARDS[idx];
+    if (!rw) return null;
+    var parts = [];
+    if (rw.balls) { save.balls += rw.balls; parts.push("🔘 " + rw.balls + " 个精灵球"); }
+    if (rw.mon) {
+      var mon = MON_BY_ID[rw.mon];
+      if (save.party.length < 6) {
+        var lvl = rw.monLevel || Math.max(5, Math.round((LEVELS[idx].wild[0] + LEVELS[idx].wild[1]) / 2));
+        save.party.push(makeMember(rw.mon, lvl));
+        parts.push("⭐ " + mon.name_zh + "（Lv." + lvl + "）");
+      } else {
+        save.balls += 3;
+        parts.push("⭐ " + mon.name_zh + "（队伍已满，转为 🔘 3 个精灵球）");
+      }
+    }
+    return parts;
+  }
+  function showLevelReward(idx, onOk) {
+    var parts = grantLevelReward(idx);
+    if (!parts || !parts.length) { if (onOk) onOk(); return; }
+    saveGame();
+    var modal = document.getElementById("rpg-reward");
+    var title = document.getElementById("rpg-reward-title");
+    var body = document.getElementById("rpg-reward-body");
+    var ok = document.getElementById("rpg-reward-ok");
+    if (!modal || !title || !body || !ok) { if (onOk) onOk(); return; }
+    title.textContent = "🎉 通关 第 " + (idx + 1) + " 关 · " + LEVELS[idx].name;
+    body.innerHTML = parts.map(function (p) { return '<div class="rpg-reward-item">' + p + '</div>'; }).join("");
+    modal.classList.remove("hidden");
+    ok.onclick = function () { modal.classList.add("hidden"); if (onOk) onOk(); };
+  }
+
+  function advanceLevel() {
+    if (save.level >= LEVELS.length - 1) { showVictory(); return; }
+    var cleared = save.level;
+    save.level++;
+    if (save.level > (save.maxLevel || 0)) save.maxLevel = save.level;
+    healParty();
+    loadLevel(save.level, false); // 先布置新关，稍后弹奖励与介绍
+    saveGame();
+    showLevelReward(cleared, function () { showLevelIntro(LEVELS[save.level]); });
+  }
+
   /* ---------- 启动 ---------- */
   function init() {
     canvas = document.getElementById("rpg-map");
@@ -1057,11 +1391,14 @@
       });
       if (typeof save.balls !== "number") save.balls = 10;
       if (!save.defeated) save.defeated = {};
+      if (typeof save.level !== "number") save.level = 0;
+      if (typeof save.maxLevel !== "number") save.maxLevel = save.level;
+      if (typeof save.champion !== "boolean") save.champion = false;
       player.starterId = save.party[0].id;
-      player.x = START.x; player.y = START.y;
-      player.px = player.x * TILE + TILE / 2; player.py = player.y * TILE + TILE / 2;
-      player.tx = player.px; player.ty = player.py; player.moving = false;
+      loadLevel(save.level, false);
       renderPartyHUD();
+    } else {
+      loadLevel(0, false);
     }
 
     // 键盘
@@ -1089,6 +1426,8 @@
 
     // 顶部按钮
     var menu = document.getElementById("rpg-menu"); if (menu) menu.addEventListener("click", showPartyModal);
+    var lselBtn = document.getElementById("rpg-levelselect-btn"); if (lselBtn) lselBtn.addEventListener("click", showLevelSelect);
+    var lselClose = document.getElementById("rpg-levelselect-close"); if (lselClose) lselClose.addEventListener("click", hideLevelSelect);
     var pmc = document.getElementById("rpg-partymodal-close"); if (pmc) pmc.addEventListener("click", hidePartyModal);
     var hub = document.getElementById("rpg-hub"); if (hub) hub.addEventListener("click", function () { location.href = "index.html"; });
     var reset = document.getElementById("rpg-reset"); if (reset) reset.addEventListener("click", function () {
@@ -1098,6 +1437,10 @@
         showStarter();
       }
     });
+
+    bindZoomControls();
+    bindPinchZoom();
+    updateZoomUI();
 
     if (!save) showStarter();
     requestAnimationFrame(loop);

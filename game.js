@@ -132,6 +132,7 @@
   var state = null;
   var busy = false;
   var setup = { mode: "random", selected: [], typeFilter: "all", genFilter: "all", query: "", difficulty: "normal" };
+  var statsCollapsed = true; // 战绩面板默认折叠，给选择区域留空间
   var _memStats = null; // headless/无 localStorage 时的内存兜底
 
   // 安全音效封装：无 BattleAudio 或 AudioContext 时降级为 no-op
@@ -673,28 +674,76 @@
     }
   }
 
+  // 对手招式对我方的最大克制倍率（只看有威力的进攻招）
+  function bestFoeMult(foeMoves, myTypes) {
+    var best = 0;
+    for (var i = 0; i < foeMoves.length; i++) {
+      var mv = foeMoves[i];
+      if (!mv.power) continue;
+      var m = typeMult(mv.type, myTypes);
+      if (m > best) best = m;
+    }
+    return best;
+  }
+  // 我方招式对对手的最大克制倍率
+  function bestMyMult(myMoves, foeTypes) {
+    var best = 0;
+    for (var i = 0; i < myMoves.length; i++) {
+      var mv = myMoves[i];
+      if (!mv.power) continue;
+      var m = typeMult(mv.type, foeTypes);
+      if (m > best) best = m;
+    }
+    return best;
+  }
+  // 给定属性组合对对手的最大克制倍率（用于 mega 形态，无招式数据时用属性估算）
+  function bestMyMultOfTypes(myTypes, foeTypes) {
+    var best = 0;
+    for (var i = 0; i < myTypes.length; i++) {
+      var m = typeMult(myTypes[i], foeTypes);
+      if (m > best) best = m;
+    }
+    return best;
+  }
+
   function aiAct() {
     if (state.over) { busy = false; return; }
     var me = state.ai, foe = state.you;
     var a = me.active, d = foe.active;
     var diff = state.difficulty || "normal";
+    var smart = diff !== "easy";
 
     setTimeout(function () {
-      // 超级进化 / 极巨化（按难度调整发动倾向，整场各一次、互斥）
+      // 当前形态面对对手的"被克制程度"与"输出覆盖"
+      var myVuln = bestFoeMult(d.moves, a.mon.types);
+      var myCov = bestMyMult(a.moves, d.mon.types);
+
+      // --- 超级进化（收益导向）---
       var megaChance = diff === "hard" ? 0.85 : diff === "normal" ? 0.6 : 0.4;
-      var dmaxChance = diff === "hard" ? 0.7 : diff === "normal" ? 0.45 : 0.3;
-      if (a.mon.mega && a.mon.mega.length && !me.megaUsed && !me.dynamaxUsed && a.energy >= MEGA_COST) {
+      if (smart && a.mon.mega && a.mon.mega.length && !me.megaUsed && !me.dynamaxUsed && a.energy >= MEGA_COST) {
+        var mg = a.mon.mega[0];
+        var mgVuln = bestFoeMult(d.moves, mg.types);
+        var mgCov = bestMyMultOfTypes(mg.types, d.mon.types);
+        var megaWorth = (mgVuln <= myVuln - 0.5) || (mgCov >= myCov + 0.5);
+        if (megaWorth && a.hp / a.maxHp > 0.25) {
+          useMega("ai", 0, function () { afterMove("ai"); });
+          return;
+        }
         if (a.hp / a.maxHp < 0.7 || Math.random() < megaChance) {
           useMega("ai", 0, function () { afterMove("ai"); });
           return;
         }
       }
+      // --- 极巨化 ---
+      var dmaxChance = diff === "hard" ? 0.7 : diff === "normal" ? 0.45 : 0.3;
       if (!me.dynamaxUsed && !me.megaUsed && a.dynamaxTurns === 0 && a.energy >= DYNAMAX_COST) {
         if (a.hp / a.maxHp < 0.7 || Math.random() < dmaxChance) {
           useDynamax("ai", function () { afterMove("ai"); });
           return;
         }
       }
+
+      // --- 选招（能击倒时优先用最省能量，保留能量）---
       var choices = [];
       for (var i = 0; i < a.moves.length; i++) {
         var mv = a.moves[i];
@@ -702,33 +751,53 @@
         if (a.cooldowns && a.cooldowns[i] > 0) continue;
         var mult = typeMult(mv.type, d.mon.types);
         var exp = expectedDamage(a, d, mv);
-        choices.push({ i: i, exp: exp, mult: mult, ko: exp >= d.hp });
+        choices.push({ i: i, exp: exp, mult: mult, ko: exp >= d.hp, cost: mv.cost });
       }
       if (choices.length === 0) {
-        if (me.active.energy < MAX_ENERGY) {
-          useRecover("ai", function () { afterMove("ai"); });
-        } else {
-          afterMove("ai");
-        }
+        if (me.active.energy < MAX_ENERGY) useRecover("ai", function () { afterMove("ai"); });
+        else afterMove("ai");
         return;
       }
       choices.sort(function (x, y) { return (y.ko - x.ko) || (y.exp - x.exp); });
       var pick;
-      if (diff === "easy") {
+      if (!smart) {
         // 简单：仅在最优 2 招里随机，偏随机、不读克制、不换人
         var top = choices.slice(0, Math.min(2, choices.length));
         pick = top[Math.floor(Math.random() * top.length)];
       } else {
-        pick = choices[0];
+        // 能击倒：挑最省能量的，保留能量
+        var kos = choices.filter(function (c) { return c.ko; });
+        if (kos.length) { kos.sort(function (x, y) { return x.cost - y.cost; }); pick = kos[0]; }
+        else pick = choices[0];
       }
 
-      // 低血换人（普通/困难）：当前打不倒且血量 < 35%，换上更厚实的替补
-      if (diff !== "easy" && !pick.ko && a.hp / a.maxHp < 0.35 && me.bench.length > 0) {
-        var bestBench = 0;
-        for (var j = 1; j < me.bench.length; j++) {
-          if (me.bench[j].maxHp > me.bench[bestBench].maxHp) bestBench = j;
+      // --- 劣势换人（普通/困难）：被对手克制且无击倒机会时，换上更优替补 ---
+      if (smart && !pick.ko && myVuln >= 2 && me.bench.length > 0) {
+        var sBest = -1, sScore = -1;
+        for (var bi = 0; bi < me.bench.length; bi++) {
+          var bc = me.bench[bi];
+          if (bc.fainted) continue;
+          var bcVuln = bestFoeMult(d.moves, bc.mon.types);
+          var bcCov = bestMyMult(bc.moves, d.mon.types);
+          var score = (myVuln - bcVuln) * 100 + (bcCov - myCov) * 60 + (bc.maxHp - a.maxHp) * 0.2;
+          if (bcVuln < myVuln - 0.4 && score > sScore) { sScore = score; sBest = bi; }
         }
-        if (me.bench[bestBench].maxHp > a.maxHp) {
+        if (sBest >= 0) {
+          doSwitch("ai", sBest);
+          render();
+          animateSwitch("ai");
+          setTimeout(function () { afterMove("ai"); }, SWITCH_MS);
+          return;
+        }
+      }
+      // --- 低血保命换人（普通/困难）---
+      if (smart && !pick.ko && a.hp / a.maxHp < 0.35 && me.bench.length > 0) {
+        var bestBench = -1;
+        for (var j = 0; j < me.bench.length; j++) {
+          if (me.bench[j].fainted) continue;
+          if (bestBench < 0 || me.bench[j].maxHp > me.bench[bestBench].maxHp) bestBench = j;
+        }
+        if (bestBench >= 0 && me.bench[bestBench].maxHp > a.maxHp) {
           doSwitch("ai", bestBench);
           render();
           animateSwitch("ai");
@@ -736,16 +805,17 @@
           return;
         }
       }
-      // 困难：多步评估——当打不倒且低血时，评估替补中"攻防差"最优者换上
+      // --- 困难：多步评估换人 ---
       if (diff === "hard" && !pick.ko && a.hp / a.maxHp < 0.4 && me.bench.length > 0) {
         var bBest = -1, bScore = -1;
-        for (var bi = 0; bi < me.bench.length; bi++) {
-          var bc = me.bench[bi];
+        for (var bi2 = 0; bi2 < me.bench.length; bi2++) {
+          var bc2 = me.bench[bi2];
+          if (bc2.fainted) continue;
           var off = 0, def = 0;
-          for (var mi = 0; mi < bc.moves.length; mi++) off += expectedDamage(bc, d, bc.moves[mi]);
-          for (var mi2 = 0; mi2 < d.moves.length; mi2++) def += expectedDamage(d, bc, d.moves[mi2]);
-          var score = (off - def) + (bc.maxHp > a.maxHp ? 60 : 0);
-          if (score > bScore) { bScore = score; bBest = bi; }
+          for (var mi = 0; mi < bc2.moves.length; mi++) off += expectedDamage(bc2, d, bc2.moves[mi]);
+          for (var mi2 = 0; mi2 < d.moves.length; mi2++) def += expectedDamage(d, bc2, d.moves[mi2]);
+          var score2 = (off - def) + (bc2.maxHp > a.maxHp ? 60 : 0);
+          if (score2 > bScore) { bScore = score2; bBest = bi2; }
         }
         if (bBest >= 0 && bScore > 0 && me.bench[bBest].maxHp > a.maxHp) {
           doSwitch("ai", bBest);
@@ -1436,6 +1506,7 @@
       })(dmx[dd]);
     }
     bindPreviewEvents();
+    bindTouchPreview();
   }
 
   /* ---------- hover preview (battle) ---------- */
@@ -1542,6 +1613,68 @@
         });
         el.addEventListener("mouseleave", hidePkPreview);
       })(cells[i]);
+    }
+  }
+
+  /* ---------- 触摸预览（移动端）：长按查看详情，不干扰点按换人/选择 ---------- */
+  var _touchPreviewInit = false;
+  function _isTouch() {
+    return ('ontouchstart' in window) ||
+           (navigator.maxTouchPoints > 0) ||
+           (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  }
+  function _initTouchPreviewGlobal() {
+    if (_touchPreviewInit) return;
+    _touchPreviewInit = true;
+    var suppress = false;
+    // 长按松手后浏览器会合成一次 click，需拦截以免误触发换人/选择
+    document.addEventListener('click', function (e) {
+      if (suppress) {
+        suppress = false;
+        if (e.stopPropagation) e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
+      }
+    }, true);
+    // 点击空白处关闭预览
+    document.addEventListener('touchstart', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      if (!t.closest('#pk-preview') && !t.closest('.fc') && !t.closest('.pk')) hidePkPreview();
+    }, { passive: true });
+    window.__pkSuppressClick = function () { suppress = true; };
+  }
+  function _addLongPress(el, showFn) {
+    var timer = null;
+    el.addEventListener('touchstart', function () {
+      timer = setTimeout(function () {
+        timer = null;
+        if (window.__pkSuppressClick) window.__pkSuppressClick();
+        showFn(el);
+      }, 380);
+    }, { passive: true });
+    var cancel = function () { if (timer) { clearTimeout(timer); timer = null; } };
+    el.addEventListener('touchmove', cancel);
+    el.addEventListener('touchend', cancel);
+    el.addEventListener('touchcancel', cancel);
+  }
+  function bindTouchPreview() {
+    if (!_isTouch()) return;
+    _initTouchPreviewGlobal();
+    var cells = document.querySelectorAll('.fc:not(.deck)[data-pkid]');
+    for (var i = 0; i < cells.length; i++) {
+      (function (el) {
+        _addLongPress(el, function () {
+          showPkPreview(el, el.getAttribute('data-pkid'), el.getAttribute('data-side'));
+        });
+      })(cells[i]);
+    }
+    var pks = document.querySelectorAll('.pk[data-pk]');
+    for (var j = 0; j < pks.length; j++) {
+      (function (el) {
+        _addLongPress(el, function () {
+          showSetupPreview(el, parseInt(el.getAttribute('data-pk'), 10));
+        });
+      })(pks[j]);
     }
   }
 
@@ -1711,20 +1844,22 @@ function setupPreviewHTML(mon) {
       ["flawless", "全员凯旋"], ["hundred", "百战老兵"]
     ];
     var achGot = achList.filter(function (a) { return s.ach[a[0]]; }).map(function (a) { return a[1]; });
+    el.className = "stats-panel" + (statsCollapsed ? " collapsed" : "");
     el.innerHTML =
-      '<div class="sp-title">📊 战绩统计</div>' +
-      '<div class="sp-grid">' +
-        '<div class="sp-cell"><b>' + s.wins + '</b><span>胜</span></div>' +
-        '<div class="sp-cell"><b>' + s.losses + '</b><span>负</span></div>' +
-        '<div class="sp-cell"><b>' + winRate + '%</b><span>胜率</span></div>' +
-        '<div class="sp-cell"><b>' + s.streak + '</b><span>当前连胜</span></div>' +
-        '<div class="sp-cell"><b>' + s.best + '</b><span>最佳连胜</span></div>' +
-        '<div class="sp-cell"><b>' + s.total + '</b><span>总场次</span></div>' +
-      '</div>' +
-      '<div class="sp-diff">难度胜场：简单 ' + s.byDiff.easy + ' · 普通 ' + s.byDiff.normal + ' · 困难 ' + s.byDiff.hard + '</div>' +
-      (achGot.length
-        ? '<div class="sp-ach">🏅 ' + achGot.join("、") + '</div>'
-        : '<div class="sp-ach muted">尚未解锁成就，去赢一场吧！</div>');
+      '<div class="sp-title" onclick="window.PK._toggleStats()">📊 战绩统计<span class="sp-diff">简 ' + s.byDiff.easy + ' · 普 ' + s.byDiff.normal + ' · 困 ' + s.byDiff.hard + '</span><span class="sp-toggle">▼</span></div>' +
+      '<div class="sp-body">' +
+        '<div class="sp-grid">' +
+          '<div class="sp-cell"><b>' + s.wins + '</b><span>胜</span></div>' +
+          '<div class="sp-cell"><b>' + s.losses + '</b><span>负</span></div>' +
+          '<div class="sp-cell"><b>' + winRate + '%</b><span>胜率</span></div>' +
+          '<div class="sp-cell"><b>' + s.streak + '</b><span>当前连胜</span></div>' +
+          '<div class="sp-cell"><b>' + s.best + '</b><span>最佳连胜</span></div>' +
+          '<div class="sp-cell"><b>' + s.total + '</b><span>总场次</span></div>' +
+        '</div>' +
+        (achGot.length
+          ? '<div class="sp-ach">🏅 ' + achGot.join("、") + '</div>'
+          : '<div class="sp-ach muted">尚未解锁成就，去赢一场吧！</div>') +
+      '</div>';
   }
 
   /* ---------- 战斗回放 ---------- */
@@ -1940,6 +2075,7 @@ function setupPreviewHTML(mon) {
       })(cells[i]);
     }
     bindPickerHoverEvents();
+    bindTouchPreview();
   }
 
   function togglePick(id) {
@@ -1956,7 +2092,27 @@ function setupPreviewHTML(mon) {
       }
     }
     syncSetupUI();
-    renderPicker();
+    updatePickerCell(id);
+  }
+
+  function updatePickerCell(id) {
+    var grid = document.getElementById("pk-grid");
+    if (!grid) return;
+    var el = grid.querySelector('[data-pk="' + id + '"]');
+    if (!el) return; // 当前过滤条件下未显示
+    var sel = setup.selected.some(function (m) { return m.id === id; });
+    el.classList.toggle("sel", sel);
+    var check = el.querySelector(".pk-check");
+    if (sel) {
+      if (!check) {
+        check = document.createElement("div");
+        check.className = "pk-check";
+        check.textContent = "✓";
+        el.insertBefore(check, el.firstChild);
+      }
+    } else if (check) {
+      check.remove();
+    }
   }
 
   function confirmStart() {
@@ -2042,6 +2198,11 @@ function setupPreviewHTML(mon) {
       newGame(null); startRound();
     }, // headless/test: random game
     toSetup: function () { showSetup(); },
+    _toggleStats: function () {
+      statsCollapsed = !statsCollapsed;
+      var el = document.getElementById("stats-panel");
+      if (el) el.classList.toggle("collapsed", statsCollapsed);
+    },
     _state: function () { return state; },
     _useMove: onMove,
     _switch: onSwitch,
