@@ -18,8 +18,10 @@
       </div>
     </div>
     <button class="btn ghost" onclick="PK.toSetup()">重选宝可梦</button>
+    <button class="btn ghost" id="audio-btn">🔊 音效</button>
   </header>
   <div class="field">
+    <div class="weather-bar" id="weather-bar"></div>
     <div class="side you" id="you-side"></div>
     <div class="vs">VS</div>
     <div class="side ai" id="ai-side"></div>
@@ -35,7 +37,7 @@
       <div class="log" id="log"></div>
     </div>
   </div>
-  <div class="foot">提示：绿色技能克制当前对手；能量不足的技能会变灰。另有「聚气·回复能量」支援技（0 消耗、恢复 2 能量）。每回合自动恢复 1 点能量，攒满 5 点可放 3 费大招。</div>
+  <div class="foot">提示：金色描边技能克制当前对手；能量不足或冷却中的技能会变灰。部分宝可梦携带道具（🍱剩饭/💪讲究头带/👓讲究眼镜/🛡气势披带/🔮生命宝珠），部分大招会引出天气（☀️大晴天/🌧️下雨/🌪️沙暴/❄️冰雹），中招会削弱对手、大招会强化自身，3 费大招使用后进入 1 回合冷却。</div>
 </div>
 <div class="overlay" id="overlay"><div class="over-box" id="over-box"></div></div>
 <div class="overlay setup" id="setup">
@@ -47,6 +49,16 @@
       <button class="seg" id="seg-random">⚡ 随机组队</button>
       <button class="seg" id="seg-custom">✋ 自选 12 只</button>
     </div>
+    <div class="setup-row">
+      <span class="setup-label">难度</span>
+      <div class="diff-modes">
+        <button class="seg diff" data-diff="easy">😀 简单</button>
+        <button class="seg diff" data-diff="normal">🙂 普通</button>
+        <button class="seg diff" data-diff="hard">😈 困难</button>
+      </div>
+      <span class="setup-hint">困难 AI 会读克制、低血换人、合理使用进化/极巨</span>
+    </div>
+    <div id="stats-panel" class="stats-panel"></div>
     <div id="custom-panel" class="hidden">
       <div class="picker-tools">
         <input id="pk-search" class="pk-search" placeholder="搜索名字或编号…" />
@@ -64,10 +76,24 @@
   </div>
 </div>
 <div id="pk-preview" class="pk-preview"></div>
+<div id="toast" class="toast"></div>
+<div class="overlay replay" id="replay-modal"><div class="replay-box">
+  <button class="setup-close" id="replay-close">✕</button>
+  <h2>🎬 战斗回放</h2>
+  <div class="replay-bars" id="replay-bars"></div>
+  <div class="replay-log" id="replay-log"></div>
+  <div class="replay-ctrls">
+    <button class="mini-btn" id="rp-prev">◀ 上一步</button>
+    <span class="replay-idx" id="replay-idx">0 / 0</span>
+    <button class="mini-btn" id="rp-play">▶ 自动播放</button>
+    <button class="mini-btn" id="rp-next">下一步 ▶</button>
+  </div>
+</div></div>
 <div id="fx"></div>
 <canvas id="fx3d"></canvas>
 <script src="data.js"></script>
 <script src="battle-fx.js"></script>
+<script src="battle-audio.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

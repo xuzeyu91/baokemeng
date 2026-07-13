@@ -239,3 +239,77 @@ assert(ds.you.dynamaxUsed === true && !ds.you.active.dynamaxTurns, "no second dy
 console.log(ok ? "DYNAMAX OK (activate, cost, HP boost, max moves, timed revert, once-per-battle, mutual exclusion)" : "DYNAMAX ISSUES");
 
 console.log("All battles terminated without infinite loop. SIM OK");
+
+// ---- 7. strategy-depth systems: items / weather / stat-stages / cooldown ----
+global.setTimeout = function () { return 0; }; // no-op: inspect data without cascading
+var D = window.PK._debug;
+assert(Math.abs(D.stageMult(0) - 1) < 1e-9, "stage 0 -> x1");
+assert(Math.abs(D.stageMult(6) - 4) < 1e-9, "stage +6 -> x4");
+assert(Math.abs(D.stageMult(-6) - 0.25) < 1e-9, "stage -6 -> x0.25");
+assert(Math.abs(D.stageMult(1) - 1.5) < 1e-9, "stage +1 -> x1.5");
+assert(Math.abs(D.weatherMult("fire", "sunny") - 1.5) < 1e-9, "sunny fire x1.5");
+assert(Math.abs(D.weatherMult("water", "sunny") - (1 / 1.5)) < 1e-9, "sunny water x2/3");
+assert(Math.abs(D.weatherMult("water", "rain") - 1.5) < 1e-9, "rain water x1.5");
+assert(D.weatherMult("fire", "rain") === (1 / 1.5), "rain fire weakened");
+assert(D.weatherMult("normal", "none") === 1, "no weather -> x1");
+assert(D.itemMult({ item: "band" }, { cat: "phys" }) === 1.5, "band phys x1.5");
+assert(D.itemMult({ item: "specs" }, { cat: "spec" }) === 1.5, "specs spec x1.5");
+assert(Math.abs(D.itemMult({ item: "lifeorb" }, { cat: "phys" }) - 1.3) < 1e-9, "lifeorb x1.3");
+assert(D.itemMult({ item: null }, { cat: "phys" }) === 1, "no item x1");
+
+// move metadata attached by genMoves
+window.PK._beginCustom([byId(6), byId(4), byId(5), byId(7), byId(8), byId(9), byId(1), byId(2), byId(3), byId(10), byId(11), byId(12)]);
+var fm = window.PK._state().you.active;
+assert(fm.moves.length === 4, "fire mon 4 moves");
+assert(fm.moves[3].cooldown === 1, "3-cost big move has cooldown 1");
+assert(fm.moves[0].cooldown === 0, "1-cost move no cooldown");
+assert(fm.moves[2].weather === "sunny", "fire 2-cost sets sunny (got " + fm.moves[2].weather + ")");
+assert(fm.moves[3].buff && fm.moves[3].buff.spd === 1, "flying big move buffs spd");
+assert(!!fm.moves[2].debuff, "fire mid move has debuff");
+
+// item assignment is deterministic by id (id%3===0 carries an item)
+function findCard(st, id) { return [st.active].concat(st.bench, st.deck).filter(function (c) { return c.mon.id === id; })[0]; }
+window.PK._beginCustom([byId(3), byId(1), byId(2), byId(4), byId(5), byId(6), byId(7), byId(8), byId(9), byId(10), byId(11), byId(12)]);
+var it7 = window.PK._state().you;
+var c3 = findCard(it7, 3), c1 = findCard(it7, 1);
+assert(c3 && c3.item, "mon #3 (id%3==0) carries an item (got " + (c3 && c3.item) + ")");
+assert(c1 && !c1.item, "mon #1 (id%3!=0) carries no item");
+assert(c3.cooldowns && c3.cooldowns.length === 4 && c3.cooldowns.every(function (x) { return x === 0; }), "cooldowns init [0,0,0,0]");
+assert(c3.buffs && c3.buffs.atk === 0, "buffs init zeroed");
+
+console.log(ok ? "STRATEGY SYSTEMS OK (items/weather/stages/cooldown metadata + multipliers)" : "STRATEGY SYSTEMS ISSUES");
+
+// ---- 8. polish features: stats/achievements, difficulty, replay ----
+var Dbg = window.PK._debug;
+var s0 = Dbg.loadStats();
+var w0 = s0.wins || 0, t0 = s0.total || 0;
+Dbg.recordResult(true, "hard");
+var s1 = Dbg.loadStats();
+assert(s1.wins === w0 + 1, "recordResult increments wins (got " + s1.wins + " vs " + w0 + ")");
+assert(s1.total === t0 + 1, "recordResult increments total");
+assert(s1.byDiff.hard === 1, "recordResult records hard-difficulty win");
+assert(s1.ach.first_win === true, "first-win achievement unlocked");
+var u = Dbg.recordResult(true, "easy");
+assert(Array.isArray(u), "recordResult returns unlocked-achievement array");
+// 难度设置会带入新对局
+Dbg.setDifficulty("hard");
+window.PK.restart();
+var rs = window.PK._state();
+assert(rs.difficulty === "hard", "difficulty applied to battle state (got " + rs.difficulty + ")");
+// 回放：跑一场完整对战，验证 replay 记录了关键帧
+global.setTimeout = function (fn) { fn(); return 0; };
+window.PK.restart();
+var rp = window.PK._state();
+var rg = 0;
+while (!rp.over && rg < 3000) {
+  if (rp.turn === "you") window.PK._useMove(0);
+  rp = window.PK._state();
+  rg++;
+}
+assert(rp.over, "replay-battle ended (guard=" + rg + ")");
+assert(rp.replay && rp.replay.length > 0, "replay recorded frames (got " + (rp.replay ? rp.replay.length : 0) + ")");
+var fr0 = rp.replay[0];
+assert(fr0 && typeof fr0.text === "string", "replay frame has text");
+assert(fr0 && typeof fr0.youHp === "number" && typeof fr0.aiHp === "number", "replay frame has HP snapshot");
+console.log(ok ? "POLISH OK (stats/achievements, difficulty, replay recording)" : "POLISH ISSUES");
+

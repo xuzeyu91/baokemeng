@@ -62,6 +62,65 @@
   var DYNAMAX_TURNS = 3;       // number of boosted "Max Move" attack turns after activation
   var DYNAMAX_HP_MULT = 1.5;   // max-HP multiplier while Dynamaxed
   var DYNAMAX_POWER_MULT = 1.4; // move-power multiplier for Max Moves (极巨招式)
+  var CRIT_CHANCE = 0.0625;    // 1/16 暴击率（命中且非无效时判定）
+  var CRIT_MULT = 1.5;         // 暴击伤害倍率
+
+  /* ===== 携带物（道具）===== */
+  var ITEM_POOL = {
+    leftovers: { name: "剩饭",     icon: "🍱", desc: "每回合开始回复约 1/16 最大体力" },
+    band:      { name: "讲究头带", icon: "💪", desc: "物理招式伤害 ×1.5" },
+    specs:     { name: "讲究眼镜", icon: "👓", desc: "特殊招式伤害 ×1.5" },
+    sash:      { name: "气势披带", icon: "🛡", desc: "满血时若受致命伤，保留 1 点体力（每场一次）" },
+    lifeorb:   { name: "生命宝珠", icon: "🔮", desc: "伤害 ×1.3，但每次出手损失 1/10 最大体力" }
+  };
+  var ITEM_KEYS = ["leftovers", "band", "specs", "sash", "lifeorb"];
+  // 约 1/3 的宝可梦携带道具，按 id 确定性分配（基础形态即决定，与进化/极巨/超级进化无关）
+  function itemForKey(mon) {
+    if (!mon || mon.id == null) return null;
+    if (mon.id % 3 !== 0) return null;
+    return ITEM_KEYS[Math.floor(mon.id / 3) % ITEM_KEYS.length];
+  }
+
+  /* ===== 天气 / 场地 ===== */
+  var WEATHER_DURATION = 5; // 天气持续回合
+  var WEATHER = {
+    none:      { name: "",     icon: "",  atk: null, weak: null, mult: 1, chip: false, immune: [] },
+    sunny:     { name: "大晴天", icon: "☀️", atk: "fire",  weak: "water", mult: 1.5, chip: false, immune: [] },
+    rain:      { name: "下雨",   icon: "🌧️", atk: "water", weak: "fire",  mult: 1.5, chip: false, immune: [] },
+    sandstorm: { name: "沙暴",   icon: "🌪️", atk: "rock",  weak: null,   mult: 1.5, chip: true,  immune: ["rock", "ground", "steel"] },
+    hail:      { name: "冰雹",   icon: "❄️", atk: "ice",   weak: null,   mult: 1.5, chip: true,  immune: ["ice"] }
+  };
+  // 特定 2 费 / 3 费大招会引出对应天气
+  var WEATHER_MOVE = {
+    "大字爆炎": "sunny", "喷射火焰": "sunny",
+    "水流尾": "rain", "水炮": "rain",
+    "岩崩": "sandstorm", "尖石攻击": "sandstorm",
+    "暴风雪": "hail", "冰冻光束": "hail"
+  };
+
+  /* ===== 能力等级（强化/削弱）===== */
+  // 等级 -6..+6 对应的能力倍率（攻/防/特攻/特防/速度共用）
+  var STAGE_MULT = [0.25, 0.2857, 0.3333, 0.4, 0.5, 0.6667, 1, 1.5, 2, 2.5, 3, 3.5, 4];
+  function stageMult(stage) { return STAGE_MULT[clamp(stage + 6, 0, 12)]; }
+  var BUFF_LABEL = { atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度" };
+  var BUFF_SHORT = { atk: "攻", def: "防", spa: "特攻", spd: "特防", spe: "速" };
+  // 3 费大招：命中后强化自身（按属性）
+  var SELF_BUFF_BY_TYPE = {
+    normal: { atk: 1 }, fire: { atk: 1 }, water: { spd: 1 }, electric: { spd: 1 },
+    grass: { spa: 1 }, ice: { spa: 1 }, fighting: { atk: 2, def: -1 }, poison: { spa: 1 },
+    ground: { atk: 1 }, flying: { spd: 1 }, psychic: { spa: 1, spd: 1 }, bug: { atk: 1, spa: 1 },
+    rock: { def: 1 }, ghost: { spa: 1 }, dragon: { atk: 1, spa: 1 }, steel: { def: 1 },
+    dark: { atk: 1 }, fairy: { spa: 1, def: 1 }
+  };
+  // 2 费中招：命中后削弱对手（按属性）
+  var FOE_DEBUFF_BY_TYPE = {
+    fire: { def: -1 }, water: { spd: -1 }, electric: { spd: -1 }, grass: { def: -1 },
+    ice: { spd: -1 }, fighting: { def: -1 }, poison: { spa: -1 }, ground: { spd: -1 },
+    flying: { def: -1 }, psychic: { spa: -1 }, bug: { def: -1 }, rock: { spd: -1 },
+    ghost: { def: -1 }, dragon: { def: -1 }, steel: { atk: -1 }, dark: { def: -1 },
+    fairy: { atk: -1 }
+    // normal: 无
+  };
 
   var STRIKE_MS = 260;
   var IMPACT_MS = 540;
@@ -72,7 +131,13 @@
 
   var state = null;
   var busy = false;
-  var setup = { mode: "random", selected: [], typeFilter: "all", genFilter: "all", query: "" };
+  var setup = { mode: "random", selected: [], typeFilter: "all", genFilter: "all", query: "", difficulty: "normal" };
+  var _memStats = null; // headless/无 localStorage 时的内存兜底
+
+  // 安全音效封装：无 BattleAudio 或 AudioContext 时降级为 no-op
+  function sfx(name) {
+    try { if (window.BattleAudio && !window.BattleAudio.isMuted()) window.BattleAudio.play(name); } catch (e) {}
+  }
 
   if (typeof console !== "undefined" && console.log) {
     console.log("[PK] v5 loaded: animated async battle flow");
@@ -102,20 +167,25 @@
     if (tier === 1) return clamp(Math.round(base * 0.62) + 24, 48, 115);
     return clamp(Math.round(base * 0.85) + 34, 68, 160);
   }
+  function withCooldown(mv) { mv.cooldown = mv.cost >= 3 ? 1 : 0; return mv; }
   function genMoves(mon) {
     var t1 = mon.types[0];
     var t2 = mon.types[1] || "normal";
     var k1 = MOVE_KIT[t1] || MOVE_KIT.normal;
     var k2 = MOVE_KIT[t2] || MOVE_KIT.normal;
-    var m2 = { name: k1[2], type: t1, power: movePower(mon.sp_attack, 1), cost: 2, cat: "spec" };
-    var m3 = { name: k2[3], type: t2, power: movePower(mon.attack,     2), cost: 3, cat: "phys" };
+    var m1 = withCooldown({ name: k1[0], type: t1, power: movePower(mon.attack,     0), cost: 1, cat: "phys" });
+    var m1b = withCooldown({ name: k2[1], type: t2, power: movePower(mon.sp_attack, 0), cost: 1, cat: "spec" });
+    var m2 = withCooldown({ name: k1[2], type: t1, power: movePower(mon.sp_attack, 1), cost: 2, cat: "spec" });
+    var m3 = withCooldown({ name: k2[3], type: t2, power: movePower(mon.attack,     2), cost: 3, cat: "phys" });
     var s1 = TYPE_STATUS[t1]; if (s1) { m2.status = s1; m2.statusChance = 0.20; }
     var s2 = TYPE_STATUS[t2]; if (s2) { m3.status = s2; m3.statusChance = 0.35; }
-    return [
-      { name: k1[0], type: t1, power: movePower(mon.attack,     0), cost: 1, cat: "phys" },
-      { name: k2[1], type: t2, power: movePower(mon.sp_attack, 0), cost: 1, cat: "spec" },
-      m2, m3
-    ];
+    // 中招（2 费）附带削弱对手；大招（3 费）附带强化自身
+    var fd = FOE_DEBUFF_BY_TYPE[t1]; if (fd) m2.debuff = fd;
+    var sb = SELF_BUFF_BY_TYPE[t2]; if (sb) m3.buff = sb;
+    // 特定招式引出天气
+    if (WEATHER_MOVE[m2.name]) m2.weather = WEATHER_MOVE[m2.name];
+    if (WEATHER_MOVE[m3.name]) m3.weather = WEATHER_MOVE[m3.name];
+    return [m1, m1b, m2, m3];
   }
   // 极巨招式：保留同一套招式的属性/类型/费用，威力提升并以「极巨」前缀重命名。
   // 与超级进化不同，极巨化不改变物种，而是把现有招式临时升级为极巨招式。
@@ -129,6 +199,9 @@
         cat: mv.cat,
         status: mv.status,
         statusChance: mv.statusChance,
+        buff: mv.buff,
+        debuff: mv.debuff,
+        weather: mv.weather,
         max: true
       };
     });
@@ -136,7 +209,10 @@
   function makeCard(mon) {
     return {
       mon: mon, maxHp: mon.hp, hp: mon.hp, energy: 0, status: null,
-      fainted: false, moves: genMoves(mon)
+      fainted: false, moves: genMoves(mon),
+      item: itemForKey(mon),
+      buffs: { atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
+      cooldowns: [0, 0, 0, 0]
     };
   }
   function randomMons(n) {
@@ -155,7 +231,10 @@
     state = {
       you: buildPlayer("你", youMons),
       ai: buildPlayer("电脑", aiMons),
-      turn: "you", firstMover: "you", over: false, winner: null, log: []
+      turn: "you", firstMover: "you", over: false, winner: null, log: [],
+      weather: { type: "none", turns: 0 },
+      difficulty: setup.difficulty || "normal",
+      replay: []
     };
   }
 
@@ -185,23 +264,121 @@
     if (state.log.length > 40) state.log.shift();
   }
 
+  /* ---------- 战绩 / 成就（localStorage，headless 用内存兜底）---------- */
+  function defaultStats() {
+    return {
+      wins: 0, losses: 0, streak: 0, best: 0, total: 0,
+      byDiff: { easy: 0, normal: 0, hard: 0 },
+      ach: {}, weatherWin: 0, megaWin: 0, dynaWin: 0, flawless: 0
+    };
+  }
+  function loadStats() {
+    var def = defaultStats();
+    try {
+      if (typeof localStorage === "undefined") return _memStats || def;
+      var raw = localStorage.getItem("pk_stats_v1");
+      if (!raw) return def;
+      var o = JSON.parse(raw);
+      for (var k in def) if (o[k] === undefined) o[k] = def[k];
+      if (!o.byDiff) o.byDiff = { easy: 0, normal: 0, hard: 0 };
+      if (!o.ach) o.ach = {};
+      return o;
+    } catch (e) { return def; }
+  }
+  function saveStats(s) {
+    try {
+      if (typeof localStorage !== "undefined") localStorage.setItem("pk_stats_v1", JSON.stringify(s));
+      else _memStats = s;
+    } catch (e) {}
+  }
+  function recordResult(youWin, diff) {
+    var s = loadStats();
+    s.total += 1;
+    if (youWin) {
+      s.wins += 1; s.streak += 1; if (s.streak > s.best) s.best = s.streak;
+      if (diff && s.byDiff[diff] != null) s.byDiff[diff] += 1;
+      if (state.weather && state.weather.type !== "none") s.weatherWin += 1;
+      if (state.you.megaUsed) s.megaWin += 1;
+      if (state.you.dynamaxUsed) s.dynaWin += 1;
+      if (state.you.graveyard.length === 0) s.flawless += 1; // 无一只倒下
+    } else {
+      s.losses += 1; s.streak = 0;
+    }
+    var unlocked = [];
+    function unlock(key, label) { if (!s.ach[key]) { s.ach[key] = true; unlocked.push(label); } }
+    if (s.wins >= 1) unlock("first_win", "首胜");
+    if (s.streak >= 5) unlock("streak5", "五连胜");
+    if (s.streak >= 10) unlock("streak10", "十连胜");
+    if (s.total >= 100) unlock("hundred", "百战老兵");
+    if (s.megaWin >= 1) unlock("mega_win", "超级进化胜利");
+    if (s.dynaWin >= 1) unlock("dyna_win", "极巨化胜利");
+    if (s.weatherWin >= 1) unlock("weather", "天气大师");
+    if (s.flawless >= 1) unlock("flawless", "全员凯旋");
+    saveStats(s);
+    return unlocked;
+  }
+
+  /* ---------- 战斗回放 ---------- */
+  function recordEvent(type, text) {
+    if (!state || !state.replay) return;
+    var ya = state.you.active, aa = state.ai.active;
+    state.replay.push({
+      type: type, text: text || "",
+      youName: ya ? ya.mon.name_zh : "", youHp: ya ? ya.hp : 0, youMax: ya ? ya.maxHp : 0,
+      aiName: aa ? aa.mon.name_zh : "", aiHp: aa ? aa.hp : 0, aiMax: aa ? aa.maxHp : 0,
+      weather: (state.weather && state.weather.type !== "none") ? state.weather.type : "none"
+    });
+  }
+
   /* ---------- combat ---------- */
+  function effStat(card, key) {
+    var map = { atk: "attack", def: "defense", spa: "sp_attack", spd: "sp_defense", spe: "speed" };
+    var base = card.mon[map[key]];
+    var stage = (card.buffs && card.buffs[key]) || 0;
+    return base * stageMult(stage);
+  }
+  function effSpeed(card) {
+    if (!card || !card.mon) return 0;
+    var sp = (card.buffs && card.buffs.spe) ? card.buffs.spe : 0;
+    return card.mon.speed * stageMult(sp);
+  }
+  function weatherMult(moveType, weatherType) {
+    var w = WEATHER[weatherType] || WEATHER.none;
+    if (!w.atk) return 1;
+    if (moveType === w.atk) return w.mult;
+    if (w.weak && moveType === w.weak) return 1 / w.mult;
+    return 1;
+  }
+  function itemDamageMult(attacker, move) {
+    var it = attacker.item;
+    if (!it) return 1;
+    if (it === "band" && move.cat === "phys") return 1.5;
+    if (it === "specs" && move.cat === "spec") return 1.5;
+    if (it === "lifeorb") return 1.3;
+    return 1;
+  }
   function expectedDamage(attacker, defender, move) {
-    var atk = move.cat === "phys" ? attacker.mon.attack : attacker.mon.sp_attack;
-    var def = move.cat === "phys" ? defender.mon.defense : defender.mon.sp_defense;
-    var mult = typeMult(move.type, defender.mon.types);
+    var atk = effStat(attacker, move.cat === "phys" ? "atk" : "spa");
+    var def = effStat(defender, move.cat === "phys" ? "def" : "spd");
+    var typeM = typeMult(move.type, defender.mon.types);
+    var mult = typeM * weatherMult(move.type, state.weather.type);
     var dmg = Math.max(1, Math.floor(move.power * (atk / (def + 10)) * 0.5 * mult));
     if (attacker.status && attacker.status.type === "burn" && move.cat === "phys") dmg = Math.floor(dmg * 0.5);
+    dmg = Math.floor(dmg * itemDamageMult(attacker, move));
     return dmg;
   }
   function rollDamage(attacker, defender, move) {
-    var atk = move.cat === "phys" ? attacker.mon.attack : attacker.mon.sp_attack;
-    var def = move.cat === "phys" ? defender.mon.defense : defender.mon.sp_defense;
-    var mult = typeMult(move.type, defender.mon.types);
+    var atk = effStat(attacker, move.cat === "phys" ? "atk" : "spa");
+    var def = effStat(defender, move.cat === "phys" ? "def" : "spd");
+    var typeM = typeMult(move.type, defender.mon.types);
+    var mult = typeM * weatherMult(move.type, state.weather.type);
     var variance = 0.85 + Math.random() * 0.15;
     var dmg = Math.max(1, Math.floor(move.power * (atk / (def + 10)) * 0.5 * mult * variance));
     if (attacker.status && attacker.status.type === "burn" && move.cat === "phys") dmg = Math.floor(dmg * 0.5);
-    return { dmg: dmg, mult: mult };
+    var crit = mult > 0 && Math.random() < CRIT_CHANCE;
+    if (crit) dmg = Math.floor(dmg * CRIT_MULT);
+    dmg = Math.floor(dmg * itemDamageMult(attacker, move));
+    return { dmg: dmg, mult: mult, crit: crit };
   }
 
   function useMove(side, moveIdx, callback) {
@@ -211,20 +388,56 @@
     var attacker = me.active, defender = foe.active;
     var move = attacker.moves[moveIdx];
     if (attacker.energy < move.cost) { if (callback) callback(); return; }
+    if (attacker.cooldowns && attacker.cooldowns[moveIdx] > 0) { if (callback) callback(); return; }
     attacker.energy -= move.cost;
+    if (attacker.cooldowns) attacker.cooldowns[moveIdx] = move.cooldown || 0;
 
+    var who = side === "you" ? "你" : "电脑";
     var r = rollDamage(attacker, defender, move);
-    defender.hp = Math.max(0, defender.hp - r.dmg);
+
+    // 气势披带：满血受致命伤时保命（每场一次）
+    if (defender.item === "sash" && defender.hp === defender.maxHp && r.dmg >= defender.hp) {
+      defender.item = null;
+      r.dmg = defender.maxHp - 1;
+      defender.hp = 1;
+      log("eff", foe.name + "的" + defender.mon.name_zh + " 的【气势披带】生效，在致命一击下保住了 1 点体力！");
+    } else {
+      defender.hp = Math.max(0, defender.hp - r.dmg);
+    }
 
     var effTxt = r.mult >= 2 ? "效果拔群！" : r.mult === 0 ? "没有效果…"
       : r.mult < 1 ? "效果不太好…" : "";
-    var who = side === "you" ? "你" : "电脑";
+    var critTxt = r.crit ? "（暴击！）" : "";
     var line = who + "的" + attacker.mon.name_zh + " 使用【" + move.name + "】，对" +
-               defender.mon.name_zh + " 造成 " + r.dmg + " 点伤害。" + effTxt;
+               defender.mon.name_zh + " 造成 " + r.dmg + " 点伤害。" + effTxt + critTxt;
     log(side, line);
+    recordEvent(r.crit ? "crit" : "move", line);
+
+    // 生命宝珠：增伤后的反作用力（最高损失 1/10 最大体力，不会自我击倒）
+    if (attacker.item === "lifeorb" && r.dmg > 0) {
+      var recoil = Math.max(1, Math.floor(attacker.maxHp / 10));
+      attacker.hp = Math.max(1, attacker.hp - recoil);
+      log("eff", who + "的" + attacker.mon.name_zh + " 因【生命宝珠】受到 " + recoil + " 点反作用力伤害。");
+    }
+
+    // 引出天气
+    if (move.weather && WEATHER[move.weather]) {
+      state.weather = { type: move.weather, turns: WEATHER_DURATION };
+      var wLine = who + "的" + attacker.mon.name_zh + " 引发了" + WEATHER[move.weather].name + "！";
+      log("sys", wLine);
+      recordEvent("weather", wLine);
+      sfx("weather");
+    }
+
+    // 能力等级变化（命中且非无效时）
+    if (r.mult > 0) {
+      if (move.buff) applyBuff(attacker, move.buff, attacker.mon.name_zh, who);
+      if (move.debuff && defender.hp > 0) applyBuff(defender, move.debuff, defender.mon.name_zh, foe.name);
+    }
 
     // show energy change / hp bar drop before the impact animation
     render();
+    sfx("move");
     animateStrike(side, move, r);
 
     setTimeout(function () {
@@ -235,9 +448,26 @@
           defender.status = { type: move.status, turns: statusTurns(move.status) };
           log("eff", foe.name + "的" + defender.mon.name_zh + " 陷入了" + STATUS_ZH[move.status] + "状态！");
         }
+        sfx(r.crit ? "crit" : "hit");
         if (callback) callback();
       }
     }, IMPACT_MS);
+  }
+
+  function applyBuff(card, delta, monName, whoName) {
+    if (!card.buffs) card.buffs = { atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+    Object.keys(delta).forEach(function (k) {
+      var before = card.buffs[k] || 0;
+      var after = clamp(before + delta[k], -6, 6);
+      if (after !== before) {
+        card.buffs[k] = after;
+        var arrow = after > 0 ? "提升" : "下降";
+        log("eff", whoName + "的" + monName + " 的" + (BUFF_LABEL[k] || k) + arrow + "了！");
+      }
+    });
+  }
+  function resetBuffs(c) {
+    if (c) c.buffs = { atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
   }
 
   function afterMove(side) {
@@ -264,7 +494,10 @@
     var p = state[side];
     var dead = p.active;
     dead.fainted = true;
-    log("kill", p.name + "的" + dead.mon.name_zh + " 倒下了！");
+    var killLine = p.name + "的" + dead.mon.name_zh + " 倒下了！";
+    log("kill", killLine);
+    recordEvent("ko", killLine);
+    sfx("ko");
 
     // keep the fainted card visible for a moment so the player notices it
     render();
@@ -279,10 +512,12 @@
         }
         var promoted = p.bench.splice(best, 1)[0];
         p.active = promoted;
+        resetBuffs(promoted); if (promoted.cooldowns) promoted.cooldowns = [0, 0, 0, 0];
         log("sys", p.name + " 派出 " + promoted.mon.name_zh + " 上场！");
       } else if (p.deck.length > 0) {
         p.graveyard.push(dead);
         p.active = p.deck.shift();
+        resetBuffs(p.active); if (p.active.cooldowns) p.active.cooldowns = [0, 0, 0, 0];
         log("sys", p.name + " 从牌库抽出 " + p.active.mon.name_zh + " 上场！");
       } else {
         // 无替补：最终倒下者留在 active 上，不重复计入墓地
@@ -307,22 +542,37 @@
     var p = state[side];
     if (benchIdx < 0 || benchIdx >= p.bench.length) return;
     var incoming = p.bench.splice(benchIdx, 1)[0];
+    resetBuffs(p.active);   // 下场者能力等级重置
+    resetBuffs(incoming);   // 上场者以初始等级登场
     p.bench.push(p.active);
     p.active = incoming;
     var who = side === "you" ? "你" : "电脑";
-    log("sys", who + " 换上 " + incoming.mon.name_zh + "（" + p.active.mon.name_zh + " 退居后备）。");
+    var swLine = who + " 换上 " + incoming.mon.name_zh + "（" + p.active.mon.name_zh + " 退居后备）。";
+    log("sys", swLine);
+    recordEvent("switch", swLine);
+    sfx("switch");
   }
 
   /* ---------- turn flow ---------- */
   function decideFirstMover() {
-    var y = state.you.active, a = state.ai.active;
-    if (y.mon.speed > a.mon.speed) return "you";
-    if (a.mon.speed > y.mon.speed) return "ai";
+    var y = effSpeed(state.you.active), a = effSpeed(state.ai.active);
+    if (y > a) return "you";
+    if (a > y) return "ai";
     return Math.random() < 0.5 ? "you" : "ai";
   }
 
   function startRound() {
     if (state.over) return;
+    // 天气倒计时：每回合（一轮）结束递减，归零则消散
+    try {
+      if (state.weather && state.weather.type !== "none") {
+        state.weather.turns -= 1;
+        if (state.weather.turns <= 0) {
+          log("sys", (WEATHER[state.weather.type] ? WEATHER[state.weather.type].name : "天气") + " 散去了。");
+          state.weather = { type: "none", turns: 0 };
+        }
+      }
+    } catch (e) {}
     var first = decideFirstMover();
     state.firstMover = first;
     var fm = state[first].active;
@@ -337,6 +587,42 @@
     state.turn = side;
     p.active.energy = Math.min(MAX_ENERGY, p.active.energy + 1);
     if (p.active.energy > 0 && typeof animateEnergy === "function") animateEnergy(side);
+
+    // 携带物：剩饭每回合开始回复
+    try {
+      if (p.active.item === "leftovers" && p.active.hp < p.active.maxHp) {
+        var lh = Math.max(1, Math.floor(p.active.maxHp / 16));
+        p.active.hp = Math.min(p.active.maxHp, p.active.hp + lh);
+        log("sys", p.name + "的" + p.active.mon.name_zh + " 通过【剩饭】回复了 " + lh + " 点体力。");
+      }
+    } catch (e) {}
+    // 技能冷却递减
+    try {
+      if (p.active.cooldowns) {
+        for (var ci = 0; ci < p.active.cooldowns.length; ci++) {
+          if (p.active.cooldowns[ci] > 0) p.active.cooldowns[ci] -= 1;
+        }
+      }
+    } catch (e) {}
+    // 天气场地伤害（沙暴/冰雹），免疫属性不受影响
+    try {
+      var wt = state.weather && state.weather.type;
+      if (wt === "sandstorm" || wt === "hail") {
+        var w = WEATHER[wt];
+        var c0 = p.active;
+        var immune = w.immune && w.immune.some(function (t) { return c0.mon.types.indexOf(t) >= 0; });
+        if (!immune) {
+          var chip = Math.max(1, Math.floor(c0.maxHp / 16));
+          c0.hp = Math.max(0, c0.hp - chip);
+          log("sys", p.name + "的" + c0.mon.name_zh + " 受到" + w.name + "影响，损失 " + chip + " 点体力！");
+          if (c0.hp <= 0) {
+            render();
+            handleFaint(side, function () { afterMove(side); });
+            return;
+          }
+        }
+      }
+    } catch (e) {}
 
     // 回合开始结算异常状态
     var skip = false;
@@ -391,18 +677,20 @@
     if (state.over) { busy = false; return; }
     var me = state.ai, foe = state.you;
     var a = me.active, d = foe.active;
+    var diff = state.difficulty || "normal";
 
     setTimeout(function () {
-      // Mega Evolution (once per battle, when affordable)
+      // 超级进化 / 极巨化（按难度调整发动倾向，整场各一次、互斥）
+      var megaChance = diff === "hard" ? 0.85 : diff === "normal" ? 0.6 : 0.4;
+      var dmaxChance = diff === "hard" ? 0.7 : diff === "normal" ? 0.45 : 0.3;
       if (a.mon.mega && a.mon.mega.length && !me.megaUsed && !me.dynamaxUsed && a.energy >= MEGA_COST) {
-        if (a.hp / a.maxHp < 0.7 || Math.random() < 0.5) {
+        if (a.hp / a.maxHp < 0.7 || Math.random() < megaChance) {
           useMega("ai", 0, function () { afterMove("ai"); });
           return;
         }
       }
-      // Dynamax (once per battle, mutually exclusive with Mega, when affordable)
       if (!me.dynamaxUsed && !me.megaUsed && a.dynamaxTurns === 0 && a.energy >= DYNAMAX_COST) {
-        if (a.hp / a.maxHp < 0.7 || Math.random() < 0.4) {
+        if (a.hp / a.maxHp < 0.7 || Math.random() < dmaxChance) {
           useDynamax("ai", function () { afterMove("ai"); });
           return;
         }
@@ -411,8 +699,10 @@
       for (var i = 0; i < a.moves.length; i++) {
         var mv = a.moves[i];
         if (a.energy < mv.cost) continue;
+        if (a.cooldowns && a.cooldowns[i] > 0) continue;
+        var mult = typeMult(mv.type, d.mon.types);
         var exp = expectedDamage(a, d, mv);
-        choices.push({ i: i, exp: exp, ko: exp >= d.hp });
+        choices.push({ i: i, exp: exp, mult: mult, ko: exp >= d.hp });
       }
       if (choices.length === 0) {
         if (me.active.energy < MAX_ENERGY) {
@@ -423,9 +713,17 @@
         return;
       }
       choices.sort(function (x, y) { return (y.ko - x.ko) || (y.exp - x.exp); });
-      var pick = choices[0];
+      var pick;
+      if (diff === "easy") {
+        // 简单：仅在最优 2 招里随机，偏随机、不读克制、不换人
+        var top = choices.slice(0, Math.min(2, choices.length));
+        pick = top[Math.floor(Math.random() * top.length)];
+      } else {
+        pick = choices[0];
+      }
 
-      if (!pick.ko && a.hp / a.maxHp < 0.35 && me.bench.length > 0) {
+      // 低血换人（普通/困难）：当前打不倒且血量 < 35%，换上更厚实的替补
+      if (diff !== "easy" && !pick.ko && a.hp / a.maxHp < 0.35 && me.bench.length > 0) {
         var bestBench = 0;
         for (var j = 1; j < me.bench.length; j++) {
           if (me.bench[j].maxHp > me.bench[bestBench].maxHp) bestBench = j;
@@ -434,9 +732,26 @@
           doSwitch("ai", bestBench);
           render();
           animateSwitch("ai");
-          setTimeout(function () {
-            afterMove("ai");
-          }, SWITCH_MS);
+          setTimeout(function () { afterMove("ai"); }, SWITCH_MS);
+          return;
+        }
+      }
+      // 困难：多步评估——当打不倒且低血时，评估替补中"攻防差"最优者换上
+      if (diff === "hard" && !pick.ko && a.hp / a.maxHp < 0.4 && me.bench.length > 0) {
+        var bBest = -1, bScore = -1;
+        for (var bi = 0; bi < me.bench.length; bi++) {
+          var bc = me.bench[bi];
+          var off = 0, def = 0;
+          for (var mi = 0; mi < bc.moves.length; mi++) off += expectedDamage(bc, d, bc.moves[mi]);
+          for (var mi2 = 0; mi2 < d.moves.length; mi2++) def += expectedDamage(d, bc, d.moves[mi2]);
+          var score = (off - def) + (bc.maxHp > a.maxHp ? 60 : 0);
+          if (score > bScore) { bScore = score; bBest = bi; }
+        }
+        if (bBest >= 0 && bScore > 0 && me.bench[bBest].maxHp > a.maxHp) {
+          doSwitch("ai", bBest);
+          render();
+          animateSwitch("ai");
+          setTimeout(function () { afterMove("ai"); }, SWITCH_MS);
           return;
         }
       }
@@ -450,6 +765,8 @@
   /* human actions */
   function onMove(idx) {
     if (busy || state.over || state.turn !== "you") return;
+    var c = state.you.active;
+    if (c.cooldowns && c.cooldowns[idx] > 0) return; // 冷却中，不消耗回合
     busy = true;
     useMove("you", idx, function () {
       afterMove("you");
@@ -484,6 +801,8 @@
       me.active.status = null;
     }
     log(side, line);
+    recordEvent("heal", line);
+    sfx("heal");
     render();
     if (window.SkillFX && window.SkillFX.recover) window.SkillFX.recover(side, gained);
     animateRecover(side, gained);
@@ -527,9 +846,13 @@
     c.maxHp = mf.hp;
     c.hp = Math.max(1, Math.round(ratio * mf.hp));
     c.moves = genMoves(c.mon);  // rebuild moves from mega stats/types
+    resetBuffs(c); if (c.cooldowns) c.cooldowns = [0, 0, 0, 0];
     me.megaUsed = true;         // one Mega Evolution per battle (whole team)
     var who = side === "you" ? "你" : "电脑";
-    log(side, who + "的" + origName + " 超级进化为 " + mf.name_zh + "！");
+    var megaLine = who + "的" + origName + " 超级进化为 " + mf.name_zh + "！";
+    log(side, megaLine);
+    recordEvent("mega", megaLine);
+    sfx("mega");
     render();
     animateMega(side);
     busy = true;
@@ -578,11 +901,15 @@
     c.hp = Math.max(1, Math.round(ratio * newMax));
     // 招式临时升级为极巨招式（发动后由 afterMove 逐回合计时，归零自动还原）
     c.moves = genMaxMoves(c.mon);
+    if (c.cooldowns) c.cooldowns = [0, 0, 0, 0];
     c.dynamaxTurns = DYNAMAX_TURNS;
     c._dynamaxJustActivated = true;
     me.dynamaxUsed = true; // 每场仅一次（全队共享）
     var who = side === "you" ? "你" : "电脑";
-    log(side, who + "的" + baseName + " 极巨化，体型暴涨！(持续 " + DYNAMAX_TURNS + " 回合)");
+    var dmaxLine = who + "的" + baseName + " 极巨化，体型暴涨！(持续 " + DYNAMAX_TURNS + " 回合)";
+    log(side, dmaxLine);
+    recordEvent("dynamax", dmaxLine);
+    sfx("dynamax");
     render();
     animateDynamax(side);
     busy = true;
@@ -596,6 +923,7 @@
     c.maxHp = c.mon.hp;                 // 还原原始最大 HP（极巨化期间 c.mon 未改变）
     c.hp = Math.max(1, Math.round(ratio * c.maxHp));
     c.moves = genMoves(c.mon);          // 还原普通招式
+    if (c.cooldowns) c.cooldowns = [0, 0, 0, 0];
     c.dynamaxTurns = 0;
     c._dynamaxJustActivated = false;
     log("sys", me.name + "的" + c.mon.name_zh + " 极巨化结束了，恢复原状。");
@@ -677,12 +1005,21 @@
       var fx = fxLayer(); if (!fx) return;
       var c = centerOf(defEl);
       var d = document.createElement("div");
-      d.className = "dmg-num " + (r.mult >= 2 ? "sup" : r.mult < 1 ? "weak" : "");
-      d.textContent = "-" + r.dmg;
+      d.className = "dmg-num " + (r.crit ? "crit " : "") + (r.mult >= 2 ? "sup" : r.mult < 1 ? "weak" : "");
+      d.textContent = (r.crit ? "暴击 " : "-") + r.dmg;
       d.style.left = (c.x + (Math.random() * 24 - 12)) + "px";
       d.style.top = (c.y - 20) + "px";
       fx.appendChild(d);
       setTimeout(function () { try { if (d && d.parentNode) d.parentNode.removeChild(d); }catch(_){} }, 1000);
+
+      if (r.crit) {
+        var cl = document.createElement("div");
+        cl.className = "dmg-txt crit-label";
+        cl.textContent = "暴击！";
+        cl.style.left = (c.x + 16) + "px"; cl.style.top = (c.y - 48) + "px";
+        fx.appendChild(cl);
+        setTimeout(function () { try { if (cl && cl.parentNode) cl.parentNode.removeChild(cl); }catch(_){} }, 1000);
+      }
 
       if (r.mult === 0) {
         var no = document.createElement("div");
@@ -694,7 +1031,7 @@
       }
       if (defEl) {
         var burst = document.createElement("div");
-        burst.className = "impact " + (r.mult >= 2 ? "sup" : r.mult < 1 ? "weak" : "");
+        burst.className = "impact " + (r.crit ? "crit " : "") + (r.mult >= 2 ? "sup" : r.mult < 1 ? "weak" : "");
         burst.style.left = c.x + "px"; burst.style.top = c.y + "px";
         fx.appendChild(burst);
         setTimeout(function () { try { if (burst && burst.parentNode) burst.parentNode.removeChild(burst); }catch(_){} }, 380);
@@ -771,20 +1108,38 @@
     }
     return s;
   }
+  function buffsHTML(c) {
+    if (!c || !c.buffs) return "";
+    var parts = [];
+    Object.keys(BUFF_SHORT).forEach(function (k) {
+      var s = c.buffs[k] || 0;
+      if (!s) return;
+      parts.push('<span class="buff ' + (s > 0 ? "up" : "down") + '">' +
+        BUFF_SHORT[k] + (s > 0 ? "↑" : "↓") + (Math.abs(s) > 1 ? Math.abs(s) : "") + '</span>');
+    });
+    if (!parts.length) return "";
+    return '<div class="buffs">' + parts.join("") + '</div>';
+  }
 
   function cardHTML(side, p, withEnergy) {
     var c = p.active;
     var ratio = c.hp / c.maxHp;
     var headColor = TYPE_COLOR[c.mon.types[0]] || "#555";
     var opp = side === "you" ? state.ai.active : state.you.active;
-    var faster = opp && c.mon.speed > opp.mon.speed;
+    var faster = opp && effSpeed(c) > effSpeed(opp);
     var en = withEnergy
       ? '<div class="energy"><span class="lbl">能量</span>' + energyDots(c.energy) + "</div>"
       : "";
+    var itemTag = (c.item && ITEM_POOL[c.item])
+      ? '<span class="item-tag" title="' + ITEM_POOL[c.item].desc + '">' + ITEM_POOL[c.item].icon + ITEM_POOL[c.item].name + '</span>'
+      : '';
+    var speInd = (c.buffs && c.buffs.spe)
+      ? (c.buffs.spe > 0 ? " ↑" + c.buffs.spe : " ↓" + (-c.buffs.spe))
+      : '';
     return '' +
       '<div class="card' + (c.dynamaxTurns > 0 ? " dynamax" : "") + '" id="' + elId(side) + '" style="border-color:' + headColor + ';--head:' + headColor + ';--ry:' + (side === "you" ? "9deg" : "-9deg") + '">' +
         '<div class="head" style="background:' + headColor + '">' +
-          '<span class="nm">' + c.mon.name_zh + (c.dynamaxTurns > 0 ? '<span class="dmax-tag">极巨化</span>' : '') + '</span>' +
+          '<span class="nm">' + c.mon.name_zh + (c.dynamaxTurns > 0 ? '<span class="dmax-tag">极巨化</span>' : '') + itemTag + '</span>' +
           '<span class="no">#' + ("00" + c.mon.id).slice(-3) + (faster ? '<span class="first">先手</span>' : '') + '</span>' +
         '</div>' +
         '<div class="art">' +
@@ -800,7 +1155,7 @@
             '<span>' + c.hp + "/" + c.maxHp + '</span>' +
           '</div>' +
           '<div class="spd-row"><span>速度</span><span' + (faster ? ' class="fast"' : '') + '>' +
-            c.mon.speed + (faster ? ' ⚡' : '') + '</span></div>' +
+            c.mon.speed + speInd + (faster ? ' ⚡' : '') + '</span></div>' +
           '<div class="stat-row">' +
             '<span>攻<b>' + c.mon.attack + '</b></span>' +
             '<span>防<b>' + c.mon.defense + '</b></span>' +
@@ -809,6 +1164,7 @@
           '</div>' +
           (c.status ? '<div class="status-badge" style="background:' + (STATUS_COLOR[c.status.type] || "#888") + '">' +
             STATUS_ZH[c.status.type] + (c.status.turns ? '(' + c.status.turns + ')' : '') + '</div>' : "") +
+          buffsHTML(c) +
           en +
         '</div>' +
       '</div>';
@@ -885,17 +1241,28 @@
     var html = c.moves.map(function (mv, i) {
       var mult = typeMult(mv.type, d.mon.types);
       var effCls = mult >= 2 ? "sup" : mult < 1 ? "weak" : "";
+      var effIcon = mult >= 2 ? "⚔" : mult === 0 ? "✕" : mult < 1 ? "🛡" : "";
       var effTxt = mult >= 2 ? "克制 ×" + mult : mult === 0 ? "无效" : mult < 1 ? "被抵抗 ×" + mult : "";
-      var disabled = !canAct || c.energy < mv.cost;
+      var onCd = c.cooldowns && c.cooldowns[i] > 0;
+      var disabled = !canAct || c.energy < mv.cost || onCd;
+      var need = mv.cost - c.energy;
       var costColor = c.energy >= mv.cost ? "" : ' style="color:#e3534a"';
+      var costTitle = onCd ? ("冷却中 " + c.cooldowns[i] + " 回合，暂时无法使用")
+        : (need > 0 ? "再攒 " + need + " 点能量可释放" : "能量充足，可释放");
+      var sup = mult >= 2 ? " eff-sup" : "";
+      var ready = canAct && c.energy >= mv.cost && mv.cost >= 3 && !onCd ? " ready" : "";
+      var cdCls = onCd ? " on-cd" : "";
       return '' +
-        '<button class="move" data-move="' + i + '"' + (disabled ? " disabled" : "") + '>' +
+        '<button class="move' + sup + ready + cdCls + '" data-move="' + i + '"' + (disabled ? " disabled" : "") +
+          ' title="' + costTitle + '">' +
           '<div class="mn"><span class="type-chip" style="background:' + (TYPE_COLOR[mv.type] || "#888") + '">' +
             (TYPE_ZH[mv.type] || mv.type) + '</span>' + mv.name +
-            '<span class="cost"' + costColor + '>能量 ' + mv.cost + '</span></div>' +
+            '<span class="cost"' + costColor + '>⚡ ' + mv.cost + '</span></div>' +
           '<div class="md"><span>威力 ' + mv.power + '</span><span>' +
             (mv.cat === "phys" ? "物理" : "特殊") + '</span></div>' +
-          (effTxt ? '<div class="eff ' + effCls + '">' + effTxt + '</div>' : "") +
+          (effTxt ? '<div class="eff ' + effCls + '">' + effIcon + ' ' + effTxt + '</div>' : "") +
+          (mv.weather && WEATHER[mv.weather] ? '<div class="eff weather">' + WEATHER[mv.weather].icon + ' 引发' + WEATHER[mv.weather].name + '</div>' : "") +
+          (onCd ? '<div class="eff cd">❄ 冷却 ' + c.cooldowns[i] + '</div>' : "") +
           (mv.status ? '<div class="eff status-hint">可使对手' + STATUS_ZH[mv.status] + '</div>' : "") +
         '</button>';
     }).join("");
@@ -942,8 +1309,10 @@
   }
 
   function logHTML() {
+    var ICON = { you: "⚔", ai: "⚔", sys: "⚙", kill: "☠", eff: "✦" };
     var items = state.log.slice(-14).map(function (e) {
-      return '<div class="e ' + e.cls + '">' + e.msg + '</div>';
+      var ic = ICON[e.cls] || "•";
+      return '<div class="e ' + e.cls + '"><span class="lg-ic">' + ic + '</span><span class="lg-tx">' + e.msg + '</span></div>';
     }).join("");
     return items;
   }
@@ -956,6 +1325,27 @@
 
   function render() {
     if (!state) return;
+    // 天气横幅 + 场地变色（独立 try/catch，绝不干扰回合流程）
+    try {
+      var wb = document.getElementById("weather-bar");
+      var w = (state.weather && state.weather.type && state.weather.type !== "none") ? state.weather : null;
+      if (wb) {
+        if (w && WEATHER[w.type]) {
+          var W = WEATHER[w.type];
+          wb.className = "weather-bar " + w.type;
+          wb.innerHTML = '<span class="wb-ic">' + W.icon + '</span><span class="wb-nm">' + W.name +
+            '</span><span class="wb-turn">剩余 ' + w.turns + ' 回合</span>';
+        } else {
+          wb.className = "weather-bar";
+          wb.innerHTML = "";
+        }
+      }
+      var fld = (typeof document.querySelector === "function") ? document.querySelector(".field") : null;
+      if (fld) {
+        fld.classList.remove("w-sunny", "w-rain", "w-sandstorm", "w-hail");
+        if (w && w.type !== "none") fld.classList.add("w-" + w.type);
+      }
+    } catch (e) {}
     var you = state.you, ai = state.ai;
     var ys = document.getElementById("you-side");
     var as = document.getElementById("ai-side");
@@ -979,7 +1369,7 @@
     var mv = document.getElementById("moves");
     if (mv) mv.innerHTML = movesHTML();
     var lg = document.getElementById("log");
-    if (lg) lg.innerHTML = logHTML();
+    if (lg) { lg.innerHTML = logHTML(); try { lg.scrollTop = lg.scrollHeight; } catch (_) {} }
 
     var canAct = !busy && !state.over && state.turn === "you";
     var hint;
@@ -987,7 +1377,24 @@
       var specialNote = (!state.you.megaUsed && !state.you.dynamaxUsed && state.you.active.energy >= Math.min(MEGA_COST, DYNAMAX_COST))
         ? "当能量充足且本场尚未使用时，可发动一次「超级进化」或「极巨化」作为一次性强化（两者互斥）。"
         : "";
-      hint = '你有 4 个攻击技能 + 1 个「聚气·回复能量」支援技（0 消耗、恢复 2 能量、可随时使用）。每回合自动恢复 1 点能量，攒够 3 点可放 3 费大招，能量上限 ' + MAX_ENERGY + ' 点。' + specialNote;
+      var baseHint = '你有 4 个攻击技能 + 1 个「聚气·回复能量」支援技（0 消耗、恢复 2 能量、可随时使用）。每回合自动恢复 1 点能量，攒够 3 点可放 3 费大招，能量上限 ' + MAX_ENERGY + ' 点。';
+      try {
+        var c2 = state.you.active;
+        var best = null;
+        c2.moves.forEach(function (mv) {
+          if (!best || mv.cost > best.cost || (mv.cost === best.cost && mv.power > best.power)) best = mv;
+        });
+        var enSub = "";
+        if (best) {
+          if (c2.energy >= best.cost) {
+            enSub = " 当前能量已可释放全部招式，优先挑「克制」对手的出手吧！";
+          } else {
+            var needN = best.cost - c2.energy;
+            enSub = " 最强招式【" + best.name + "】(⚡" + best.cost + ")还需 " + needN + " 点能量，约 " + needN + " 回合后就绪。";
+          }
+        }
+        hint = baseHint + enSub + specialNote;
+      } catch (eh) { /* 极端情况下降级为基础提示，绝不中断回合流程 */ if (typeof console !== "undefined" && console.warn) console.warn("[PK] energy-hint:", eh); }
     } else {
       hint = state.over ? "点击「重选宝可梦」再来一局。" : "请稍候，电脑正在行动…";
     }
@@ -1082,6 +1489,7 @@
         '</div>' +
         (dead ? '<div class="pv-dead">已倒下</div>' : '') +
         statusHTML +
+        (c.item && ITEM_POOL[c.item] ? '<div class="pv-item"><span class="pv-item-ic">' + ITEM_POOL[c.item].icon + '</span>' + ITEM_POOL[c.item].name + '<small>' + ITEM_POOL[c.item].desc + '</small></div>' : "") +
         '<div class="pv-stats">' +
           '<div><span>攻击</span><b>' + mon.attack + '</b></div>' +
           '<div><span>防御</span><b>' + mon.defense + '</b></div>' +
@@ -1252,12 +1660,141 @@ function setupPreviewHTML(mon) {
     var box = document.getElementById("over-box");
     if (!ov || !box) return;
     var youWin = state.winner === "you";
+    sfx(youWin ? "victory" : "defeat");
+    var unlocked = [];
+    try { unlocked = recordResult(youWin, state.difficulty) || []; } catch (e) {}
     box.innerHTML =
       '<div class="emoji">' + (youWin ? "🏆" : "💥") + '</div>' +
       '<h2>' + (youWin ? "你赢了！" : "你输了…") + '</h2>' +
       '<p>' + (youWin ? "你的宝可梦战队笑到了最后。" : "电脑的宝可梦战队更胜一筹，再接再厉！") + '</p>' +
-      '<button class="btn" onclick="PK.toSetup()">重选宝可梦</button>';
+      '<div class="over-btns">' +
+        '<button class="btn" onclick="PK.toSetup()">重选宝可梦</button>' +
+        '<button class="btn ghost" id="replay-btn">🎬 观看回放</button>' +
+      '</div>';
     ov.classList.add("show");
+    try {
+      var rp = document.getElementById("replay-btn");
+      if (rp) rp.addEventListener("click", showReplay);
+    } catch (e) {}
+    renderStatsPanel();
+    if (unlocked && unlocked.length) {
+      unlocked.forEach(function (label, i) {
+        setTimeout(function () { toast("🏅 成就解锁：" + label); sfx("achv"); }, 700 + i * 1500);
+      });
+    }
+  }
+
+  /* ---------- 轻量提示 toast ---------- */
+  function toast(msg) {
+    try {
+      var t = document.getElementById("toast");
+      if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.appendChild(t); }
+      var span = document.createElement("div");
+      span.className = "toast-item";
+      span.textContent = msg;
+      t.appendChild(span);
+      setTimeout(function () { try { span.classList.add("show"); } catch (_) {} }, 20);
+      setTimeout(function () { try { span.classList.remove("show"); } catch (_) {} }, 2600);
+      setTimeout(function () { try { if (span.parentNode) span.parentNode.removeChild(span); } catch (_) {} }, 3100);
+    } catch (e) {}
+  }
+
+  /* ---------- 战绩面板 ---------- */
+  function renderStatsPanel() {
+    var el = document.getElementById("stats-panel");
+    if (!el) return;
+    var s = loadStats();
+    var winRate = s.total ? Math.round(s.wins / s.total * 100) : 0;
+    var achList = [
+      ["first_win", "首胜"], ["streak5", "五连胜"], ["streak10", "十连胜"],
+      ["mega_win", "超级进化胜利"], ["dyna_win", "极巨化胜利"], ["weather", "天气大师"],
+      ["flawless", "全员凯旋"], ["hundred", "百战老兵"]
+    ];
+    var achGot = achList.filter(function (a) { return s.ach[a[0]]; }).map(function (a) { return a[1]; });
+    el.innerHTML =
+      '<div class="sp-title">📊 战绩统计</div>' +
+      '<div class="sp-grid">' +
+        '<div class="sp-cell"><b>' + s.wins + '</b><span>胜</span></div>' +
+        '<div class="sp-cell"><b>' + s.losses + '</b><span>负</span></div>' +
+        '<div class="sp-cell"><b>' + winRate + '%</b><span>胜率</span></div>' +
+        '<div class="sp-cell"><b>' + s.streak + '</b><span>当前连胜</span></div>' +
+        '<div class="sp-cell"><b>' + s.best + '</b><span>最佳连胜</span></div>' +
+        '<div class="sp-cell"><b>' + s.total + '</b><span>总场次</span></div>' +
+      '</div>' +
+      '<div class="sp-diff">难度胜场：简单 ' + s.byDiff.easy + ' · 普通 ' + s.byDiff.normal + ' · 困难 ' + s.byDiff.hard + '</div>' +
+      (achGot.length
+        ? '<div class="sp-ach">🏅 ' + achGot.join("、") + '</div>'
+        : '<div class="sp-ach muted">尚未解锁成就，去赢一场吧！</div>');
+  }
+
+  /* ---------- 战斗回放 ---------- */
+  var replayIdx = 0, replayTimer = null;
+  function showReplay() {
+    var modal = document.getElementById("replay-modal");
+    if (!modal || !state || !state.replay || !state.replay.length) { toast("暂无回放数据"); return; }
+    modal.classList.add("show");
+    replayIdx = 0;
+    renderReplayFrame();
+  }
+  function closeReplay() {
+    var modal = document.getElementById("replay-modal");
+    if (modal) modal.classList.remove("show");
+    if (replayTimer) { clearInterval(replayTimer); replayTimer = null; }
+  }
+  function replayStep(delta) {
+    if (!state || !state.replay) return;
+    replayIdx += delta;
+    if (replayIdx < 0) replayIdx = 0;
+    if (replayIdx >= state.replay.length) replayIdx = state.replay.length - 1;
+    renderReplayFrame();
+  }
+  function replayTogglePlay() {
+    var btn = document.getElementById("rp-play");
+    if (replayTimer) {
+      clearInterval(replayTimer); replayTimer = null;
+      if (btn) btn.textContent = "▶ 自动播放";
+      return;
+    }
+    if (btn) btn.textContent = "⏸ 暂停";
+    replayTimer = setInterval(function () {
+      if (replayIdx >= (state.replay.length - 1)) {
+        clearInterval(replayTimer); replayTimer = null;
+        if (btn) btn.textContent = "▶ 自动播放";
+        return;
+      }
+      replayStep(1);
+    }, 900);
+  }
+  function renderReplayFrame() {
+    var frames = state.replay;
+    if (!frames || !frames.length) return;
+    if (replayIdx < 0) replayIdx = 0;
+    if (replayIdx >= frames.length) replayIdx = frames.length - 1;
+    var f = frames[replayIdx];
+    var bars = document.getElementById("replay-bars");
+    var logEl = document.getElementById("replay-log");
+    if (bars) {
+      var yR = f.youMax ? Math.max(0, f.youHp / f.youMax) : 0;
+      var aR = f.aiMax ? Math.max(0, f.aiHp / f.aiMax) : 0;
+      var wTxt = (f.weather !== "none" && WEATHER[f.weather])
+        ? '<div class="rb-w">' + WEATHER[f.weather].icon + ' ' + WEATHER[f.weather].name + '</div>' : '';
+      bars.innerHTML =
+        '<div class="rb you"><span class="rb-nm">' + (f.youName || "你") + '</span>' +
+          '<div class="rb-bar"><i style="width:' + (yR * 100) + '%"></i></div>' +
+          '<span class="rb-hp">' + f.youHp + '/' + f.youMax + '</span></div>' +
+        '<div class="rb ai"><span class="rb-nm">' + (f.aiName || "电脑") + '</span>' +
+          '<div class="rb-bar"><i style="width:' + (aR * 100) + '%"></i></div>' +
+          '<span class="rb-hp">' + f.aiHp + '/' + f.aiMax + '</span></div>' + wTxt;
+    }
+    if (logEl) {
+      logEl.innerHTML = frames.map(function (fr, i) {
+        return '<div class="rf' + (i === replayIdx ? " cur" : "") + '">' +
+          '<span class="rf-i">' + (i + 1) + '</span><span class="rf-t">' + (fr.text || "") + '</span></div>';
+      }).join("");
+      try { logEl.scrollTop = logEl.scrollHeight; } catch (_) {}
+    }
+    var idxEl = document.getElementById("replay-idx");
+    if (idxEl) idxEl.textContent = (replayIdx + 1) + " / " + frames.length;
   }
 
   /* ---------- setup screen ---------- */
@@ -1274,6 +1811,13 @@ function setupPreviewHTML(mon) {
     renderPicker();
     renderGenFilters();
     renderTypeFilters();
+    renderStatsPanel();
+    try {
+      var dbtns = document.querySelectorAll("[data-diff]");
+      for (var di = 0; di < dbtns.length; di++) {
+        dbtns[di].classList.toggle("active", dbtns[di].getAttribute("data-diff") === setup.difficulty);
+      }
+    } catch (e) {}
   }
 
   function syncSetupUI() {
@@ -1416,6 +1960,12 @@ function setupPreviewHTML(mon) {
   }
 
   function confirmStart() {
+    try {
+      if (window.BattleAudio) {
+        window.BattleAudio.init();
+        if (!window.BattleAudio.isMuted()) window.BattleAudio.startBGM();
+      }
+    } catch (e) {}
     if (setup.mode === "custom") {
       if (setup.selected.length !== DECK_SIZE) return;
       beginGame(setup.selected.slice());
@@ -1452,6 +2002,34 @@ function setupPreviewHTML(mon) {
       if (state && !state.over) { hideOverlays(); }
       else { beginGame(null); }
     });
+    // 难度选择
+    var diffBtns = document.querySelectorAll("[data-diff]");
+    for (var di = 0; di < diffBtns.length; di++) {
+      (function (el) {
+        el.addEventListener("click", function () {
+          setup.difficulty = el.getAttribute("data-diff");
+          var all = document.querySelectorAll("[data-diff]");
+          for (var k = 0; k < all.length; k++) all[k].classList.remove("active");
+          el.classList.add("active");
+        });
+      })(diffBtns[di]);
+    }
+    // 音效开关
+    var audioBtn = document.getElementById("audio-btn");
+    if (audioBtn) audioBtn.addEventListener("click", function () {
+      var muted = window.BattleAudio ? window.BattleAudio.toggleMute() : true;
+      audioBtn.textContent = muted ? "🔇 静音" : "🔊 音效";
+      if (!muted && window.BattleAudio) window.BattleAudio.startBGM();
+    });
+    // 回放控制
+    var rc = document.getElementById("replay-close");
+    if (rc) rc.addEventListener("click", closeReplay);
+    var rprev = document.getElementById("rp-prev");
+    if (rprev) rprev.addEventListener("click", function () { replayStep(-1); });
+    var rnext = document.getElementById("rp-next");
+    if (rnext) rnext.addEventListener("click", function () { replayStep(1); });
+    var rplay = document.getElementById("rp-play");
+    if (rplay) rplay.addEventListener("click", replayTogglePlay);
   }
 
   window.PK = {
@@ -1469,7 +2047,15 @@ function setupPreviewHTML(mon) {
     _switch: onSwitch,
     _mega: onMega,
     _dynamax: onDynamax,
-    _beginCustom: function (mons) { beginGame(mons); }
+    _beginCustom: function (mons) { beginGame(mons); },
+    _debug: {
+      stageMult: stageMult,
+      weatherMult: weatherMult,
+      itemMult: itemDamageMult,
+      recordResult: recordResult,
+      loadStats: loadStats,
+      setDifficulty: function (d) { setup.difficulty = d; if (state) state.difficulty = d; }
+    }
   };
 
   // boot

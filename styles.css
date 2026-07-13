@@ -295,6 +295,17 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 .move.dynamax:hover:not(:disabled) { border-color:#7c3aed; background:#ecdcff; }
 .move.dynamax .mn { color:#5b2da8; }
 .move.dynamax.is-active { opacity:.85; cursor:default; }
+
+/* 超级有效招式：金色描边，引导玩家优先点击 */
+.move.eff-sup { border-color:#ffcf4d; box-shadow:0 0 0 2px #ffcf4d55; }
+.move.eff-sup:hover:not(:disabled) { background:#fff6dc; border-color:#f0b400; }
+/* 大招就绪：脉冲高亮 */
+.move.ready { border-color:#ffd54d; box-shadow:0 0 12px #ffd54d66; animation: readyPulse 1.1s ease-in-out infinite; }
+.move.ready:hover:not(:disabled) { background:#fff3cf; }
+@keyframes readyPulse {
+  0%,100% { box-shadow:0 0 6px #ffd54d44; }
+  50% { box-shadow:0 0 16px #ffd54daa; }
+}
 .type-chip.dynamax { background:#8b5cf6 !important; color:#fff; font-weight:800; }
 .dmg-txt.dynamax { color:#b07bff; font-size:18px; font-weight:900; text-shadow:0 2px 6px #0008; }
 .dynamax-flash { animation: dynamaxFlash .85s ease; }
@@ -311,16 +322,65 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
   border-radius:8px; margin-left:6px; font-weight:800; vertical-align:middle;
 }
 
+/* ===== 携带物（道具）===== */
+.item-tag {
+  background:#1f8a4c; color:#fff; font-size:10px; padding:1px 6px;
+  border-radius:8px; margin-left:6px; font-weight:800; vertical-align:middle;
+  white-space:nowrap;
+}
+.pv-item {
+  display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700;
+  color:#1f8a4c; padding:3px 8px; margin:6px 0 2px; background:#eafaf0; border-radius:8px;
+}
+.pv-item-ic { font-size:14px; }
+.pv-item small { color:#6b7280; font-weight:500; margin-left:4px; }
+
+/* ===== 能力等级（强化/削弱）===== */
+.buffs { display:flex; flex-wrap:wrap; gap:4px; margin:6px 0 2px; }
+.buff {
+  font-size:11px; font-weight:800; padding:1px 6px; border-radius:7px; line-height:1.5;
+}
+.buff.up { background:#d7f5db; color:#1a7f37; }
+.buff.down { background:#fde0e0; color:#c0392b; }
+
+/* ===== 天气 / 场地 ===== */
+.weather-bar {
+  grid-column:1 / -1; min-height:0; overflow:hidden;
+  background:transparent; border-radius:10px; padding:0 12px;
+  display:flex; align-items:center; gap:10px; font-weight:800; color:#cdd7ee;
+  transition:background .3s, min-height .3s, padding .3s;
+}
+.weather-bar:not(:empty) { min-height:34px; padding:6px 12px; background:#0f1830; }
+.weather-bar .wb-ic { font-size:18px; }
+.weather-bar .wb-nm { font-size:14px; }
+.weather-bar .wb-turn { font-size:12px; color:#9fb0d6; margin-left:auto; }
+.weather-bar.sunny { background:linear-gradient(90deg,#7a3b00,#c9760f); color:#fff; }
+.weather-bar.rain { background:linear-gradient(90deg,#0b3a6b,#1f6fb2); color:#fff; }
+.weather-bar.sandstorm { background:linear-gradient(90deg,#6b5320,#b08a3e); color:#fff; }
+.weather-bar.hail { background:linear-gradient(90deg,#1c4a5e,#3f9fc4); color:#fff; }
+.field.w-sunny { box-shadow:0 0 0 1px #c9760f33, 0 0 40px #e08a1a22 inset; }
+.field.w-rain { box-shadow:0 0 0 1px #1f6fb233, 0 0 40px #2b8fd322 inset; }
+.field.w-sandstorm { box-shadow:0 0 0 1px #b08a3e33, 0 0 40px #b08a3e22 inset; }
+.field.w-hail { box-shadow:0 0 0 1px #3f9fc433, 0 0 40px #3f9fc422 inset; }
+
+/* ===== 技能冷却 ===== */
+.move.on-cd { opacity:.55; filter:grayscale(.4); }
+.eff.weather { background:#fff3d6; color:#a06a00; border:1px solid #f0c869; }
+.eff.cd { background:#e6eefc; color:#3b6fd4; border:1px solid #aac4f0; }
+
 .switch-hint { font-size:12px; color:var(--muted); margin-top:10px; }
 .switch-hint b { color:var(--accent2); }
 
 .log-area { background:#0f1830; border-radius:12px; padding:10px 12px; color:#cdd7ee; }
 .log-area .ttl { color:#9fb0d6; }
 .log { font-size:12px; line-height:1.7; max-height: 220px; overflow:auto; }
-.log .e { padding:2px 0; border-bottom:1px dashed #ffffff14; }
+.log .e { padding:3px 0; border-bottom:1px dashed #ffffff14; display:flex; gap:7px; align-items:flex-start; }
+.log .e .lg-ic { flex:0 0 auto; width:14px; text-align:center; opacity:.85; }
+.log .e .lg-tx { flex:1 1 auto; }
 .log .e.you { color:#ffe08a; }
 .log .e.ai { color:#9fd0ff; }
 .log .e.sys { color:#b6c2dd; }
+.log .e.eff { color:#e0a0ff; }
 .log .e.kill { color:#ff8a7a; font-weight:700; }
 
 /* Game over */
@@ -336,6 +396,7 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 .over-box h2 { font-size:26px; margin-bottom:8px; }
 .over-box p { color:var(--muted); margin-bottom:18px; }
 .over-box .emoji { font-size:54px; margin-bottom:6px; }
+.over-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
 .foot { color:#9fb0d6; text-align:center; font-size:12px; margin-top:16px; }
 
@@ -446,6 +507,7 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 }
 .dmg-num.sup { color: #ffe14d; text-shadow: 0 2px 0 #b8860b, 0 0 12px #ffd400; }
 .dmg-num.weak { color: #c8f0c8; text-shadow: 0 2px 0 #2f6b2f, 0 0 10px #4caf50; }
+.dmg-num.crit { color: #ff6a3d; font-size: 40px; text-shadow: 0 2px 0 #7a2200, 0 0 16px #ff7a00; }
 .dmg-txt {
   position: absolute; transform: translate(-50%, -50%); font-weight: 800; font-size: 15px;
   color: #fff; text-shadow: 0 1px 3px #0008; animation: floatUp 1.1s ease-out forwards;
@@ -457,6 +519,16 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
   color: #ff5a4d; font-size: 30px; font-weight: 900; letter-spacing: 2px;
   text-shadow: 0 2px 6px #000a; animation: koPop 1.3s ease-out forwards;
 }
+.dmg-txt.crit-label {
+  color: #ffae3d; font-size: 19px; font-weight: 900; letter-spacing: 1px;
+  text-shadow: 0 2px 0 #7a3a00, 0 0 10px #ff7a00; animation: critPop 1s ease-out forwards;
+}
+@keyframes critPop {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(.5) rotate(-6deg); }
+  25% { opacity: 1; transform: translate(-50%, -60%) scale(1.25) rotate(3deg); }
+  70% { opacity: 1; transform: translate(-50%, -90%) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translate(-50%, -130%) scale(1); }
+}
 .impact {
   position: absolute; width: 16px; height: 16px; transform: translate(-50%, -50%);
   border-radius: 50%; background: radial-gradient(circle, #fff 0 30%, #ffd400 40%, transparent 70%);
@@ -464,6 +536,7 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
 }
 .impact.sup { background: radial-gradient(circle, #fff 0 30%, #ffd400 40%, transparent 70%); }
 .impact.weak { background: radial-gradient(circle, #fff 0 30%, #4caf50 40%, transparent 70%); }
+.impact.crit { background: radial-gradient(circle, #fff 0 20%, #ffd400 35%, #ff7a00 60%, transparent 75%); }
 .flash {
   position: absolute; inset: 0; animation: flashfx .32s ease-out forwards;
 }
@@ -536,3 +609,62 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
   .side.ai { align-items:flex-start; }
   .actions { grid-template-columns: 1fr; }
 }
+
+/* ---------- 难度选择 ---------- */
+.setup-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.setup-label { font-weight: 800; color: var(--muted); font-size: 14px; }
+.diff-modes { display: flex; gap: 8px; }
+.seg.diff { flex: 0 0 auto; min-width: 92px; }
+.seg.diff.active { border-color: var(--accent2); background: #eef3ff; color: var(--accent2); box-shadow: 0 0 0 2px #cfe0ff inset; }
+.setup-hint { font-size: 12px; color: var(--muted); opacity: .85; }
+
+/* ---------- 战绩面板 ---------- */
+.stats-panel {
+  margin: 6px 0 14px; padding: 14px 16px; background: linear-gradient(180deg,#f7f9fd,#eef2fb);
+  border: 2px solid #e3e8f2; border-radius: 14px;
+}
+.sp-title { font-weight: 800; color: var(--ink); margin-bottom: 10px; }
+.sp-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.sp-cell { background: #fff; border-radius: 10px; padding: 8px 4px; text-align: center; box-shadow: 0 2px 0 #e6ebf5; }
+.sp-cell b { display: block; font-size: 20px; color: var(--accent2); }
+.sp-cell span { font-size: 11px; color: var(--muted); }
+.sp-diff { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.sp-ach { margin-top: 8px; font-size: 13px; font-weight: 700; color: #b8860b; }
+.sp-ach.muted { font-weight: 500; color: var(--muted); }
+
+/* ---------- 轻量 toast ---------- */
+.toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+.toast-item {
+  background: #1d2540ee; color: #fff; padding: 11px 20px; border-radius: 999px; font-weight: 700; font-size: 14px;
+  box-shadow: 0 8px 24px #0006; opacity: 0; transform: translateY(16px); transition: .3s;
+}
+.toast-item.show { opacity: 1; transform: translateY(0); }
+
+/* ---------- 战斗回放 ---------- */
+.overlay.replay { background: #0a0f1fdd; }
+.replay-box {
+  position: relative; width: min(560px, 92vw); background: #fff; border-radius: 20px;
+  padding: 22px; box-shadow: 0 20px 60px #0008; max-height: 86vh; display: flex; flex-direction: column;
+}
+.replay-box h2 { font-size: 20px; color: var(--ink); margin-bottom: 12px; }
+.replay-box .setup-close { top: 12px; right: 12px; }
+.replay-bars { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.rb { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.rb-nm { width: 86px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rb.you .rb-nm { color: var(--accent2); }
+.rb.ai .rb-nm { color: #e3534a; }
+.rb-bar { flex: 1; height: 14px; background: #eceff6; border-radius: 8px; overflow: hidden; }
+.rb-bar i { display: block; height: 100%; background: linear-gradient(90deg,#46c46a,#2f9e4f); transition: width .25s; }
+.rb.ai .rb-bar i { background: linear-gradient(90deg,#ff7a6b,#e3534a); }
+.rb-hp { width: 78px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rb-w { font-size: 13px; font-weight: 700; color: #e08a00; align-self: flex-end; }
+.replay-log { flex: 1; overflow-y: auto; max-height: 46vh; background: #f7f9fd; border: 1px solid #e3e8f2; border-radius: 12px; padding: 8px 10px; font-size: 13px; }
+.rf { display: flex; gap: 8px; padding: 5px 6px; border-radius: 8px; align-items: baseline; }
+.rf + .rf { border-top: 1px dashed #ffffff44; }
+.rf .rf-i { color: var(--muted); font-weight: 700; min-width: 22px; }
+.rf .rf-t { color: var(--ink); line-height: 1.4; }
+.rf.cur { background: #fff4d6; box-shadow: 0 0 0 1px #ffd86a inset; }
+.rf.cur .rf-t { font-weight: 700; }
+.replay-ctrls { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; }
+.replay-idx { font-size: 13px; color: var(--muted); min-width: 54px; text-align: center; }
+
