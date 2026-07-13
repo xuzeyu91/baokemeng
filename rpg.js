@@ -77,18 +77,59 @@
     if (tier === 1) return clamp(Math.round(base * 0.62) + 24, 48, 115);
     return clamp(Math.round(base * 0.85) + 34, 68, 160);
   }
-  function rpgMoves(mon) {
+  // 技能学习表（按等级解锁）
+  function getLearnset(mon) {
     var t1 = mon.types[0], t2 = mon.types[1] || "normal";
-    var k1 = MOVE_KIT[t1] || MOVE_KIT.normal, k2 = MOVE_KIT[t2] || MOVE_KIT.normal;
-    var m = [
-      { name: k1[0], type: t1, power: movePower(mon.attack, 0), cat: "phys", cost: 0 },
-      { name: k2[1], type: t2, power: movePower(mon.sp_attack, 0), cat: "spec", cost: 0 },
-      { name: k1[2], type: t1, power: movePower(mon.sp_attack, 1), cat: "spec", cost: 0 },
-      { name: k2[3], type: t2, power: movePower(mon.attack, 2), cat: "phys", cost: 0 }
+    var k1 = MOVE_KIT[t1] || MOVE_KIT.normal;
+    var k2 = MOVE_KIT[t2] || MOVE_KIT.normal;
+    var moves = [
+      { level: 1,  name: k1[0], type: t1, power: movePower(mon.attack, 0),     cat: "phys", cost: 0 },
+      { level: 1,  name: k2[1], type: t2, power: movePower(mon.sp_attack, 0),   cat: "spec", cost: 0 },
+      { level: 8,  name: k1[2], type: t1, power: movePower(mon.sp_attack, 1),   cat: "spec", cost: 0 },
+      { level: 16, name: k2[3], type: t2, power: movePower(mon.attack, 2),      cat: "phys", cost: 0 },
+      { level: 28, name: k1[3], type: t1, power: movePower(mon.attack, 2),      cat: "phys", cost: 0 },
+      { level: 40, name: k2[2], type: t2, power: movePower(mon.sp_attack, 1),    cat: "spec", cost: 0 }
     ];
-    if (TYPE_STATUS[t1]) { m[2].status = TYPE_STATUS[t1]; m[2].statusChance = 0.20; }
-    if (TYPE_STATUS[t2]) { m[3].status = TYPE_STATUS[t2]; m[3].statusChance = 0.30; }
-    return m;
+    if (TYPE_STATUS[t1]) { moves[2].status = TYPE_STATUS[t1]; moves[2].statusChance = 0.20; }
+    if (TYPE_STATUS[t2]) { moves[3].status = TYPE_STATUS[t2]; moves[3].statusChance = 0.30; }
+    // 去重（同名单属性可能重复）
+    var seen = {}, out = [];
+    for (var i = 0; i < moves.length; i++) {
+      var key = moves[i].name + "|" + moves[i].type;
+      if (!seen[key]) { seen[key] = true; out.push(moves[i]); }
+    }
+    return out;
+  }
+
+  // 进化等级：基础形态 16 级，一阶形态 36 级，无进化返回 null
+  function evolutionLevel(mon) {
+    if (!mon.evolves_to || mon.evolves_to.length === 0) return null;
+    return mon.evolves_from === null ? 16 : 36;
+  }
+  function nextEvolution(mon) {
+    if (!mon.evolves_to || mon.evolves_to.length === 0) return null;
+    return MON_BY_ID[mon.evolves_to[0]];
+  }
+
+  function equippedMoves(member) {
+    if (!member.moves) {
+      var mon = MON_BY_ID[member.id];
+      member.moves = getLearnset(mon).filter(function (m) { return m.level <= member.level; });
+    }
+    return member.moves;
+  }
+  function rpgMoves(mon) { return getLearnset(mon); }
+  function newMovesAtLevel(mon, member, fromLevel, toLevel) {
+    var ls = getLearnset(mon);
+    var known = {};
+    var cur = equippedMoves(member);
+    for (var i = 0; i < cur.length; i++) known[cur[i].name + "|" + cur[i].type] = true;
+    var out = [];
+    for (var j = 0; j < ls.length; j++) {
+      var m = ls[j];
+      if (m.level > fromLevel && m.level <= toLevel && !known[m.name + "|" + m.type]) out.push(m);
+    }
+    return out;
   }
   // 等级 -> 六项数值（简化成长曲线，升级明显变强）
   function statLine(mon, level) {
@@ -124,24 +165,29 @@
   /* ---------- 地图 ---------- */
   // # 树(阻挡)  ~ 水(阻挡)  . 安全地面  , 高草(遇敌)  C 宝可梦中心  P 出生点
   var MAP = [
-    "####################",
-    "#C.................#",
-    "#........,,,,,.....#",
-    "#....,,......,,....#",
-    "#....,,......,,....#",
-    "#..................#",
-    "#......######......#",
-    "#......#....#......#",
-    "#......#.~~.#......#",
-    "#......#....#......#",
-    "#......######......#",
-    "#........,,,,......#",
-    "#........,,,,......#",
-    "#...............P..#",
-    "####################"
+    "##############################",
+    "#C...........................#",
+    "#.......,,,,,......,,,,,.....#",
+    "#.....,,.....,,...,,....,,...#",
+    "#.....,,.....,,...,,....,,...#",
+    "#.......,,,,,......,,,,,.....#",
+    "#............................#",
+    "#......##############........#",
+    "#......#....,,,,....#........#",
+    "#......#...,,,,,,...#........#",
+    "#......#....,,,,....#........#",
+    "#......#....~~~~....#........#",
+    "#......#....~~~~....#........#",
+    "#......##############........#",
+    "#............................#",
+    "#.......,,,,......,,,,.......#",
+    "#......,,,,,,....,,,,,,......#",
+    "#.......,,,,......,,,,.......#",
+    "#........................P...#",
+    "##############################"
   ];
   var MAP_W = MAP[0].length, MAP_H = MAP.length;
-  var START = { x: 17, y: 13 };
+  var START = { x: 26, y: 18 };
   (function findStart() {
     for (var y = 0; y < MAP_H; y++) {
       var x = MAP[y].indexOf("P");
@@ -151,12 +197,14 @@
 
   // 训练家 NPC
   var TRAINERS = [
-    { id: "t1", name: "训练家 小茂", x: 17, y: 2,
+    { id: "t1", name: "训练家 小茂", x: 27, y: 2,
       party: [ { id: 16, level: 6 }, { id: 19, level: 6 }, { id: 21, level: 7 } ] },
-    { id: "t2", name: "短裤小子 阿勇", x: 2, y: 11,
+    { id: "t2", name: "短裤小子 阿勇", x: 3, y: 9,
       party: [ { id: 10, level: 5 }, { id: 13, level: 5 }, { id: 14, level: 6 } ] },
-    { id: "t3", name: "女训练家 小霞", x: 17, y: 11,
-      party: [ { id: 25, level: 6 }, { id: 35, level: 6 }, { id: 39, level: 7 } ] }
+    { id: "t3", name: "女训练家 小霞", x: 27, y: 16,
+      party: [ { id: 25, level: 6 }, { id: 35, level: 6 }, { id: 39, level: 7 } ] },
+    { id: "t4", name: "登山男 小刚", x: 15, y: 5,
+      party: [ { id: 74, level: 8 }, { id: 95, level: 8 }, { id: 111, level: 9 } ] }
   ];
   function trainerAt(x, y) {
     for (var i = 0; i < TRAINERS.length; i++) {
@@ -184,10 +232,9 @@
   /* ---------- 存档 ---------- */
   function saveGame() {
     try {
-      // 只持久化必要的字段（不含战斗临时状态）
       var data = {
         party: save.party.map(function (m) {
-          return { id: m.id, level: m.level, exp: m.exp, hp: m.hp, status: null };
+          return { id: m.id, level: m.level, exp: m.exp, hp: m.hp, status: m.status || null, moves: m.moves || null };
         }),
         balls: save.balls,
         defeated: save.defeated
@@ -208,10 +255,13 @@
   /* ---------- 队伍 / 数值 ---------- */
   function makeMember(id, level) {
     var mon = MON_BY_ID[id];
-    return { id: id, level: level, exp: 0, hp: statLine(mon, level).hp, status: null };
+    var moves = getLearnset(mon).filter(function (m) { return m.level <= level; });
+    return { id: id, level: level, exp: 0, hp: statLine(mon, level).hp, status: null, moves: moves };
   }
   function healParty() {
-    save.party.forEach(function (m) { m.hp = statLine(MON_BY_ID[m.id], m.level).hp; m.status = null; });
+    save.party.forEach(function (m) {
+      m.hp = statLine(MON_BY_ID[m.id], m.level).hp; m.status = null;
+    });
   }
 
   /* ---------- 地图渲染 ---------- */
@@ -345,10 +395,12 @@
   function buildCombat(member, isPlayer) {
     var mon = MON_BY_ID[member.id];
     var st = statLine(mon, member.level);
+    var moves = equippedMoves(member);
+    if (moves.length === 0) { moves = getLearnset(mon).filter(function (m) { return m.level <= member.level; }); member.moves = moves; }
     return {
       member: member, mon: mon, level: member.level,
       maxHp: st.hp, hp: Math.min(member.hp, st.hp),
-      stats: st, moves: rpgMoves(mon), status: member.status || null, fainted: false
+      stats: st, moves: moves, status: member.status || null, fainted: false
     };
   }
   function startBattle(opts) {
@@ -359,7 +411,8 @@
       wild: opts.wild,
       you: { party: youCombat, idx: 0, participants: { 0: true } },
       opp: { party: oppCombat, idx: 0, name: opts.name, trainerId: opts.trainerId || null },
-      turn: "you", over: false, busy: false, log: [], _switch: false
+      turn: "you", over: false, busy: false, log: [], _switch: false,
+      startLevels: youCombat.map(function (c) { return c.member.level; })
     };
     showBattle();
     if (opts.wild) battleLog("sys", "野生的 " + oppCombat[0].mon.name_zh + "（Lv." + oppCombat[0].level + "）出现了！");
@@ -420,7 +473,9 @@
     battleRender();
     setTimeout(safeRun(function () {
       if (Math.random() < rate) {
-        var m = { id: opp.mon.id, level: opp.level, exp: 0, hp: opp.hp, status: null };
+        var mon = MON_BY_ID[opp.mon.id];
+        var moves = getLearnset(mon).filter(function (m) { return m.level <= opp.level; });
+        var m = { id: opp.mon.id, level: opp.level, exp: 0, hp: opp.hp, status: null, moves: moves };
         save.party.push(m);
         battle.you.party.push(buildCombat(m, true));
         battleLog("cap", "太好了！抓住了 " + opp.mon.name_zh + "！");
@@ -558,12 +613,186 @@
     saveGame();
     battleRender();
     setTimeout(safeRun(function () {
-      hideBattle();
-      inBattle = false;
-      if (result === "lose") { healParty(); player.x = START.x; player.y = START.y; }
-      renderPartyHUD();
-      drawMap();
-    }), 1500);
+      var events = collectLevelUpEvents();
+      if (events.length && result !== "lose") {
+        processLevelUpEvents(events, function () {
+          finishReturnToMap(result);
+        });
+      } else {
+        finishReturnToMap(result);
+      }
+    }), 1200);
+  }
+  function finishReturnToMap(result) {
+    hideBattle();
+    inBattle = false;
+    if (result === "lose") { healParty(); player.x = START.x; player.y = START.y; }
+    renderPartyHUD();
+    drawMap();
+  }
+
+  /* ---------- 升级 / 学习招式 / 进化 ---------- */
+  function collectLevelUpEvents() {
+    var events = [];
+    if (!battle || !battle.startLevels) return events;
+    for (var i = 0; i < battle.you.party.length; i++) {
+      var c = battle.you.party[i];
+      var oldLv = battle.startLevels[i] || c.member.level;
+      if (c.member.level > oldLv) {
+        var mon = MON_BY_ID[c.member.id];
+        var evo = nextEvolution(mon);
+        var canEvo = evo && evolutionLevel(mon) <= c.member.level;
+        var newMoves = newMovesAtLevel(mon, c.member, oldLv, c.member.level);
+        events.push({ member: c.member, combat: c, oldLv: oldLv, newLv: c.member.level, newMoves: newMoves, evo: canEvo ? evo : null });
+      }
+    }
+    return events;
+  }
+  function processLevelUpEvents(events, onDone) {
+    if (events.length === 0) { saveGame(); if (onDone) onDone(); return; }
+    var ev = events.shift();
+    showLevelUpEvent(ev, function () { processLevelUpEvents(events, onDone); });
+  }
+  function showLevelUpEvent(ev, onDone) {
+    var mon = MON_BY_ID[ev.member.id];
+    var modal = document.getElementById("rpg-levelmodal");
+    var title = document.getElementById("rpg-level-title");
+    var body = document.getElementById("rpg-level-body");
+    var acts = document.getElementById("rpg-level-actions");
+    if (!modal || !title || !body || !acts) { if (onDone) onDone(); return; }
+    title.textContent = mon.name_zh + " 升到了 Lv." + ev.newLv + "！";
+    body.innerHTML = levelUpBodyHTML(ev, mon);
+    acts.innerHTML = "";
+    modal.classList.remove("hidden");
+
+    // 先处理新招式，再处理进化
+    function doMoves() {
+      if (ev.newMoves.length > 0) {
+        var remaining = autoLearnMoves(ev.member, ev.newMoves);
+        if (remaining.length > 0) {
+          showLearnMovePrompt(ev.member, remaining, function () { doEvolve(); });
+        } else {
+          doEvolve();
+        }
+      } else {
+        doEvolve();
+      }
+    }
+    function doEvolve() {
+      if (ev.evo) {
+        showEvolvePrompt(ev.member, ev.evo, function () { closeModal(); });
+      } else {
+        closeModal();
+      }
+    }
+    function closeModal() {
+      modal.classList.add("hidden");
+      if (onDone) onDone();
+    }
+    doMoves();
+  }
+  function levelUpBodyHTML(ev, mon) {
+    return '' +
+      '<div class="rpg-level-pkmn">' +
+        '<div class="lv-spr"><img src="' + mon.sprite + '" alt="' + mon.name_zh + '"></div>' +
+        '<div class="lv-info">' +
+          '<div class="lv-name">' + mon.name_zh + ' <small>Lv.' + ev.oldLv + ' → Lv.' + ev.newLv + '</small></div>' +
+          '<div class="lv-meta">HP/攻/防/特攻/特防/速 已提升</div>' +
+          '<div class="rpg-bc-types" style="margin-top:6px;justify-content:flex-start;">' + typeChips(mon.types) + '</div>' +
+        '</div>' +
+      '</div>' +
+      (ev.newMoves.length ? '<div style="text-align:left;font-size:13px;font-weight:700;color:var(--ink);">可以学习新招式：</div>' : "") +
+      (ev.evo ? '<div style="text-align:left;font-size:13px;font-weight:700;color:var(--accent2);">可以进化成 ' + ev.evo.name_zh + '！</div>' : "");
+  }
+
+  function autoLearnMoves(member, moves) {
+    var cur = equippedMoves(member);
+    var remaining = [];
+    var monName = MON_BY_ID[member.id].name_zh;
+    for (var i = 0; i < moves.length; i++) {
+      if (cur.length < 4) {
+        cur.push(moves[i]);
+        member.moves = cur;
+        toast(monName + " 学会了 " + moves[i].name + "！");
+      } else {
+        remaining.push(moves[i]);
+      }
+    }
+    return remaining;
+  }
+
+  function showLearnMovePrompt(member, moves, onDone) {
+    var modal = document.getElementById("rpg-levelmodal");
+    var title = document.getElementById("rpg-level-title");
+    var body = document.getElementById("rpg-level-body");
+    var acts = document.getElementById("rpg-level-actions");
+    var mon = MON_BY_ID[member.id];
+    title.textContent = mon.name_zh + " 可以学习新招式";
+    var current = equippedMoves(member);
+    var move = moves.shift();
+    body.innerHTML = '' +
+      '<div style="text-align:center;font-size:14px;font-weight:800;margin-bottom:10px;">新招式：' + move.name + '</div>' +
+      '<div class="rpg-level-moves" id="rpg-lm-list">' + current.map(function (m, i) {
+        return '' +
+          '<div class="rpg-lm" data-replace="' + i + '">' +
+            '<div class="lmn"><span class="type-chip" style="background:' + (TYPE_COLOR[m.type] || "#888") + '">' + (TYPE_ZH[m.type] || m.type) + '</span>' + m.name + '</div>' +
+            '<div class="lmd"><span>威力 ' + m.power + '</span><span>' + (m.cat === "phys" ? "物理" : "特殊") + '</span></div>' +
+            '<div class="lm-replace">点击替换</div>' +
+          '</div>';
+      }).join("") + '</div>' +
+      '<div style="margin-top:10px;"><button class="rpg-btn ghost" id="rpg-lm-skip">跳过</button></div>';
+    acts.innerHTML = "";
+
+    function finish() {
+      if (moves.length > 0) setTimeout(function () { showLearnMovePrompt(member, moves, onDone); }, 50);
+      else if (onDone) onDone();
+    }
+    document.getElementById("rpg-lm-skip").addEventListener("click", function () { finish(); });
+    var cells = document.querySelectorAll("#rpg-lm-list .rpg-lm");
+    for (var i = 0; i < cells.length; i++) (function (el) {
+      el.addEventListener("click", function () {
+        var idx = +el.getAttribute("data-replace");
+        member.moves[idx] = move;
+        toast(mon.name_zh + " 学会了 " + move.name + "！");
+        finish();
+      });
+    })(cells[i]);
+  }
+
+  function showEvolvePrompt(member, evoMon, onDone) {
+    var modal = document.getElementById("rpg-levelmodal");
+    var title = document.getElementById("rpg-level-title");
+    var body = document.getElementById("rpg-level-body");
+    var acts = document.getElementById("rpg-level-actions");
+    var mon = MON_BY_ID[member.id];
+    title.textContent = mon.name_zh + " 可以进化了！";
+    body.innerHTML = '' +
+      '<div style="display:flex;align-items:center;justify-content:center;gap:20px;margin:10px 0;">' +
+        '<div class="rpg-level-pkmn" style="flex-direction:column;gap:6px;padding:10px;">' +
+          '<div class="lv-spr"><img src="' + mon.sprite + '" alt="' + mon.name_zh + '"></div>' +
+          '<div class="lv-name">' + mon.name_zh + '</div>' +
+        '</div>' +
+        '<div class="rpg-evo-arrow">→</div>' +
+        '<div class="rpg-level-pkmn" style="flex-direction:column;gap:6px;padding:10px;background:#eef3ff;">' +
+          '<div class="lv-spr"><img src="' + evoMon.sprite + '" alt="' + evoMon.name_zh + '"></div>' +
+          '<div class="lv-name">' + evoMon.name_zh + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="text-align:center;color:var(--muted);font-size:13px;">进化后将获得更强能力并重新生成可学习招式</div>';
+    acts.innerHTML = '<button class="rpg-btn" id="rpg-evo-yes">进化</button><button class="rpg-btn ghost" id="rpg-evo-no">不进化</button>';
+    document.getElementById("rpg-evo-yes").addEventListener("click", function () {
+      evolveMember(member, evoMon);
+      toast(mon.name_zh + " 进化成了 " + evoMon.name_zh + "！");
+      if (onDone) onDone();
+    });
+    document.getElementById("rpg-evo-no").addEventListener("click", function () { if (onDone) onDone(); });
+  }
+  function evolveMember(member, evoMon) {
+    var oldHpRatio = member.hp / statLine(MON_BY_ID[member.id], member.level).hp;
+    member.id = evoMon.id;
+    member.moves = getLearnset(evoMon).filter(function (m) { return m.level <= member.level; });
+    var newMax = statLine(evoMon, member.level).hp;
+    member.hp = Math.max(1, Math.round(newMax * oldHpRatio));
   }
 
   /* ---------- 战斗：渲染 ---------- */
@@ -810,7 +1039,13 @@
     if (loaded) {
       save = loaded;
       // 修正可能的字段缺失
-      save.party.forEach(function (m) { if (m.status === undefined) m.status = null; });
+      save.party.forEach(function (m) {
+        if (m.status === undefined) m.status = null;
+        if (!m.moves || m.moves.length === 0) {
+          var mon = MON_BY_ID[m.id];
+          m.moves = getLearnset(mon).filter(function (mv) { return mv.level <= m.level; });
+        }
+      });
       if (typeof save.balls !== "number") save.balls = 10;
       if (!save.defeated) save.defeated = {};
       player.starterId = save.party[0].id;
