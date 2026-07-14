@@ -77,8 +77,8 @@
     if (tier === 1) return clamp(Math.round(base * 0.62) + 24, 48, 115);
     return clamp(Math.round(base * 0.85) + 34, 68, 160);
   }
-  // 技能学习表（按等级解锁）
-  function getLearnset(mon) {
+  // 技能学习表（原模板，仅在无真实招式数据时兜底）
+  function templateLearnset(mon) {
     var t1 = mon.types[0], t2 = mon.types[1] || "normal";
     var k1 = MOVE_KIT[t1] || MOVE_KIT.normal;
     var k2 = MOVE_KIT[t2] || MOVE_KIT.normal;
@@ -99,6 +99,52 @@
       if (!seen[key]) { seen[key] = true; out.push(moves[i]); }
     }
     return out;
+  }
+
+  // 技能学习表：优先真实招式池（MON_MOVES / MOVE_DB），按等级槽分布解锁
+  // 注：RPG 战斗只结算 伤害 + 异常状态，纯变化招(强化/削弱/回复/控场)暂跳过。
+  function getLearnset(mon) {
+    var slugs = (window.MON_MOVES && window.MON_MOVES[mon.id]) || [];
+    if (slugs && slugs.length) {
+      var cands = [];
+      slugs.forEach(function (s) {
+        var md = (window.MOVE_DB || {})[s];
+        if (!md) return;
+        if (md.cat === "status" && md.kind !== "status") return; // 跳过变化招
+        var m = {
+          name: md.zh || s.replace(/-/g, " "),
+          type: md.type,
+          power: md.kind === "damage" ? (md.power || 0) : 0,
+          cat: md.cat === "status" ? "status" : md.cat,
+          cost: 0,
+          slug: s,
+          kind: md.kind
+        };
+        if (md.kind === "status") { m.status = md.effect; m.statusChance = (md.chance || 0) / 100; }
+        cands.push(m);
+      });
+      if (cands.length >= 2) {
+        // 优先本系、优先高威力，保证有 STAB 输出
+        cands.sort(function (a, b) {
+          var sa = mon.types.indexOf(a.type) >= 0 ? 1 : 0;
+          var sb = mon.types.indexOf(b.type) >= 0 ? 1 : 0;
+          if (sa !== sb) return sb - sa;
+          return (b.power || 0) - (a.power || 0);
+        });
+        var levels = [1, 1, 8, 16, 28, 40];
+        var out = [], used = {};
+        for (var i = 0; i < cands.length && out.length < 6; i++) {
+          var m = cands[i];
+          var key = m.name + "|" + m.type;
+          if (used[key]) continue;
+          used[key] = true;
+          m.level = levels[out.length];
+          out.push(m);
+        }
+        if (out.length >= 2) return out;
+      }
+    }
+    return templateLearnset(mon);
   }
 
   // 进化等级：基础形态 16 级，一阶形态 36 级，无进化返回 null
@@ -514,6 +560,9 @@
   /* ---------- 移动端 pinch 缩放 ---------- */
   function bindPinchZoom() {
     if (!canvas) return;
+    // 移动端（触屏）禁用画布双指捏合，避免误触缩放；缩放改由 +/- 按钮完成
+    var isTouch = window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    if (isTouch) return;
     var startDist = 0, startScale = 1;
     canvas.addEventListener("touchstart", function (e) {
       if (e.touches.length === 2) {

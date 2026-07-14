@@ -20,6 +20,8 @@ body {
   color: var(--ink);
   min-height: 100vh;
   padding: 14px;
+  /* 移动端：禁止整页橡皮筋/下拉刷新，避免误触拖动整屏 */
+  overscroll-behavior: none;
 }
 
 /* ===== Top bar ===== */
@@ -46,6 +48,7 @@ body {
   padding: 9px 14px; font-size: 13px; font-weight: 700;
   background: var(--accent); color: #3a2d00;
   box-shadow: 0 4px 0 #c79a00; transition: transform .08s, filter .15s;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .rpg-btn:hover { filter: brightness(1.05); }
 .rpg-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #c79a00; }
@@ -60,10 +63,15 @@ body {
 .rpg-mapwrap {
   position: relative; background: #0e1630; border-radius: 16px; padding: 10px;
   box-shadow: var(--shadow); border: 3px solid #fff;
+  /* 移动端：触摸地图区域时禁止浏览器原生平移/缩放整屏 */
+  touch-action: none;
 }
 #rpg-map {
   width: 100%; height: auto; display: block; border-radius: 10px;
   image-rendering: pixelated; background: #1a2c4d;
+  /* 关键：单指触摸画布不会触发整页拖拽，缩放只能用 +/- 按钮/捏合 */
+  touch-action: none;
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
 }
 
 /* Toast */
@@ -122,6 +130,7 @@ body {
 .rpg-dbtn {
   border: none; border-radius: 12px; background: #2b3c63; color: #fff; font-size: 18px;
   cursor: pointer; box-shadow: 0 4px 0 #16213c; user-select: none;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .rpg-dbtn:active { transform: translateY(2px); box-shadow: 0 2px 0 #16213c; }
 .rpg-dbtn.up { grid-column: 2; grid-row: 1; }
@@ -322,6 +331,7 @@ body {
   background: #2b3c63; color: #fff; font-size: 16px; font-weight: 800;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: filter .12s, transform .08s;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
 .rpg-zbtn:active { transform: scale(.92); }
 .rpg-zbtn:hover { filter: brightness(1.1); }
