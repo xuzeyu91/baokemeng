@@ -1,6 +1,6 @@
 window.MOVE_DB={
 "floral-healing": {
-"zh": "Floral Healing",
+"zh": "花疗",
 "type": "fairy",
 "power": null,
 "cat": "status",
@@ -13,7 +13,7 @@ window.MOVE_DB={
 "stat": []
 },
 "dragon-ascent": {
-"zh": "Dragon Ascent",
+"zh": "画龙点睛",
 "type": "flying",
 "power": 120,
 "cat": "physical",
@@ -35,7 +35,7 @@ window.MOVE_DB={
 ]
 },
 "rolling-kick": {
-"zh": "Rolling Kick",
+"zh": "回旋踢",
 "type": "fighting",
 "power": 60,
 "cat": "physical",
@@ -48,7 +48,7 @@ window.MOVE_DB={
 "stat": []
 },
 "brick-break": {
-"zh": "Brick Break",
+"zh": "劈瓦",
 "type": "fighting",
 "power": 75,
 "cat": "physical",
@@ -61,7 +61,7 @@ window.MOVE_DB={
 "stat": []
 },
 "order-up": {
-"zh": "Order Up",
+"zh": "上菜",
 "type": "dragon",
 "power": 80,
 "cat": "physical",
@@ -92,7 +92,7 @@ window.MOVE_DB={
 ]
 },
 "triple-kick": {
-"zh": "Triple Kick",
+"zh": "三连踢",
 "type": "fighting",
 "power": 10,
 "cat": "physical",
@@ -123,7 +123,7 @@ window.MOVE_DB={
 ]
 },
 "swallow": {
-"zh": "Swallow",
+"zh": "吞下",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -136,7 +136,7 @@ window.MOVE_DB={
 "stat": []
 },
 "magnet-bomb": {
-"zh": "Magnet Bomb",
+"zh": "磁铁炸弹",
 "type": "steel",
 "power": 60,
 "cat": "physical",
@@ -162,7 +162,7 @@ window.MOVE_DB={
 "stat": []
 },
 "baby-doll-eyes": {
-"zh": "Baby Doll Eyes",
+"zh": "圆瞳",
 "type": "fairy",
 "power": null,
 "cat": "status",
@@ -233,7 +233,7 @@ window.MOVE_DB={
 "stat": []
 },
 "captivate": {
-"zh": "Captivate",
+"zh": "诱惑",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -251,7 +251,7 @@ window.MOVE_DB={
 ]
 },
 "bone-club": {
-"zh": "Bone Club",
+"zh": "骨棒",
 "type": "ground",
 "power": 65,
 "cat": "physical",
@@ -264,7 +264,7 @@ window.MOVE_DB={
 "stat": []
 },
 "circle-throw": {
-"zh": "Circle Throw",
+"zh": "巴投",
 "type": "fighting",
 "power": 60,
 "cat": "physical",
@@ -290,7 +290,7 @@ window.MOVE_DB={
 "stat": []
 },
 "inferno": {
-"zh": "Inferno",
+"zh": "炼狱",
 "type": "fire",
 "power": 100,
 "cat": "special",
@@ -303,7 +303,7 @@ window.MOVE_DB={
 "stat": []
 },
 "headlong-rush": {
-"zh": "Headlong Rush",
+"zh": "突飞猛扑",
 "type": "ground",
 "power": 120,
 "cat": "physical",
@@ -360,7 +360,7 @@ window.MOVE_DB={
 ]
 },
 "spicy-extract": {
-"zh": "Spicy Extract",
+"zh": "辣椒精华",
 "type": "grass",
 "power": 0,
 "cat": "status",
@@ -382,7 +382,7 @@ window.MOVE_DB={
 ]
 },
 "tachyon-cutter": {
-"zh": "Tachyon Cutter",
+"zh": "迅子利刃",
 "type": "steel",
 "power": 50,
 "cat": "special",
@@ -434,7 +434,7 @@ window.MOVE_DB={
 "stat": []
 },
 "fury-attack": {
-"zh": "Fury Attack",
+"zh": "乱击",
 "type": "normal",
 "power": 15,
 "cat": "physical",
@@ -460,7 +460,7 @@ window.MOVE_DB={
 "stat": []
 },
 "spike-cannon": {
-"zh": "Spike Cannon",
+"zh": "尖刺加农炮",
 "type": "normal",
 "power": 20,
 "cat": "physical",
@@ -486,7 +486,7 @@ window.MOVE_DB={
 "stat": []
 },
 "shell-trap": {
-"zh": "Shell Trap",
+"zh": "陷阱甲壳",
 "type": "fire",
 "power": 150,
 "cat": "special",
@@ -512,7 +512,7 @@ window.MOVE_DB={
 "stat": []
 },
 "last-resort": {
-"zh": "Last Resort",
+"zh": "珍藏",
 "type": "normal",
 "power": 140,
 "cat": "physical",
@@ -525,7 +525,7 @@ window.MOVE_DB={
 "stat": []
 },
 "expanding-force": {
-"zh": "Expanding Force",
+"zh": "广域战力",
 "type": "psychic",
 "power": 80,
 "cat": "special",
@@ -551,7 +551,7 @@ window.MOVE_DB={
 "stat": []
 },
 "dizzy-punch": {
-"zh": "Dizzy Punch",
+"zh": "迷昏拳",
 "type": "normal",
 "power": 70,
 "cat": "physical",
@@ -590,7 +590,7 @@ window.MOVE_DB={
 "stat": []
 },
 "grass-pledge": {
-"zh": "Grass Pledge",
+"zh": "草之誓约",
 "type": "grass",
 "power": 80,
 "cat": "special",
@@ -603,7 +603,7 @@ window.MOVE_DB={
 "stat": []
 },
 "pluck": {
-"zh": "Pluck",
+"zh": "啄食",
 "type": "flying",
 "power": 60,
 "cat": "physical",
@@ -616,7 +616,7 @@ window.MOVE_DB={
 "stat": []
 },
 "defend-order": {
-"zh": "Defend Order",
+"zh": "防御指令",
 "type": "bug",
 "power": null,
 "cat": "status",
@@ -638,7 +638,7 @@ window.MOVE_DB={
 ]
 },
 "chatter": {
-"zh": "Chatter",
+"zh": "喋喋不休",
 "type": "flying",
 "power": 65,
 "cat": "special",
@@ -664,7 +664,7 @@ window.MOVE_DB={
 "stat": []
 },
 "fly": {
-"zh": "Fly",
+"zh": "飞翔",
 "type": "flying",
 "power": 90,
 "cat": "physical",
@@ -677,7 +677,7 @@ window.MOVE_DB={
 "stat": []
 },
 "ice-shard": {
-"zh": "Ice Shard",
+"zh": "冰砾",
 "type": "ice",
 "power": 40,
 "cat": "physical",
@@ -703,7 +703,7 @@ window.MOVE_DB={
 "stat": []
 },
 "overheat": {
-"zh": "Overheat",
+"zh": "过热",
 "type": "fire",
 "power": 130,
 "cat": "special",
@@ -734,7 +734,7 @@ window.MOVE_DB={
 "stat": []
 },
 "water-spout": {
-"zh": "Water Spout",
+"zh": "喷水",
 "type": "water",
 "power": 150,
 "cat": "special",
@@ -765,7 +765,7 @@ window.MOVE_DB={
 ]
 },
 "trailblaze": {
-"zh": "Trailblaze",
+"zh": "起草",
 "type": "grass",
 "power": 50,
 "cat": "physical",
@@ -854,7 +854,7 @@ window.MOVE_DB={
 ]
 },
 "mist-ball": {
-"zh": "Mist Ball",
+"zh": "薄雾球",
 "type": "psychic",
 "power": 95,
 "cat": "special",
@@ -916,7 +916,7 @@ window.MOVE_DB={
 "stat": []
 },
 "tearful-look": {
-"zh": "Tearful Look",
+"zh": "泪眼汪汪",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -938,7 +938,7 @@ window.MOVE_DB={
 ]
 },
 "autotomize": {
-"zh": "Autotomize",
+"zh": "身体轻量化",
 "type": "steel",
 "power": null,
 "cat": "status",
@@ -1008,7 +1008,7 @@ window.MOVE_DB={
 ]
 },
 "thunderclap": {
-"zh": "Thunderclap",
+"zh": "迅雷",
 "type": "electric",
 "power": 70,
 "cat": "special",
@@ -1021,7 +1021,7 @@ window.MOVE_DB={
 "stat": []
 },
 "constrict": {
-"zh": "Constrict",
+"zh": "缠绕",
 "type": "normal",
 "power": 10,
 "cat": "physical",
@@ -1052,7 +1052,7 @@ window.MOVE_DB={
 "stat": []
 },
 "tidy-up": {
-"zh": "Tidy Up",
+"zh": "大扫除",
 "type": "normal",
 "power": 0,
 "cat": "status",
@@ -1105,7 +1105,7 @@ window.MOVE_DB={
 "stat": []
 },
 "crush-claw": {
-"zh": "Crush Claw",
+"zh": "撕裂爪",
 "type": "normal",
 "power": 75,
 "cat": "physical",
@@ -1123,7 +1123,7 @@ window.MOVE_DB={
 ]
 },
 "bounce": {
-"zh": "Bounce",
+"zh": "弹跳",
 "type": "flying",
 "power": 85,
 "cat": "physical",
@@ -1185,7 +1185,7 @@ window.MOVE_DB={
 ]
 },
 "absorb": {
-"zh": "Absorb",
+"zh": "吸取",
 "type": "grass",
 "power": 20,
 "cat": "special",
@@ -1229,7 +1229,7 @@ window.MOVE_DB={
 ]
 },
 "steam-eruption": {
-"zh": "Steam Eruption",
+"zh": "蒸汽爆炸",
 "type": "water",
 "power": 110,
 "cat": "special",
@@ -1286,7 +1286,7 @@ window.MOVE_DB={
 "stat": []
 },
 "avalanche": {
-"zh": "Avalanche",
+"zh": "雪崩",
 "type": "ice",
 "power": 60,
 "cat": "physical",
@@ -1299,7 +1299,7 @@ window.MOVE_DB={
 "stat": []
 },
 "synchronoise": {
-"zh": "Synchronoise",
+"zh": "同步干扰",
 "type": "psychic",
 "power": 120,
 "cat": "special",
@@ -1312,7 +1312,7 @@ window.MOVE_DB={
 "stat": []
 },
 "assurance": {
-"zh": "Assurance",
+"zh": "恶意追击",
 "type": "dark",
 "power": 60,
 "cat": "physical",
@@ -1325,7 +1325,7 @@ window.MOVE_DB={
 "stat": []
 },
 "hydro-steam": {
-"zh": "Hydro Steam",
+"zh": "水蒸气",
 "type": "water",
 "power": 80,
 "cat": "special",
@@ -1338,7 +1338,7 @@ window.MOVE_DB={
 "stat": []
 },
 "double-hit": {
-"zh": "Double Hit",
+"zh": "二连击",
 "type": "normal",
 "power": 35,
 "cat": "physical",
@@ -1351,7 +1351,7 @@ window.MOVE_DB={
 "stat": []
 },
 "zing-zap": {
-"zh": "Zing Zap",
+"zh": "麻麻刺刺",
 "type": "electric",
 "power": 80,
 "cat": "physical",
@@ -1364,7 +1364,7 @@ window.MOVE_DB={
 "stat": []
 },
 "drum-beating": {
-"zh": "Drum Beating",
+"zh": "鼓击",
 "type": "grass",
 "power": 80,
 "cat": "physical",
@@ -1404,7 +1404,7 @@ window.MOVE_DB={
 ]
 },
 "throat-chop": {
-"zh": "Throat Chop",
+"zh": "地狱突刺",
 "type": "dark",
 "power": 80,
 "cat": "physical",
@@ -1417,7 +1417,7 @@ window.MOVE_DB={
 "stat": []
 },
 "shock-wave": {
-"zh": "Shock Wave",
+"zh": "电击波",
 "type": "electric",
 "power": 60,
 "cat": "special",
@@ -1443,7 +1443,7 @@ window.MOVE_DB={
 "stat": []
 },
 "dragon-darts": {
-"zh": "Dragon Darts",
+"zh": "龙箭",
 "type": "dragon",
 "power": 50,
 "cat": "physical",
@@ -1456,7 +1456,7 @@ window.MOVE_DB={
 "stat": []
 },
 "seed-flare": {
-"zh": "Seed Flare",
+"zh": "种子闪光",
 "type": "grass",
 "power": 120,
 "cat": "special",
@@ -1509,7 +1509,7 @@ window.MOVE_DB={
 ]
 },
 "psycho-cut": {
-"zh": "Psycho Cut",
+"zh": "精神利刃",
 "type": "psychic",
 "power": 70,
 "cat": "physical",
@@ -1522,7 +1522,7 @@ window.MOVE_DB={
 "stat": []
 },
 "ivy-cudgel": {
-"zh": "Ivy Cudgel",
+"zh": "棘藤棒",
 "type": "grass",
 "power": 100,
 "cat": "physical",
@@ -1535,7 +1535,7 @@ window.MOVE_DB={
 "stat": []
 },
 "bleakwind-storm": {
-"zh": "Bleakwind Storm",
+"zh": "枯叶风暴",
 "type": "flying",
 "power": 100,
 "cat": "special",
@@ -1548,7 +1548,7 @@ window.MOVE_DB={
 "stat": []
 },
 "payback": {
-"zh": "Payback",
+"zh": "以牙还牙",
 "type": "dark",
 "power": 50,
 "cat": "physical",
@@ -1561,7 +1561,7 @@ window.MOVE_DB={
 "stat": []
 },
 "aromatic-mist": {
-"zh": "Aromatic Mist",
+"zh": "芳香薄雾",
 "type": "fairy",
 "power": null,
 "cat": "status",
@@ -1646,7 +1646,7 @@ window.MOVE_DB={
 ]
 },
 "flame-charge": {
-"zh": "Flame Charge",
+"zh": "蓄能焰袭",
 "type": "fire",
 "power": 50,
 "cat": "physical",
@@ -1664,7 +1664,7 @@ window.MOVE_DB={
 ]
 },
 "scary-face": {
-"zh": "Scary Face",
+"zh": "鬼面",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -1682,7 +1682,7 @@ window.MOVE_DB={
 ]
 },
 "prismatic-laser": {
-"zh": "Prismatic Laser",
+"zh": "棱镜镭射",
 "type": "psychic",
 "power": 160,
 "cat": "special",
@@ -1708,7 +1708,7 @@ window.MOVE_DB={
 "stat": []
 },
 "spirit-shackle": {
-"zh": "Spirit Shackle",
+"zh": "缝影",
 "type": "ghost",
 "power": 80,
 "cat": "physical",
@@ -1721,7 +1721,7 @@ window.MOVE_DB={
 "stat": []
 },
 "burn-up": {
-"zh": "Burn Up",
+"zh": "燃尽",
 "type": "fire",
 "power": 130,
 "cat": "special",
@@ -1734,7 +1734,7 @@ window.MOVE_DB={
 "stat": []
 },
 "arm-thrust": {
-"zh": "Arm Thrust",
+"zh": "猛推",
 "type": "fighting",
 "power": 15,
 "cat": "physical",
@@ -1747,7 +1747,7 @@ window.MOVE_DB={
 "stat": []
 },
 "water-pledge": {
-"zh": "Water Pledge",
+"zh": "水之誓约",
 "type": "water",
 "power": 80,
 "cat": "special",
@@ -1760,7 +1760,7 @@ window.MOVE_DB={
 "stat": []
 },
 "salt-cure": {
-"zh": "Salt Cure",
+"zh": "盐腌",
 "type": "rock",
 "power": 40,
 "cat": "physical",
@@ -1773,7 +1773,7 @@ window.MOVE_DB={
 "stat": []
 },
 "feint": {
-"zh": "Feint",
+"zh": "佯攻",
 "type": "normal",
 "power": 30,
 "cat": "physical",
@@ -1786,7 +1786,7 @@ window.MOVE_DB={
 "stat": []
 },
 "supercell-slam": {
-"zh": "Supercell Slam",
+"zh": "闪电强袭",
 "type": "electric",
 "power": 100,
 "cat": "physical",
@@ -1825,7 +1825,7 @@ window.MOVE_DB={
 "stat": []
 },
 "powder-snow": {
-"zh": "Powder Snow",
+"zh": "细雪",
 "type": "ice",
 "power": 40,
 "cat": "special",
@@ -1838,7 +1838,7 @@ window.MOVE_DB={
 "stat": []
 },
 "gear-up": {
-"zh": "Gear Up",
+"zh": "辅助齿轮",
 "type": "steel",
 "power": null,
 "cat": "status",
@@ -1860,7 +1860,7 @@ window.MOVE_DB={
 ]
 },
 "life-dew": {
-"zh": "Life Dew",
+"zh": "生命水滴",
 "type": "water",
 "power": null,
 "cat": "status",
@@ -1873,7 +1873,7 @@ window.MOVE_DB={
 "stat": []
 },
 "smart-strike": {
-"zh": "Smart Strike",
+"zh": "修长之角",
 "type": "steel",
 "power": 70,
 "cat": "physical",
@@ -1925,7 +1925,7 @@ window.MOVE_DB={
 "stat": []
 },
 "fury-swipes": {
-"zh": "Fury Swipes",
+"zh": "乱抓",
 "type": "normal",
 "power": 18,
 "cat": "physical",
@@ -1938,7 +1938,7 @@ window.MOVE_DB={
 "stat": []
 },
 "darkest-lariat": {
-"zh": "Darkest Lariat",
+"zh": "ＤＤ金勾臂",
 "type": "dark",
 "power": 85,
 "cat": "physical",
@@ -1977,7 +1977,7 @@ window.MOVE_DB={
 "stat": []
 },
 "brine": {
-"zh": "Brine",
+"zh": "盐水",
 "type": "water",
 "power": 65,
 "cat": "special",
@@ -1990,7 +1990,7 @@ window.MOVE_DB={
 "stat": []
 },
 "doom-desire": {
-"zh": "Doom Desire",
+"zh": "破灭之愿",
 "type": "steel",
 "power": 140,
 "cat": "special",
@@ -2003,7 +2003,7 @@ window.MOVE_DB={
 "stat": []
 },
 "fiery-dance": {
-"zh": "Fiery Dance",
+"zh": "火之舞",
 "type": "fire",
 "power": 80,
 "cat": "special",
@@ -2021,7 +2021,7 @@ window.MOVE_DB={
 ]
 },
 "water-pulse": {
-"zh": "Water Pulse",
+"zh": "水之波动",
 "type": "water",
 "power": 60,
 "cat": "special",
@@ -2047,7 +2047,7 @@ window.MOVE_DB={
 "stat": []
 },
 "draining-kiss": {
-"zh": "Draining Kiss",
+"zh": "吸取之吻",
 "type": "fairy",
 "power": 50,
 "cat": "special",
@@ -2060,7 +2060,7 @@ window.MOVE_DB={
 "stat": []
 },
 "origin-pulse": {
-"zh": "Origin Pulse",
+"zh": "根源波动",
 "type": "water",
 "power": 110,
 "cat": "special",
@@ -2073,7 +2073,7 @@ window.MOVE_DB={
 "stat": []
 },
 "revenge": {
-"zh": "Revenge",
+"zh": "报复",
 "type": "fighting",
 "power": 60,
 "cat": "physical",
@@ -2099,7 +2099,7 @@ window.MOVE_DB={
 "stat": []
 },
 "magma-storm": {
-"zh": "Magma Storm",
+"zh": "熔岩风暴",
 "type": "fire",
 "power": 100,
 "cat": "special",
@@ -2112,7 +2112,7 @@ window.MOVE_DB={
 "stat": []
 },
 "scorching-sands": {
-"zh": "Scorching Sands",
+"zh": "热沙大地",
 "type": "ground",
 "power": 70,
 "cat": "special",
@@ -2125,7 +2125,7 @@ window.MOVE_DB={
 "stat": []
 },
 "icicle-crash": {
-"zh": "Icicle Crash",
+"zh": "冰柱坠击",
 "type": "ice",
 "power": 85,
 "cat": "physical",
@@ -2151,7 +2151,7 @@ window.MOVE_DB={
 "stat": []
 },
 "sky-uppercut": {
-"zh": "Sky Uppercut",
+"zh": "冲天拳",
 "type": "fighting",
 "power": 85,
 "cat": "physical",
@@ -2190,7 +2190,7 @@ window.MOVE_DB={
 "stat": []
 },
 "heal-pulse": {
-"zh": "Heal Pulse",
+"zh": "治愈波动",
 "type": "psychic",
 "power": null,
 "cat": "status",
@@ -2203,7 +2203,7 @@ window.MOVE_DB={
 "stat": []
 },
 "alluring-voice": {
-"zh": "Alluring Voice",
+"zh": "魅诱之声",
 "type": "fairy",
 "power": 80,
 "cat": "special",
@@ -2216,7 +2216,7 @@ window.MOVE_DB={
 "stat": []
 },
 "first-impression": {
-"zh": "First Impression",
+"zh": "迎头一击",
 "type": "bug",
 "power": 90,
 "cat": "physical",
@@ -2255,7 +2255,7 @@ window.MOVE_DB={
 "stat": []
 },
 "head-charge": {
-"zh": "Head Charge",
+"zh": "爆炸头突击",
 "type": "normal",
 "power": 120,
 "cat": "physical",
@@ -2268,7 +2268,7 @@ window.MOVE_DB={
 "stat": []
 },
 "grassy-glide": {
-"zh": "Grassy Glide",
+"zh": "青草滑梯",
 "type": "grass",
 "power": 55,
 "cat": "physical",
@@ -2333,7 +2333,7 @@ window.MOVE_DB={
 "stat": []
 },
 "tail-slap": {
-"zh": "Tail Slap",
+"zh": "扫尾拍打",
 "type": "normal",
 "power": 25,
 "cat": "physical",
@@ -2368,7 +2368,7 @@ window.MOVE_DB={
 ]
 },
 "geomancy": {
-"zh": "Geomancy",
+"zh": "大地掌控",
 "type": "fairy",
 "power": null,
 "cat": "status",
@@ -2394,7 +2394,7 @@ window.MOVE_DB={
 ]
 },
 "double-kick": {
-"zh": "Double Kick",
+"zh": "二连踢",
 "type": "fighting",
 "power": 30,
 "cat": "physical",
@@ -2407,7 +2407,7 @@ window.MOVE_DB={
 "stat": []
 },
 "disarming-voice": {
-"zh": "Disarming Voice",
+"zh": "魅惑之声",
 "type": "fairy",
 "power": 40,
 "cat": "special",
@@ -2438,7 +2438,7 @@ window.MOVE_DB={
 ]
 },
 "burning-jealousy": {
-"zh": "Burning Jealousy",
+"zh": "妒火",
 "type": "fire",
 "power": 70,
 "cat": "special",
@@ -2503,7 +2503,7 @@ window.MOVE_DB={
 "stat": []
 },
 "night-daze": {
-"zh": "Night Daze",
+"zh": "暗黑爆破",
 "type": "dark",
 "power": 85,
 "cat": "special",
@@ -2521,7 +2521,7 @@ window.MOVE_DB={
 ]
 },
 "relic-song": {
-"zh": "Relic Song",
+"zh": "古老之歌",
 "type": "normal",
 "power": 75,
 "cat": "special",
@@ -2604,7 +2604,7 @@ window.MOVE_DB={
 "stat": []
 },
 "petal-blizzard": {
-"zh": "Petal Blizzard",
+"zh": "落英缤纷",
 "type": "grass",
 "power": 90,
 "cat": "physical",
@@ -2669,7 +2669,7 @@ window.MOVE_DB={
 "stat": []
 },
 "pay-day": {
-"zh": "Pay Day",
+"zh": "聚宝功",
 "type": "normal",
 "power": 40,
 "cat": "physical",
@@ -2682,7 +2682,7 @@ window.MOVE_DB={
 "stat": []
 },
 "astonish": {
-"zh": "Astonish",
+"zh": "惊吓",
 "type": "ghost",
 "power": 30,
 "cat": "physical",
@@ -2726,7 +2726,7 @@ window.MOVE_DB={
 "stat": []
 },
 "lash-out": {
-"zh": "Lash Out",
+"zh": "泄愤",
 "type": "dark",
 "power": 75,
 "cat": "physical",
@@ -2770,7 +2770,7 @@ window.MOVE_DB={
 "stat": []
 },
 "fillet-away": {
-"zh": "Fillet Away",
+"zh": "甩肉",
 "type": "normal",
 "power": 0,
 "cat": "status",
@@ -2809,7 +2809,7 @@ window.MOVE_DB={
 "stat": []
 },
 "psyshield-bash": {
-"zh": "Psyshield Bash",
+"zh": "屏障猛攻",
 "type": "psychic",
 "power": 70,
 "cat": "physical",
@@ -2822,7 +2822,7 @@ window.MOVE_DB={
 "stat": []
 },
 "ominous-wind": {
-"zh": "Ominous Wind",
+"zh": "奇异之风",
 "type": "ghost",
 "power": 60,
 "cat": "special",
@@ -2882,7 +2882,7 @@ window.MOVE_DB={
 "stat": []
 },
 "brutal-swing": {
-"zh": "Brutal Swing",
+"zh": "狂舞挥打",
 "type": "dark",
 "power": 60,
 "cat": "physical",
@@ -2895,7 +2895,7 @@ window.MOVE_DB={
 "stat": []
 },
 "judgment": {
-"zh": "Judgment",
+"zh": "制裁光砾",
 "type": "normal",
 "power": 100,
 "cat": "special",
@@ -2908,7 +2908,7 @@ window.MOVE_DB={
 "stat": []
 },
 "anchor-shot": {
-"zh": "Anchor Shot",
+"zh": "掷锚",
 "type": "steel",
 "power": 80,
 "cat": "physical",
@@ -2921,7 +2921,7 @@ window.MOVE_DB={
 "stat": []
 },
 "secret-power": {
-"zh": "Secret Power",
+"zh": "秘密之力",
 "type": "normal",
 "power": 70,
 "cat": "physical",
@@ -2934,7 +2934,7 @@ window.MOVE_DB={
 "stat": []
 },
 "glaive-rush": {
-"zh": "Glaive Rush",
+"zh": "巨剑突击",
 "type": "dragon",
 "power": 120,
 "cat": "physical",
@@ -2991,7 +2991,7 @@ window.MOVE_DB={
 ]
 },
 "coil": {
-"zh": "Coil",
+"zh": "盘蜷",
 "type": "poison",
 "power": null,
 "cat": "status",
@@ -3056,7 +3056,7 @@ window.MOVE_DB={
 "stat": []
 },
 "trop-kick": {
-"zh": "Trop Kick",
+"zh": "热带踢",
 "type": "grass",
 "power": 70,
 "cat": "physical",
@@ -3100,7 +3100,7 @@ window.MOVE_DB={
 "stat": []
 },
 "take-down": {
-"zh": "Take Down",
+"zh": "猛撞",
 "type": "normal",
 "power": 90,
 "cat": "physical",
@@ -3149,7 +3149,7 @@ window.MOVE_DB={
 ]
 },
 "solar-blade": {
-"zh": "Solar Blade",
+"zh": "日光刃",
 "type": "grass",
 "power": 125,
 "cat": "physical",
@@ -3175,7 +3175,7 @@ window.MOVE_DB={
 "stat": []
 },
 "mega-punch": {
-"zh": "Mega Punch",
+"zh": "百万吨重拳",
 "type": "normal",
 "power": 80,
 "cat": "physical",
@@ -3188,7 +3188,7 @@ window.MOVE_DB={
 "stat": []
 },
 "parting-shot": {
-"zh": "Parting Shot",
+"zh": "抛下狠话",
 "type": "dark",
 "power": null,
 "cat": "status",
@@ -3210,7 +3210,7 @@ window.MOVE_DB={
 ]
 },
 "high-jump-kick": {
-"zh": "High Jump Kick",
+"zh": "飞膝踢",
 "type": "fighting",
 "power": 130,
 "cat": "physical",
@@ -3236,7 +3236,7 @@ window.MOVE_DB={
 "stat": []
 },
 "rock-tomb": {
-"zh": "Rock Tomb",
+"zh": "岩石封锁",
 "type": "rock",
 "power": 60,
 "cat": "physical",
@@ -3267,7 +3267,7 @@ window.MOVE_DB={
 "stat": []
 },
 "ruination": {
-"zh": "Ruination",
+"zh": "大灾难",
 "type": "dark",
 "power": 1,
 "cat": "special",
@@ -3280,7 +3280,7 @@ window.MOVE_DB={
 "stat": []
 },
 "slash": {
-"zh": "Slash",
+"zh": "劈开",
 "type": "normal",
 "power": 70,
 "cat": "physical",
@@ -3293,7 +3293,7 @@ window.MOVE_DB={
 "stat": []
 },
 "sacred-fire": {
-"zh": "Sacred Fire",
+"zh": "神圣之火",
 "type": "fire",
 "power": 100,
 "cat": "physical",
@@ -3332,7 +3332,7 @@ window.MOVE_DB={
 "stat": []
 },
 "mighty-cleave": {
-"zh": "Mighty Cleave",
+"zh": "强刃攻击",
 "type": "rock",
 "power": 95,
 "cat": "physical",
@@ -3345,7 +3345,7 @@ window.MOVE_DB={
 "stat": []
 },
 "parabolic-charge": {
-"zh": "Parabolic Charge",
+"zh": "抛物面充电",
 "type": "electric",
 "power": 65,
 "cat": "special",
@@ -3358,7 +3358,7 @@ window.MOVE_DB={
 "stat": []
 },
 "steamroller": {
-"zh": "Steamroller",
+"zh": "疯狂滚压",
 "type": "bug",
 "power": 65,
 "cat": "physical",
@@ -3371,7 +3371,7 @@ window.MOVE_DB={
 "stat": []
 },
 "searing-shot": {
-"zh": "Searing Shot",
+"zh": "火焰弹",
 "type": "fire",
 "power": 100,
 "cat": "special",
@@ -3384,7 +3384,7 @@ window.MOVE_DB={
 "stat": []
 },
 "mud-bomb": {
-"zh": "Mud Bomb",
+"zh": "泥巴炸弹",
 "type": "ground",
 "power": 65,
 "cat": "special",
@@ -3402,7 +3402,7 @@ window.MOVE_DB={
 ]
 },
 "steel-roller": {
-"zh": "Steel Roller",
+"zh": "铁滚轮",
 "type": "steel",
 "power": 130,
 "cat": "physical",
@@ -3415,7 +3415,7 @@ window.MOVE_DB={
 "stat": []
 },
 "electro-drift": {
-"zh": "Electro Drift",
+"zh": "闪电猛冲",
 "type": "electric",
 "power": 100,
 "cat": "special",
@@ -3428,7 +3428,7 @@ window.MOVE_DB={
 "stat": []
 },
 "smelling-salts": {
-"zh": "Smelling Salts",
+"zh": "清醒",
 "type": "normal",
 "power": 70,
 "cat": "physical",
@@ -3441,7 +3441,7 @@ window.MOVE_DB={
 "stat": []
 },
 "weather-ball": {
-"zh": "Weather Ball",
+"zh": "气象球",
 "type": "normal",
 "power": 50,
 "cat": "special",
@@ -3467,7 +3467,7 @@ window.MOVE_DB={
 "stat": []
 },
 "torch-song": {
-"zh": "Torch Song",
+"zh": "闪焰高歌",
 "type": "fire",
 "power": 80,
 "cat": "special",
@@ -3503,7 +3503,7 @@ window.MOVE_DB={
 ]
 },
 "wood-hammer": {
-"zh": "Wood Hammer",
+"zh": "木槌",
 "type": "grass",
 "power": 120,
 "cat": "physical",
@@ -3516,7 +3516,7 @@ window.MOVE_DB={
 "stat": []
 },
 "hyper-fang": {
-"zh": "Hyper Fang",
+"zh": "必杀门牙",
 "type": "normal",
 "power": 80,
 "cat": "physical",
@@ -3529,7 +3529,7 @@ window.MOVE_DB={
 "stat": []
 },
 "mega-kick": {
-"zh": "Mega Kick",
+"zh": "百万吨重踢",
 "type": "normal",
 "power": 120,
 "cat": "physical",
@@ -3542,7 +3542,7 @@ window.MOVE_DB={
 "stat": []
 },
 "wildbolt-storm": {
-"zh": "Wildbolt Storm",
+"zh": "鸣雷风暴",
 "type": "electric",
 "power": 100,
 "cat": "special",
@@ -3555,7 +3555,7 @@ window.MOVE_DB={
 "stat": []
 },
 "secret-sword": {
-"zh": "Secret Sword",
+"zh": "神秘之剑",
 "type": "fighting",
 "power": 85,
 "cat": "special",
@@ -3568,7 +3568,7 @@ window.MOVE_DB={
 "stat": []
 },
 "crabhammer": {
-"zh": "Crabhammer",
+"zh": "蟹钳锤",
 "type": "water",
 "power": 100,
 "cat": "physical",
@@ -3581,7 +3581,7 @@ window.MOVE_DB={
 "stat": []
 },
 "mind-blown": {
-"zh": "Mind Blown",
+"zh": "惊爆大头",
 "type": "fire",
 "power": 150,
 "cat": "special",
@@ -3594,7 +3594,7 @@ window.MOVE_DB={
 "stat": []
 },
 "sky-drop": {
-"zh": "Sky Drop",
+"zh": "自由落体",
 "type": "flying",
 "power": 60,
 "cat": "physical",
@@ -3607,7 +3607,7 @@ window.MOVE_DB={
 "stat": []
 },
 "heal-order": {
-"zh": "Heal Order",
+"zh": "回复指令",
 "type": "bug",
 "power": null,
 "cat": "status",
@@ -3620,7 +3620,7 @@ window.MOVE_DB={
 "stat": []
 },
 "hyperspace-hole": {
-"zh": "Hyperspace Hole",
+"zh": "异次元洞",
 "type": "psychic",
 "power": 80,
 "cat": "special",
@@ -3633,7 +3633,7 @@ window.MOVE_DB={
 "stat": []
 },
 "jump-kick": {
-"zh": "Jump Kick",
+"zh": "飞踢",
 "type": "fighting",
 "power": 100,
 "cat": "physical",
@@ -3659,7 +3659,7 @@ window.MOVE_DB={
 "stat": []
 },
 "stored-power": {
-"zh": "Stored Power",
+"zh": "辅助力量",
 "type": "psychic",
 "power": 20,
 "cat": "special",
@@ -3672,7 +3672,7 @@ window.MOVE_DB={
 "stat": []
 },
 "double-iron-bash": {
-"zh": "Double Iron Bash",
+"zh": "钢拳双击",
 "type": "steel",
 "power": 60,
 "cat": "physical",
@@ -3724,7 +3724,7 @@ window.MOVE_DB={
 "stat": []
 },
 "fell-stinger": {
-"zh": "Fell Stinger",
+"zh": "致命针刺",
 "type": "bug",
 "power": 50,
 "cat": "physical",
@@ -3750,7 +3750,7 @@ window.MOVE_DB={
 "stat": []
 },
 "freeze-dry": {
-"zh": "Freeze Dry",
+"zh": "冷冻干燥",
 "type": "ice",
 "power": 70,
 "cat": "special",
@@ -3763,7 +3763,7 @@ window.MOVE_DB={
 "stat": []
 },
 "thief": {
-"zh": "Thief",
+"zh": "小偷",
 "type": "dark",
 "power": 60,
 "cat": "physical",
@@ -3776,7 +3776,7 @@ window.MOVE_DB={
 "stat": []
 },
 "fire-lash": {
-"zh": "Fire Lash",
+"zh": "火焰鞭",
 "type": "fire",
 "power": 80,
 "cat": "physical",
@@ -3812,7 +3812,7 @@ window.MOVE_DB={
 ]
 },
 "karate-chop": {
-"zh": "Karate Chop",
+"zh": "空手劈",
 "type": "fighting",
 "power": 50,
 "cat": "physical",
@@ -3864,7 +3864,7 @@ window.MOVE_DB={
 "stat": []
 },
 "shore-up": {
-"zh": "Shore Up",
+"zh": "集沙",
 "type": "ground",
 "power": null,
 "cat": "status",
@@ -3890,7 +3890,7 @@ window.MOVE_DB={
 "stat": []
 },
 "sky-attack": {
-"zh": "Sky Attack",
+"zh": "神鸟猛击",
 "type": "flying",
 "power": 140,
 "cat": "physical",
@@ -3903,7 +3903,7 @@ window.MOVE_DB={
 "stat": []
 },
 "axe-kick": {
-"zh": "Axe Kick",
+"zh": "下压踢",
 "type": "fighting",
 "power": 120,
 "cat": "physical",
@@ -3916,7 +3916,7 @@ window.MOVE_DB={
 "stat": []
 },
 "false-surrender": {
-"zh": "False Surrender",
+"zh": "假跪真撞",
 "type": "dark",
 "power": 80,
 "cat": "physical",
@@ -3929,7 +3929,7 @@ window.MOVE_DB={
 "stat": []
 },
 "branch-poke": {
-"zh": "Branch Poke",
+"zh": "木枝突刺",
 "type": "grass",
 "power": 40,
 "cat": "physical",
@@ -3968,7 +3968,7 @@ window.MOVE_DB={
 "stat": []
 },
 "rapid-spin": {
-"zh": "Rapid Spin",
+"zh": "高速旋转",
 "type": "normal",
 "power": 50,
 "cat": "physical",
@@ -3986,7 +3986,7 @@ window.MOVE_DB={
 ]
 },
 "fleur-cannon": {
-"zh": "Fleur Cannon",
+"zh": "花朵加农炮",
 "type": "fairy",
 "power": 130,
 "cat": "special",
@@ -4004,7 +4004,7 @@ window.MOVE_DB={
 ]
 },
 "skull-bash": {
-"zh": "Skull Bash",
+"zh": "火箭头锤",
 "type": "normal",
 "power": 130,
 "cat": "physical",
@@ -4030,7 +4030,7 @@ window.MOVE_DB={
 "stat": []
 },
 "gigaton-hammer": {
-"zh": "Gigaton Hammer",
+"zh": "巨力锤",
 "type": "steel",
 "power": 160,
 "cat": "physical",
@@ -4043,7 +4043,7 @@ window.MOVE_DB={
 "stat": []
 },
 "strength": {
-"zh": "Strength",
+"zh": "怪力",
 "type": "normal",
 "power": 80,
 "cat": "physical",
@@ -4131,7 +4131,7 @@ window.MOVE_DB={
 ]
 },
 "play-nice": {
-"zh": "Play Nice",
+"zh": "和睦相处",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -4188,7 +4188,7 @@ window.MOVE_DB={
 "stat": []
 },
 "mystical-power": {
-"zh": "Mystical Power",
+"zh": "神秘之力",
 "type": "psychic",
 "power": 70,
 "cat": "special",
@@ -4271,7 +4271,7 @@ window.MOVE_DB={
 ]
 },
 "mega-drain": {
-"zh": "Mega Drain",
+"zh": "超级吸取",
 "type": "grass",
 "power": 40,
 "cat": "special",
@@ -4284,7 +4284,7 @@ window.MOVE_DB={
 "stat": []
 },
 "force-palm": {
-"zh": "Force Palm",
+"zh": "发劲",
 "type": "fighting",
 "power": 60,
 "cat": "physical",
@@ -4297,7 +4297,7 @@ window.MOVE_DB={
 "stat": []
 },
 "twin-beam": {
-"zh": "Twin Beam",
+"zh": "双光束",
 "type": "psychic",
 "power": 40,
 "cat": "special",
@@ -4310,7 +4310,7 @@ window.MOVE_DB={
 "stat": []
 },
 "dire-claw": {
-"zh": "Dire Claw",
+"zh": "克命爪",
 "type": "poison",
 "power": 80,
 "cat": "physical",
@@ -4363,7 +4363,7 @@ window.MOVE_DB={
 ]
 },
 "sunsteel-strike": {
-"zh": "Sunsteel Strike",
+"zh": "流星闪冲",
 "type": "steel",
 "power": 100,
 "cat": "physical",
@@ -4376,7 +4376,7 @@ window.MOVE_DB={
 "stat": []
 },
 "population-bomb": {
-"zh": "Population Bomb",
+"zh": "鼠数儿",
 "type": "normal",
 "power": 20,
 "cat": "physical",
@@ -4389,7 +4389,7 @@ window.MOVE_DB={
 "stat": []
 },
 "ice-ball": {
-"zh": "Ice Ball",
+"zh": "冰球",
 "type": "ice",
 "power": 30,
 "cat": "physical",
@@ -4415,7 +4415,7 @@ window.MOVE_DB={
 "stat": []
 },
 "precipice-blades": {
-"zh": "Precipice Blades",
+"zh": "断崖之剑",
 "type": "ground",
 "power": 120,
 "cat": "physical",
@@ -4446,7 +4446,7 @@ window.MOVE_DB={
 ]
 },
 "pound": {
-"zh": "Pound",
+"zh": "拍击",
 "type": "normal",
 "power": 40,
 "cat": "physical",
@@ -4472,7 +4472,7 @@ window.MOVE_DB={
 "stat": []
 },
 "smokescreen": {
-"zh": "Smokescreen",
+"zh": "烟幕",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -4490,7 +4490,7 @@ window.MOVE_DB={
 ]
 },
 "signal-beam": {
-"zh": "Signal Beam",
+"zh": "信号光束",
 "type": "bug",
 "power": 75,
 "cat": "special",
@@ -4534,7 +4534,7 @@ window.MOVE_DB={
 "stat": []
 },
 "leafage": {
-"zh": "Leafage",
+"zh": "树叶",
 "type": "grass",
 "power": 40,
 "cat": "physical",
@@ -4547,7 +4547,7 @@ window.MOVE_DB={
 "stat": []
 },
 "clanging-scales": {
-"zh": "Clanging Scales",
+"zh": "鳞片噪音",
 "type": "dragon",
 "power": 110,
 "cat": "special",
@@ -4565,7 +4565,7 @@ window.MOVE_DB={
 ]
 },
 "beak-blast": {
-"zh": "Beak Blast",
+"zh": "鸟嘴加农炮",
 "type": "flying",
 "power": 100,
 "cat": "physical",
@@ -4578,7 +4578,7 @@ window.MOVE_DB={
 "stat": []
 },
 "infestation": {
-"zh": "Infestation",
+"zh": "死缠烂打",
 "type": "bug",
 "power": 20,
 "cat": "special",
@@ -4591,7 +4591,7 @@ window.MOVE_DB={
 "stat": []
 },
 "noble-roar": {
-"zh": "Noble Roar",
+"zh": "战吼",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -4613,7 +4613,7 @@ window.MOVE_DB={
 ]
 },
 "double-shock": {
-"zh": "Double Shock",
+"zh": "电光双击",
 "type": "electric",
 "power": 120,
 "cat": "physical",
@@ -4639,7 +4639,7 @@ window.MOVE_DB={
 "stat": []
 },
 "smack-down": {
-"zh": "Smack Down",
+"zh": "击落",
 "type": "rock",
 "power": 50,
 "cat": "physical",
@@ -4652,7 +4652,7 @@ window.MOVE_DB={
 "stat": []
 },
 "fake-tears": {
-"zh": "Fake Tears",
+"zh": "假哭",
 "type": "dark",
 "power": null,
 "cat": "status",
@@ -4670,7 +4670,7 @@ window.MOVE_DB={
 ]
 },
 "electro-shot": {
-"zh": "Electro Shot",
+"zh": "电光束",
 "type": "electric",
 "power": 130,
 "cat": "special",
@@ -4688,7 +4688,7 @@ window.MOVE_DB={
 ]
 },
 "hammer-arm": {
-"zh": "Hammer Arm",
+"zh": "臂锤",
 "type": "fighting",
 "power": 100,
 "cat": "physical",
@@ -4706,7 +4706,7 @@ window.MOVE_DB={
 ]
 },
 "kinesis": {
-"zh": "Kinesis",
+"zh": "折弯汤匙",
 "type": "psychic",
 "power": null,
 "cat": "status",
@@ -4724,7 +4724,7 @@ window.MOVE_DB={
 ]
 },
 "body-press": {
-"zh": "Body Press",
+"zh": "扑击",
 "type": "fighting",
 "power": 80,
 "cat": "physical",
@@ -4771,7 +4771,7 @@ window.MOVE_DB={
 ]
 },
 "twineedle": {
-"zh": "Twineedle",
+"zh": "双针",
 "type": "bug",
 "power": 25,
 "cat": "physical",
@@ -4784,7 +4784,7 @@ window.MOVE_DB={
 "stat": []
 },
 "seed-bomb": {
-"zh": "Seed Bomb",
+"zh": "种子炸弹",
 "type": "grass",
 "power": 80,
 "cat": "physical",
@@ -4810,7 +4810,7 @@ window.MOVE_DB={
 "stat": []
 },
 "retaliate": {
-"zh": "Retaliate",
+"zh": "报仇",
 "type": "normal",
 "power": 70,
 "cat": "physical",
@@ -4823,7 +4823,7 @@ window.MOVE_DB={
 "stat": []
 },
 "shadow-force": {
-"zh": "Shadow Force",
+"zh": "暗影潜袭",
 "type": "ghost",
 "power": 120,
 "cat": "physical",
@@ -4867,7 +4867,7 @@ window.MOVE_DB={
 ]
 },
 "water-shuriken": {
-"zh": "Water Shuriken",
+"zh": "飞水手里剑",
 "type": "water",
 "power": 15,
 "cat": "special",
@@ -4880,7 +4880,7 @@ window.MOVE_DB={
 "stat": []
 },
 "poison-fang": {
-"zh": "Poison Fang",
+"zh": "剧毒牙",
 "type": "poison",
 "power": 50,
 "cat": "physical",
@@ -4893,7 +4893,7 @@ window.MOVE_DB={
 "stat": []
 },
 "echoed-voice": {
-"zh": "Echoed Voice",
+"zh": "回声",
 "type": "normal",
 "power": 40,
 "cat": "special",
@@ -4955,7 +4955,7 @@ window.MOVE_DB={
 ]
 },
 "milk-drink": {
-"zh": "Milk Drink",
+"zh": "喝牛奶",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -4981,7 +4981,7 @@ window.MOVE_DB={
 "stat": []
 },
 "false-swipe": {
-"zh": "False Swipe",
+"zh": "点到为止",
 "type": "normal",
 "power": 40,
 "cat": "physical",
@@ -4994,7 +4994,7 @@ window.MOVE_DB={
 "stat": []
 },
 "slam": {
-"zh": "Slam",
+"zh": "摔打",
 "type": "normal",
 "power": 80,
 "cat": "physical",
@@ -5007,7 +5007,7 @@ window.MOVE_DB={
 "stat": []
 },
 "metal-sound": {
-"zh": "Metal Sound",
+"zh": "金属音",
 "type": "steel",
 "power": null,
 "cat": "status",
@@ -5043,7 +5043,7 @@ window.MOVE_DB={
 ]
 },
 "lands-wrath": {
-"zh": "Lands Wrath",
+"zh": "大地神力",
 "type": "ground",
 "power": 90,
 "cat": "physical",
@@ -5069,7 +5069,7 @@ window.MOVE_DB={
 "stat": []
 },
 "mortal-spin": {
-"zh": "Mortal Spin",
+"zh": "晶光转转",
 "type": "poison",
 "power": 30,
 "cat": "physical",
@@ -5095,7 +5095,7 @@ window.MOVE_DB={
 "stat": []
 },
 "power-trip": {
-"zh": "Power Trip",
+"zh": "嚣张",
 "type": "dark",
 "power": 20,
 "cat": "physical",
@@ -5108,7 +5108,7 @@ window.MOVE_DB={
 "stat": []
 },
 "hyper-drill": {
-"zh": "Hyper Drill",
+"zh": "强力钻",
 "type": "normal",
 "power": 100,
 "cat": "physical",
@@ -5134,7 +5134,7 @@ window.MOVE_DB={
 "stat": []
 },
 "springtide-storm": {
-"zh": "Springtide Storm",
+"zh": "阳春风暴",
 "type": "fairy",
 "power": 100,
 "cat": "special",
@@ -5160,7 +5160,7 @@ window.MOVE_DB={
 "stat": []
 },
 "icy-wind": {
-"zh": "Icy Wind",
+"zh": "冰冻之风",
 "type": "ice",
 "power": 55,
 "cat": "special",
@@ -5178,7 +5178,7 @@ window.MOVE_DB={
 ]
 },
 "fury-cutter": {
-"zh": "Fury Cutter",
+"zh": "连斩",
 "type": "bug",
 "power": 40,
 "cat": "physical",
@@ -5191,7 +5191,7 @@ window.MOVE_DB={
 "stat": []
 },
 "aeroblast": {
-"zh": "Aeroblast",
+"zh": "气旋攻击",
 "type": "flying",
 "power": 100,
 "cat": "special",
@@ -5204,7 +5204,7 @@ window.MOVE_DB={
 "stat": []
 },
 "thunder-cage": {
-"zh": "Thunder Cage",
+"zh": "雷电囚笼",
 "type": "electric",
 "power": 80,
 "cat": "special",
@@ -5217,7 +5217,7 @@ window.MOVE_DB={
 "stat": []
 },
 "magical-leaf": {
-"zh": "Magical Leaf",
+"zh": "魔法叶",
 "type": "grass",
 "power": 60,
 "cat": "special",
@@ -5248,7 +5248,7 @@ window.MOVE_DB={
 ]
 },
 "ice-spinner": {
-"zh": "Ice Spinner",
+"zh": "冰旋",
 "type": "ice",
 "power": 80,
 "cat": "physical",
@@ -5261,7 +5261,7 @@ window.MOVE_DB={
 "stat": []
 },
 "steel-beam": {
-"zh": "Steel Beam",
+"zh": "铁蹄光线",
 "type": "steel",
 "power": 140,
 "cat": "special",
@@ -5274,7 +5274,7 @@ window.MOVE_DB={
 "stat": []
 },
 "vital-throw": {
-"zh": "Vital Throw",
+"zh": "借力摔",
 "type": "fighting",
 "power": 70,
 "cat": "physical",
@@ -5287,7 +5287,7 @@ window.MOVE_DB={
 "stat": []
 },
 "make-it-rain": {
-"zh": "Make It Rain",
+"zh": "淘金潮",
 "type": "steel",
 "power": 120,
 "cat": "special",
@@ -5362,7 +5362,7 @@ window.MOVE_DB={
 "stat": []
 },
 "plasma-fists": {
-"zh": "Plasma Fists",
+"zh": "等离子闪电拳",
 "type": "electric",
 "power": 100,
 "cat": "physical",
@@ -5375,7 +5375,7 @@ window.MOVE_DB={
 "stat": []
 },
 "tickle": {
-"zh": "Tickle",
+"zh": "挠痒",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -5410,7 +5410,7 @@ window.MOVE_DB={
 "stat": []
 },
 "wave-crash": {
-"zh": "Wave Crash",
+"zh": "波动冲",
 "type": "water",
 "power": 120,
 "cat": "physical",
@@ -5441,7 +5441,7 @@ window.MOVE_DB={
 ]
 },
 "upper-hand": {
-"zh": "Upper Hand",
+"zh": "快手还击",
 "type": "fighting",
 "power": 65,
 "cat": "physical",
@@ -5467,7 +5467,7 @@ window.MOVE_DB={
 "stat": []
 },
 "high-horsepower": {
-"zh": "High Horsepower",
+"zh": "十万马力",
 "type": "ground",
 "power": 95,
 "cat": "physical",
@@ -5480,7 +5480,7 @@ window.MOVE_DB={
 "stat": []
 },
 "raging-fury": {
-"zh": "Raging Fury",
+"zh": "大愤慨",
 "type": "fire",
 "power": 120,
 "cat": "physical",
@@ -5493,7 +5493,7 @@ window.MOVE_DB={
 "stat": []
 },
 "psyblade": {
-"zh": "Psyblade",
+"zh": "精神剑",
 "type": "psychic",
 "power": 80,
 "cat": "physical",
@@ -5506,7 +5506,7 @@ window.MOVE_DB={
 "stat": []
 },
 "uproar": {
-"zh": "Uproar",
+"zh": "吵闹",
 "type": "normal",
 "power": 90,
 "cat": "special",
@@ -5550,7 +5550,7 @@ window.MOVE_DB={
 ]
 },
 "rototiller": {
-"zh": "Rototiller",
+"zh": "耕地",
 "type": "ground",
 "power": null,
 "cat": "status",
@@ -5572,7 +5572,7 @@ window.MOVE_DB={
 ]
 },
 "chip-away": {
-"zh": "Chip Away",
+"zh": "逐步击破",
 "type": "normal",
 "power": 70,
 "cat": "physical",
@@ -5585,7 +5585,7 @@ window.MOVE_DB={
 "stat": []
 },
 "storm-throw": {
-"zh": "Storm Throw",
+"zh": "山岚摔",
 "type": "fighting",
 "power": 60,
 "cat": "physical",
@@ -5611,7 +5611,7 @@ window.MOVE_DB={
 "stat": []
 },
 "submission": {
-"zh": "Submission",
+"zh": "地狱翻滚",
 "type": "fighting",
 "power": 80,
 "cat": "physical",
@@ -5642,7 +5642,7 @@ window.MOVE_DB={
 ]
 },
 "cut": {
-"zh": "Cut",
+"zh": "居合斩",
 "type": "normal",
 "power": 50,
 "cat": "physical",
@@ -5704,7 +5704,7 @@ window.MOVE_DB={
 ]
 },
 "double-slap": {
-"zh": "Double Slap",
+"zh": "连环巴掌",
 "type": "normal",
 "power": 15,
 "cat": "physical",
@@ -5717,7 +5717,7 @@ window.MOVE_DB={
 "stat": []
 },
 "rage": {
-"zh": "Rage",
+"zh": "愤怒",
 "type": "normal",
 "power": 20,
 "cat": "physical",
@@ -5730,7 +5730,7 @@ window.MOVE_DB={
 "stat": []
 },
 "razor-shell": {
-"zh": "Razor Shell",
+"zh": "贝壳刃",
 "type": "water",
 "power": 75,
 "cat": "physical",
@@ -5774,7 +5774,7 @@ window.MOVE_DB={
 "stat": []
 },
 "dragon-energy": {
-"zh": "Dragon Energy",
+"zh": "巨龙威能",
 "type": "dragon",
 "power": 150,
 "cat": "special",
@@ -5800,7 +5800,7 @@ window.MOVE_DB={
 "stat": []
 },
 "aqua-step": {
-"zh": "Aqua Step",
+"zh": "流水旋舞",
 "type": "water",
 "power": 80,
 "cat": "physical",
@@ -5818,7 +5818,7 @@ window.MOVE_DB={
 ]
 },
 "last-respects": {
-"zh": "Last Respects",
+"zh": "扫墓",
 "type": "ghost",
 "power": 50,
 "cat": "physical",
@@ -5831,7 +5831,7 @@ window.MOVE_DB={
 "stat": []
 },
 "rage-fist": {
-"zh": "Rage Fist",
+"zh": "愤怒之拳",
 "type": "ghost",
 "power": 50,
 "cat": "physical",
@@ -5862,7 +5862,7 @@ window.MOVE_DB={
 ]
 },
 "egg-bomb": {
-"zh": "Egg Bomb",
+"zh": "炸蛋",
 "type": "normal",
 "power": 100,
 "cat": "physical",
@@ -5875,7 +5875,7 @@ window.MOVE_DB={
 "stat": []
 },
 "sparkling-aria": {
-"zh": "Sparkling Aria",
+"zh": "泡影的咏叹调",
 "type": "water",
 "power": 90,
 "cat": "special",
@@ -5888,7 +5888,7 @@ window.MOVE_DB={
 "stat": []
 },
 "temper-flare": {
-"zh": "Temper Flare",
+"zh": "豁出去",
 "type": "fire",
 "power": 75,
 "cat": "physical",
@@ -5932,7 +5932,7 @@ window.MOVE_DB={
 ]
 },
 "power-up-punch": {
-"zh": "Power Up Punch",
+"zh": "增强拳",
 "type": "fighting",
 "power": 40,
 "cat": "physical",
@@ -5950,7 +5950,7 @@ window.MOVE_DB={
 ]
 },
 "attack-order": {
-"zh": "Attack Order",
+"zh": "攻击指令",
 "type": "bug",
 "power": 90,
 "cat": "physical",
@@ -5963,7 +5963,7 @@ window.MOVE_DB={
 "stat": []
 },
 "flying-press": {
-"zh": "Flying Press",
+"zh": "飞身重压",
 "type": "fighting",
 "power": 100,
 "cat": "physical",
@@ -5989,7 +5989,7 @@ window.MOVE_DB={
 "stat": []
 },
 "clamp": {
-"zh": "Clamp",
+"zh": "贝壳夹击",
 "type": "water",
 "power": 35,
 "cat": "physical",
@@ -6002,7 +6002,7 @@ window.MOVE_DB={
 "stat": []
 },
 "hidden-power": {
-"zh": "Hidden Power",
+"zh": "觉醒力量",
 "type": "normal",
 "power": 60,
 "cat": "special",
@@ -6015,7 +6015,7 @@ window.MOVE_DB={
 "stat": []
 },
 "triple-dive": {
-"zh": "Triple Dive",
+"zh": "三连钻",
 "type": "water",
 "power": 30,
 "cat": "physical",
@@ -6028,7 +6028,7 @@ window.MOVE_DB={
 "stat": []
 },
 "fickle-beam": {
-"zh": "Fickle Beam",
+"zh": "随机光",
 "type": "dragon",
 "power": 80,
 "cat": "special",
@@ -6093,7 +6093,7 @@ window.MOVE_DB={
 ]
 },
 "wicked-blow": {
-"zh": "Wicked Blow",
+"zh": "暗冥强击",
 "type": "dark",
 "power": 75,
 "cat": "physical",
@@ -6106,7 +6106,7 @@ window.MOVE_DB={
 "stat": []
 },
 "multi-attack": {
-"zh": "Multi Attack",
+"zh": "多属性攻击",
 "type": "normal",
 "power": 120,
 "cat": "physical",
@@ -6119,7 +6119,7 @@ window.MOVE_DB={
 "stat": []
 },
 "aqua-cutter": {
-"zh": "Aqua Cutter",
+"zh": "水波刀",
 "type": "water",
 "power": 70,
 "cat": "physical",
@@ -6132,7 +6132,7 @@ window.MOVE_DB={
 "stat": []
 },
 "photon-geyser": {
-"zh": "Photon Geyser",
+"zh": "光子喷涌",
 "type": "psychic",
 "power": 100,
 "cat": "special",
@@ -6145,7 +6145,7 @@ window.MOVE_DB={
 "stat": []
 },
 "bitter-blade": {
-"zh": "Bitter Blade",
+"zh": "悔念剑",
 "type": "fire",
 "power": 90,
 "cat": "physical",
@@ -6158,7 +6158,7 @@ window.MOVE_DB={
 "stat": []
 },
 "jet-punch": {
-"zh": "Jet Punch",
+"zh": "喷射拳",
 "type": "water",
 "power": 60,
 "cat": "physical",
@@ -6171,7 +6171,7 @@ window.MOVE_DB={
 "stat": []
 },
 "breaking-swipe": {
-"zh": "Breaking Swipe",
+"zh": "广域破坏",
 "type": "dragon",
 "power": 60,
 "cat": "physical",
@@ -6189,7 +6189,7 @@ window.MOVE_DB={
 ]
 },
 "luster-purge": {
-"zh": "Luster Purge",
+"zh": "洁净光芒",
 "type": "psychic",
 "power": 95,
 "cat": "special",
@@ -6251,7 +6251,7 @@ window.MOVE_DB={
 ]
 },
 "skitter-smack": {
-"zh": "Skitter Smack",
+"zh": "爬击",
 "type": "bug",
 "power": 70,
 "cat": "physical",
@@ -6269,7 +6269,7 @@ window.MOVE_DB={
 ]
 },
 "dual-wingbeat": {
-"zh": "Dual Wingbeat",
+"zh": "双翼",
 "type": "flying",
 "power": 40,
 "cat": "physical",
@@ -6295,7 +6295,7 @@ window.MOVE_DB={
 "stat": []
 },
 "flower-trick": {
-"zh": "Flower Trick",
+"zh": "千变万花",
 "type": "grass",
 "power": 70,
 "cat": "physical",
@@ -6308,7 +6308,7 @@ window.MOVE_DB={
 "stat": []
 },
 "covet": {
-"zh": "Covet",
+"zh": "渴望",
 "type": "normal",
 "power": 60,
 "cat": "physical",
@@ -6334,7 +6334,7 @@ window.MOVE_DB={
 "stat": []
 },
 "terrain-pulse": {
-"zh": "Terrain Pulse",
+"zh": "大地波动",
 "type": "normal",
 "power": 50,
 "cat": "special",
@@ -6383,7 +6383,7 @@ window.MOVE_DB={
 ]
 },
 "meteor-mash": {
-"zh": "Meteor Mash",
+"zh": "彗星拳",
 "type": "steel",
 "power": 90,
 "cat": "physical",
@@ -6401,7 +6401,7 @@ window.MOVE_DB={
 ]
 },
 "comeuppance": {
-"zh": "Comeuppance",
+"zh": "复仇",
 "type": "dark",
 "power": 1,
 "cat": "physical",
@@ -6414,7 +6414,7 @@ window.MOVE_DB={
 "stat": []
 },
 "stomp": {
-"zh": "Stomp",
+"zh": "踩踏",
 "type": "normal",
 "power": 65,
 "cat": "physical",
@@ -6427,7 +6427,7 @@ window.MOVE_DB={
 "stat": []
 },
 "sand-tomb": {
-"zh": "Sand Tomb",
+"zh": "流沙地狱",
 "type": "ground",
 "power": 35,
 "cat": "physical",
@@ -6440,7 +6440,7 @@ window.MOVE_DB={
 "stat": []
 },
 "wake-up-slap": {
-"zh": "Wake Up Slap",
+"zh": "唤醒巴掌",
 "type": "fighting",
 "power": 70,
 "cat": "physical",
@@ -6453,7 +6453,7 @@ window.MOVE_DB={
 "stat": []
 },
 "collision-course": {
-"zh": "Collision Course",
+"zh": "全开猛撞",
 "type": "fighting",
 "power": 100,
 "cat": "physical",
@@ -6479,7 +6479,7 @@ window.MOVE_DB={
 "stat": []
 },
 "octazooka": {
-"zh": "Octazooka",
+"zh": "章鱼桶炮",
 "type": "water",
 "power": 65,
 "cat": "special",
@@ -6497,7 +6497,7 @@ window.MOVE_DB={
 ]
 },
 "fire-pledge": {
-"zh": "Fire Pledge",
+"zh": "火之誓约",
 "type": "fire",
 "power": 80,
 "cat": "special",
@@ -6554,7 +6554,7 @@ window.MOVE_DB={
 "stat": []
 },
 "clear-smog": {
-"zh": "Clear Smog",
+"zh": "清除之烟",
 "type": "poison",
 "power": 50,
 "cat": "special",
@@ -6585,7 +6585,7 @@ window.MOVE_DB={
 ]
 },
 "apple-acid": {
-"zh": "Apple Acid",
+"zh": "苹果酸",
 "type": "grass",
 "power": 80,
 "cat": "special",
@@ -6625,7 +6625,7 @@ window.MOVE_DB={
 ]
 },
 "tera-starstorm": {
-"zh": "Tera Starstorm",
+"zh": "晶光星群",
 "type": "normal",
 "power": 120,
 "cat": "special",
@@ -6638,7 +6638,7 @@ window.MOVE_DB={
 "stat": []
 },
 "comet-punch": {
-"zh": "Comet Punch",
+"zh": "连续拳",
 "type": "normal",
 "power": 18,
 "cat": "physical",
@@ -6651,7 +6651,7 @@ window.MOVE_DB={
 "stat": []
 },
 "slack-off": {
-"zh": "Slack Off",
+"zh": "偷懒",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -6695,7 +6695,7 @@ window.MOVE_DB={
 "stat": []
 },
 "magnetic-flux": {
-"zh": "Magnetic Flux",
+"zh": "磁场操控",
 "type": "electric",
 "power": null,
 "cat": "status",
@@ -6717,7 +6717,7 @@ window.MOVE_DB={
 ]
 },
 "overdrive": {
-"zh": "Overdrive",
+"zh": "破音",
 "type": "electric",
 "power": 80,
 "cat": "special",
@@ -6761,7 +6761,7 @@ window.MOVE_DB={
 ]
 },
 "bone-rush": {
-"zh": "Bone Rush",
+"zh": "骨棒乱打",
 "type": "ground",
 "power": 25,
 "cat": "physical",
@@ -6800,7 +6800,7 @@ window.MOVE_DB={
 "stat": []
 },
 "snore": {
-"zh": "Snore",
+"zh": "打鼾",
 "type": "normal",
 "power": 50,
 "cat": "special",
@@ -6886,7 +6886,7 @@ window.MOVE_DB={
 ]
 },
 "needle-arm": {
-"zh": "Needle Arm",
+"zh": "尖刺臂",
 "type": "grass",
 "power": 60,
 "cat": "physical",
@@ -6899,7 +6899,7 @@ window.MOVE_DB={
 "stat": []
 },
 "smog": {
-"zh": "Smog",
+"zh": "浊雾",
 "type": "poison",
 "power": 30,
 "cat": "special",
@@ -6912,7 +6912,7 @@ window.MOVE_DB={
 "stat": []
 },
 "spectral-thief": {
-"zh": "Spectral Thief",
+"zh": "暗影偷盗",
 "type": "ghost",
 "power": 90,
 "cat": "physical",
@@ -6925,7 +6925,7 @@ window.MOVE_DB={
 "stat": []
 },
 "accelerock": {
-"zh": "Accelerock",
+"zh": "冲岩",
 "type": "rock",
 "power": 40,
 "cat": "physical",
@@ -6972,7 +6972,7 @@ window.MOVE_DB={
 ]
 },
 "eruption": {
-"zh": "Eruption",
+"zh": "喷火",
 "type": "fire",
 "power": 150,
 "cat": "special",
@@ -7011,7 +7011,7 @@ window.MOVE_DB={
 "stat": []
 },
 "psychic-noise": {
-"zh": "Psychic Noise",
+"zh": "精神噪音",
 "type": "psychic",
 "power": 75,
 "cat": "special",
@@ -7037,7 +7037,7 @@ window.MOVE_DB={
 "stat": []
 },
 "cotton-spore": {
-"zh": "Cotton Spore",
+"zh": "棉孢子",
 "type": "grass",
 "power": null,
 "cat": "status",
@@ -7117,7 +7117,7 @@ window.MOVE_DB={
 ]
 },
 "armor-cannon": {
-"zh": "Armor Cannon",
+"zh": "铠农炮",
 "type": "fire",
 "power": 120,
 "cat": "special",
@@ -7174,7 +7174,7 @@ window.MOVE_DB={
 ]
 },
 "dragon-hammer": {
-"zh": "Dragon Hammer",
+"zh": "龙锤",
 "type": "dragon",
 "power": 90,
 "cat": "physical",
@@ -7187,7 +7187,7 @@ window.MOVE_DB={
 "stat": []
 },
 "muddy-water": {
-"zh": "Muddy Water",
+"zh": "浊流",
 "type": "water",
 "power": 90,
 "cat": "special",
@@ -7284,7 +7284,7 @@ window.MOVE_DB={
 ]
 },
 "kowtow-cleave": {
-"zh": "Kowtow Cleave",
+"zh": "仆刀",
 "type": "dark",
 "power": 85,
 "cat": "physical",
@@ -7297,7 +7297,7 @@ window.MOVE_DB={
 "stat": []
 },
 "stone-axe": {
-"zh": "Stone Axe",
+"zh": "岩斧",
 "type": "rock",
 "power": 65,
 "cat": "physical",
@@ -7323,7 +7323,7 @@ window.MOVE_DB={
 "stat": []
 },
 "heart-stamp": {
-"zh": "Heart Stamp",
+"zh": "爱心印章",
 "type": "psychic",
 "power": 60,
 "cat": "physical",
@@ -7367,7 +7367,7 @@ window.MOVE_DB={
 "stat": []
 },
 "silk-trap": {
-"zh": "Silk Trap",
+"zh": "线阱",
 "type": "bug",
 "power": 0,
 "cat": "status",
@@ -7398,7 +7398,7 @@ window.MOVE_DB={
 "stat": []
 },
 "aura-wheel": {
-"zh": "Aura Wheel",
+"zh": "气场轮",
 "type": "electric",
 "power": 110,
 "cat": "physical",
@@ -7416,7 +7416,7 @@ window.MOVE_DB={
 ]
 },
 "poison-sting": {
-"zh": "Poison Sting",
+"zh": "毒针",
 "type": "poison",
 "power": 15,
 "cat": "physical",
@@ -7442,7 +7442,7 @@ window.MOVE_DB={
 "stat": []
 },
 "cross-poison": {
-"zh": "Cross Poison",
+"zh": "十字毒刃",
 "type": "poison",
 "power": 70,
 "cat": "physical",
@@ -7481,7 +7481,7 @@ window.MOVE_DB={
 "stat": []
 },
 "thousand-arrows": {
-"zh": "Thousand Arrows",
+"zh": "千箭齐发",
 "type": "ground",
 "power": 90,
 "cat": "physical",
@@ -7494,7 +7494,7 @@ window.MOVE_DB={
 "stat": []
 },
 "hone-claws": {
-"zh": "Hone Claws",
+"zh": "磨爪",
 "type": "dark",
 "power": null,
 "cat": "status",
@@ -7516,7 +7516,7 @@ window.MOVE_DB={
 ]
 },
 "mystical-fire": {
-"zh": "Mystical Fire",
+"zh": "魔法火焰",
 "type": "fire",
 "power": 75,
 "cat": "special",
@@ -7583,7 +7583,7 @@ window.MOVE_DB={
 "stat": []
 },
 "eternabeam": {
-"zh": "Eternabeam",
+"zh": "无极光束",
 "type": "dragon",
 "power": 160,
 "cat": "special",
@@ -7609,7 +7609,7 @@ window.MOVE_DB={
 "stat": []
 },
 "moongeist-beam": {
-"zh": "Moongeist Beam",
+"zh": "暗影之光",
 "type": "ghost",
 "power": 100,
 "cat": "special",
@@ -7640,7 +7640,7 @@ window.MOVE_DB={
 ]
 },
 "screech": {
-"zh": "Screech",
+"zh": "刺耳声",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -7671,7 +7671,7 @@ window.MOVE_DB={
 "stat": []
 },
 "bonemerang": {
-"zh": "Bonemerang",
+"zh": "骨头回力镖",
 "type": "ground",
 "power": 50,
 "cat": "physical",
@@ -7684,7 +7684,7 @@ window.MOVE_DB={
 "stat": []
 },
 "night-slash": {
-"zh": "Night Slash",
+"zh": "暗袭要害",
 "type": "dark",
 "power": 70,
 "cat": "physical",
@@ -7710,7 +7710,7 @@ window.MOVE_DB={
 "stat": []
 },
 "vice-grip": {
-"zh": "Vice Grip",
+"zh": "夹住",
 "type": "normal",
 "power": 55,
 "cat": "physical",
@@ -7723,7 +7723,7 @@ window.MOVE_DB={
 "stat": []
 },
 "flame-burst": {
-"zh": "Flame Burst",
+"zh": "烈焰溅射",
 "type": "fire",
 "power": 70,
 "cat": "special",
@@ -7767,7 +7767,7 @@ window.MOVE_DB={
 "stat": []
 },
 "grav-apple": {
-"zh": "Grav Apple",
+"zh": "万有引力",
 "type": "grass",
 "power": 80,
 "cat": "physical",
@@ -7811,7 +7811,7 @@ window.MOVE_DB={
 "stat": []
 },
 "sweet-scent": {
-"zh": "Sweet Scent",
+"zh": "甜甜香气",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -7842,7 +7842,7 @@ window.MOVE_DB={
 "stat": []
 },
 "raging-bull": {
-"zh": "Raging Bull",
+"zh": "怒牛",
 "type": "normal",
 "power": 90,
 "cat": "physical",
@@ -7855,7 +7855,7 @@ window.MOVE_DB={
 "stat": []
 },
 "air-cutter": {
-"zh": "Air Cutter",
+"zh": "空气利刃",
 "type": "flying",
 "power": 60,
 "cat": "special",
@@ -7899,7 +7899,7 @@ window.MOVE_DB={
 "stat": []
 },
 "matcha-gotcha": {
-"zh": "Matcha Gotcha",
+"zh": "刷刷茶炮",
 "type": "grass",
 "power": 80,
 "cat": "special",
@@ -7912,7 +7912,7 @@ window.MOVE_DB={
 "stat": []
 },
 "meteor-beam": {
-"zh": "Meteor Beam",
+"zh": "流星光束",
 "type": "rock",
 "power": 120,
 "cat": "special",
@@ -7925,7 +7925,7 @@ window.MOVE_DB={
 "stat": []
 },
 "facade": {
-"zh": "Facade",
+"zh": "硬撑",
 "type": "normal",
 "power": 70,
 "cat": "physical",
@@ -7938,7 +7938,7 @@ window.MOVE_DB={
 "stat": []
 },
 "horn-leech": {
-"zh": "Horn Leech",
+"zh": "木角",
 "type": "grass",
 "power": 75,
 "cat": "physical",
@@ -7990,7 +7990,7 @@ window.MOVE_DB={
 "stat": []
 },
 "eerie-impulse": {
-"zh": "Eerie Impulse",
+"zh": "怪异电波",
 "type": "electric",
 "power": null,
 "cat": "status",
@@ -8008,7 +8008,7 @@ window.MOVE_DB={
 ]
 },
 "purify": {
-"zh": "Purify",
+"zh": "净化",
 "type": "poison",
 "power": null,
 "cat": "status",
@@ -8043,7 +8043,7 @@ window.MOVE_DB={
 ]
 },
 "malignant-chain": {
-"zh": "Malignant Chain",
+"zh": "邪毒锁链",
 "type": "poison",
 "power": 100,
 "cat": "special",
@@ -8074,7 +8074,7 @@ window.MOVE_DB={
 ]
 },
 "diamond-storm": {
-"zh": "Diamond Storm",
+"zh": "钻石风暴",
 "type": "rock",
 "power": 100,
 "cat": "physical",
@@ -8092,7 +8092,7 @@ window.MOVE_DB={
 ]
 },
 "jungle-healing": {
-"zh": "Jungle Healing",
+"zh": "丛林治疗",
 "type": "grass",
 "power": null,
 "cat": "status",
@@ -8105,7 +8105,7 @@ window.MOVE_DB={
 "stat": []
 },
 "dynamic-punch": {
-"zh": "Dynamic Punch",
+"zh": "爆裂拳",
 "type": "fighting",
 "power": 100,
 "cat": "physical",
@@ -8131,7 +8131,7 @@ window.MOVE_DB={
 "stat": []
 },
 "charge": {
-"zh": "Charge",
+"zh": "充电",
 "type": "electric",
 "power": null,
 "cat": "status",
@@ -8162,7 +8162,7 @@ window.MOVE_DB={
 "stat": []
 },
 "lumina-crash": {
-"zh": "Lumina Crash",
+"zh": "琉光冲激",
 "type": "psychic",
 "power": 80,
 "cat": "special",
@@ -8180,7 +8180,7 @@ window.MOVE_DB={
 ]
 },
 "low-sweep": {
-"zh": "Low Sweep",
+"zh": "下盘踢",
 "type": "fighting",
 "power": 65,
 "cat": "physical",
@@ -8211,7 +8211,7 @@ window.MOVE_DB={
 "stat": []
 },
 "psychic-fangs": {
-"zh": "Psychic Fangs",
+"zh": "精神之牙",
 "type": "psychic",
 "power": 85,
 "cat": "physical",
@@ -8224,7 +8224,7 @@ window.MOVE_DB={
 "stat": []
 },
 "pursuit": {
-"zh": "Pursuit",
+"zh": "追打",
 "type": "dark",
 "power": 40,
 "cat": "physical",
@@ -8250,7 +8250,7 @@ window.MOVE_DB={
 "stat": []
 },
 "electroweb": {
-"zh": "Electroweb",
+"zh": "电网",
 "type": "electric",
 "power": 55,
 "cat": "special",
@@ -8307,7 +8307,7 @@ window.MOVE_DB={
 "stat": []
 },
 "psycho-boost": {
-"zh": "Psycho Boost",
+"zh": "精神突进",
 "type": "psychic",
 "power": 140,
 "cat": "special",
@@ -8325,7 +8325,7 @@ window.MOVE_DB={
 ]
 },
 "feint-attack": {
-"zh": "Feint Attack",
+"zh": "出奇一击",
 "type": "dark",
 "power": 60,
 "cat": "physical",
@@ -8338,7 +8338,7 @@ window.MOVE_DB={
 "stat": []
 },
 "blaze-kick": {
-"zh": "Blaze Kick",
+"zh": "火焰踢",
 "type": "fire",
 "power": 85,
 "cat": "physical",
@@ -8377,7 +8377,7 @@ window.MOVE_DB={
 "stat": []
 },
 "sandsear-storm": {
-"zh": "Sandsear Storm",
+"zh": "热沙风暴",
 "type": "ground",
 "power": 100,
 "cat": "special",
@@ -8390,7 +8390,7 @@ window.MOVE_DB={
 "stat": []
 },
 "chilling-water": {
-"zh": "Chilling Water",
+"zh": "泼冷水",
 "type": "water",
 "power": 50,
 "cat": "special",
@@ -8408,7 +8408,7 @@ window.MOVE_DB={
 ]
 },
 "spin-out": {
-"zh": "Spin Out",
+"zh": "疾速转轮",
 "type": "steel",
 "power": 100,
 "cat": "physical",
@@ -8426,7 +8426,7 @@ window.MOVE_DB={
 ]
 },
 "poltergeist": {
-"zh": "Poltergeist",
+"zh": "灵骚",
 "type": "ghost",
 "power": 110,
 "cat": "physical",
@@ -8439,7 +8439,7 @@ window.MOVE_DB={
 "stat": []
 },
 "horn-attack": {
-"zh": "Horn Attack",
+"zh": "角撞",
 "type": "normal",
 "power": 65,
 "cat": "physical",
@@ -8452,7 +8452,7 @@ window.MOVE_DB={
 "stat": []
 },
 "round": {
-"zh": "Round",
+"zh": "轮唱",
 "type": "normal",
 "power": 60,
 "cat": "special",
@@ -8478,7 +8478,7 @@ window.MOVE_DB={
 "stat": []
 },
 "cotton-guard": {
-"zh": "Cotton Guard",
+"zh": "棉花防守",
 "type": "grass",
 "power": null,
 "cat": "status",
@@ -8496,7 +8496,7 @@ window.MOVE_DB={
 ]
 },
 "core-enforcer": {
-"zh": "Core Enforcer",
+"zh": "核心惩罚者",
 "type": "dragon",
 "power": 100,
 "cat": "special",
@@ -8522,7 +8522,7 @@ window.MOVE_DB={
 "stat": []
 },
 "dragon-rush": {
-"zh": "Dragon Rush",
+"zh": "龙之俯冲",
 "type": "dragon",
 "power": 100,
 "cat": "physical",
@@ -8548,7 +8548,7 @@ window.MOVE_DB={
 "stat": []
 },
 "sludge": {
-"zh": "Sludge",
+"zh": "污泥攻击",
 "type": "poison",
 "power": 65,
 "cat": "special",
@@ -8561,7 +8561,7 @@ window.MOVE_DB={
 "stat": []
 },
 "venom-drench": {
-"zh": "Venom Drench",
+"zh": "毒液陷阱",
 "type": "poison",
 "power": null,
 "cat": "status",
@@ -8587,7 +8587,7 @@ window.MOVE_DB={
 ]
 },
 "oblivion-wing": {
-"zh": "Oblivion Wing",
+"zh": "死亡之翼",
 "type": "flying",
 "power": 80,
 "cat": "special",
@@ -8600,7 +8600,7 @@ window.MOVE_DB={
 "stat": []
 },
 "triple-axel": {
-"zh": "Triple Axel",
+"zh": "三旋击",
 "type": "ice",
 "power": 20,
 "cat": "physical",
@@ -8613,7 +8613,7 @@ window.MOVE_DB={
 "stat": []
 },
 "thousand-waves": {
-"zh": "Thousand Waves",
+"zh": "千波激荡",
 "type": "ground",
 "power": 90,
 "cat": "physical",
@@ -8687,7 +8687,7 @@ window.MOVE_DB={
 ]
 },
 "coaching": {
-"zh": "Coaching",
+"zh": "指导",
 "type": "fighting",
 "power": null,
 "cat": "status",
@@ -8709,7 +8709,7 @@ window.MOVE_DB={
 ]
 },
 "mirror-shot": {
-"zh": "Mirror Shot",
+"zh": "镜光射击",
 "type": "steel",
 "power": 65,
 "cat": "special",
@@ -8727,7 +8727,7 @@ window.MOVE_DB={
 ]
 },
 "ice-hammer": {
-"zh": "Ice Hammer",
+"zh": "冰锤",
 "type": "ice",
 "power": 100,
 "cat": "physical",
@@ -8745,7 +8745,7 @@ window.MOVE_DB={
 ]
 },
 "pollen-puff": {
-"zh": "Pollen Puff",
+"zh": "花粉团",
 "type": "bug",
 "power": 90,
 "cat": "special",
@@ -8771,7 +8771,7 @@ window.MOVE_DB={
 "stat": []
 },
 "incinerate": {
-"zh": "Incinerate",
+"zh": "烧尽",
 "type": "fire",
 "power": 60,
 "cat": "special",
@@ -8784,7 +8784,7 @@ window.MOVE_DB={
 "stat": []
 },
 "rollout": {
-"zh": "Rollout",
+"zh": "滚动",
 "type": "rock",
 "power": 30,
 "cat": "physical",
@@ -8797,7 +8797,7 @@ window.MOVE_DB={
 "stat": []
 },
 "revelation-dance": {
-"zh": "Revelation Dance",
+"zh": "觉醒之舞",
 "type": "normal",
 "power": 90,
 "cat": "special",
@@ -8823,7 +8823,7 @@ window.MOVE_DB={
 "stat": []
 },
 "acid-spray": {
-"zh": "Acid Spray",
+"zh": "酸液炸弹",
 "type": "poison",
 "power": 40,
 "cat": "special",
@@ -8841,7 +8841,7 @@ window.MOVE_DB={
 ]
 },
 "stomping-tantrum": {
-"zh": "Stomping Tantrum",
+"zh": "跺脚",
 "type": "ground",
 "power": 75,
 "cat": "physical",
@@ -8854,7 +8854,7 @@ window.MOVE_DB={
 "stat": []
 },
 "confide": {
-"zh": "Confide",
+"zh": "密语",
 "type": "normal",
 "power": null,
 "cat": "status",
@@ -8872,7 +8872,7 @@ window.MOVE_DB={
 ]
 },
 "barrage": {
-"zh": "Barrage",
+"zh": "投球",
 "type": "normal",
 "power": 15,
 "cat": "physical",
@@ -8885,7 +8885,7 @@ window.MOVE_DB={
 "stat": []
 },
 "barb-barrage": {
-"zh": "Barb Barrage",
+"zh": "毒千针",
 "type": "poison",
 "power": 60,
 "cat": "physical",

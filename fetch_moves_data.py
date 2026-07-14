@@ -94,6 +94,7 @@ ZH = {
     "teeter-dance":"摇晃舞","sing":"唱歌","grass-whistle":"青草笛","yawn":"哈欠","toxic-thread":"毒丝",
     "sludge-wave":"污泥波","lunge":"突袭","superpower":"蛮力","aerial-ace":"飞翔","shadow-sneak":"影子偷袭",
     "aqua-jet":"水流喷射","extreme-speed":"神速","vacuum-wave":"波导弹","fake-out":"假装攻击",
+    "ivy-cudgel":"棘藤棒","matcha-gotcha":"刷刷茶炮",
 }
 
 # 状态异常白名单（其余 status 招丢弃）
@@ -135,10 +136,10 @@ def zh_name(nm, d):
     if nm in ZH:
         return ZH[nm]
     for n in d.get("names", []):
-        if n["language"]["name"] == "zh-Hans":
+        if n["language"]["name"] == "zh-hans":
             return n["name"]
     for n in d.get("names", []):
-        if n["language"]["name"] == "zh-Hant":
+        if n["language"]["name"] == "zh-hant":
             return n["name"]
     return nm.replace("-", " ").title()
 
