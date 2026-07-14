@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>宝可梦 RPG 冒险</title>
 <link rel="stylesheet" href="rpg.css">
+<link rel="stylesheet" href="battle-fx.css">
 </head>
 <body>
   <div class="rpg-topbar">
@@ -17,7 +18,9 @@
     </div>
     <div class="rpg-topbtns">
       <button class="rpg-btn" id="rpg-menu">队伍</button>
+      <button class="rpg-btn ghost" id="rpg-dex">图鉴</button>
       <button class="rpg-btn ghost" id="rpg-levelselect-btn">选关</button>
+      <button class="rpg-btn ghost" id="rpg-sound">🔊 音效</button>
       <button class="rpg-btn ghost" id="rpg-hub">返回大厅</button>
       <button class="rpg-btn ghost" id="rpg-reset">重置存档</button>
     </div>
@@ -45,7 +48,8 @@
       </div>
       <div class="rpg-hint" id="rpg-hint">
         共 <b>5 个关卡</b>，由易到难。击败本关<b>所有训练家</b>后，紫色的<b>传送门 ✦</b>会开启，走上去即可进入下一关。
-        用 <b>方向键 / WASD</b> 移动，草丛里会遇到野生宝可梦，黄色「宝可梦中心」可回满体力。
+        用 <b>方向键 / WASD</b> 移动，草丛里会遇到野生宝可梦，黄色「宝可梦中心」可回满体力。<br>
+        地图上带 <b>💬 / 🎁</b> 的 <b>NPC</b> 可以对话、领取道具与提示，别错过。
       </div>
       <div class="rpg-dpad">
         <button class="rpg-dbtn up"    data-dir="up">▲</button>
@@ -135,11 +139,36 @@
     </div>
   </div>
 
+  <!-- 图鉴 -->
+  <div class="rpg-modal hidden" id="rpg-dexmodal">
+    <div class="rpg-modal-box rpg-dex-box">
+      <h2>宝可梦图鉴</h2>
+      <div class="rpg-dex-stat" id="rpg-dex-stat"></div>
+      <div class="rpg-dex-grid" id="rpg-dex-grid"></div>
+      <button class="rpg-btn" id="rpg-dex-close">关闭</button>
+    </div>
+  </div>
+
+  <!-- 友好 NPC 对话 -->
+  <div class="rpg-modal hidden" id="rpg-npcdialog">
+    <div class="rpg-modal-box rpg-npc-box">
+      <div class="rpg-npc-head">
+        <div class="rpg-npc-ava">💬</div>
+        <h2 id="rpg-npc-name">NPC</h2>
+      </div>
+      <p class="rpg-modal-sub" id="rpg-npc-line"></p>
+      <button class="rpg-btn" id="rpg-npc-next">继续 ▶</button>
+    </div>
+  </div>
+
   <div id="rpg-fx"></div>
+  <canvas id="fx3d"></canvas>
   <script src="data.js?v=3"></script>
   <script src="moves.js"></script>
   <script src="mon_moves.js"></script>
   <script src="sprite-cache.js"></script>
+  <script src="battle-fx.js"></script>
+  <script src="battle-audio.js"></script>
   <script src="rpg.js?v=3"></script>
 </body>
 </html>

@@ -34,7 +34,10 @@
     bug:      { core: "#eaffd6", mid: "#a8d83a", edge: "#5a8f1e" },
     rock:     { core: "#e8ddc8", mid: "#b8a368", edge: "#6e5e34" },
     ghost:    { core: "#e9d6ff", mid: "#9a5cff", edge: "#5a1fb0" },
-    dragon:   { core: "#ffffff", mid: "#b07bff", edge: "#5a2fd0" }
+    dragon:   { core: "#ffffff", mid: "#b07bff", edge: "#5a2fd0" },
+    steel:    { core: "#ffffff", mid: "#c8d0dc", edge: "#7a8694" },
+    dark:     { core: "#b9a7c9", mid: "#6a5a8a", edge: "#332b46" },
+    fairy:    { core: "#ffe6f4", mid: "#ff9ad6", edge: "#e0449a" }
   };
   // 恢复能量（聚气）专属配色：青绿 + 金色
   var RECOVER_PAL = { core: "#eafff2", mid: "#5fe0a0", edge: "#1f9d57", gold: "#ffd86a" };

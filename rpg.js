@@ -208,6 +208,24 @@
   var WILD_COMMON = LIST.filter(function (mon) { return isEligibleWild(mon) && baseStatTotal(mon) <= 350; });
   var WILD_RARE = LIST.filter(function (mon) { return isEligibleWild(mon) && baseStatTotal(mon) > 350 && baseStatTotal(mon) <= 420; });
 
+  /* ---------- 生物群系调色板（地图主题） ---------- */
+  var BIOMES = {
+    grassland: { ground:"#bfe09a", grass1:"#9bd36a", grass2:"#5fae3c", tree:"#2f7d3a", treeDk:"#1d5a28", water:"#3f7fd0", rock:"#9a8c6a", accent:"#27632f", treeProb:0.05, rockProb:0.02 },
+    wetland:   { ground:"#a9d8b0", grass1:"#86c98f", grass2:"#4f9c5e", tree:"#2f7d3a", treeDk:"#1d5a28", water:"#3f7fd0", rock:"#8d9b6a", accent:"#1e6b54", treeProb:0.06, rockProb:0.02 },
+    mountain:  { ground:"#cabfa0", grass1:"#b3a584", grass2:"#8a7f63", tree:"#6f8a55", treeDk:"#4d663c", water:"#5a97e0", rock:"#8a7f63", accent:"#6b5d3f", treeProb:0.02, rockProb:0.10 },
+    forest:    { ground:"#9fce7a", grass1:"#7bb257", grass2:"#4e8a36", tree:"#1f5e2a", treeDk:"#123d1a", water:"#3f7fd0", rock:"#6a5d3f", accent:"#1d4d24", treeProb:0.11, rockProb:0.03 },
+    champion:  { ground:"#cdb8e8", grass1:"#b79ad9", grass2:"#8f6fc4", tree:"#5b34b0", treeDk:"#3a2170", water:"#6a5fd0", rock:"#8a7fb0", accent:"#5b34b0", treeProb:0.04, rockProb:0.05 }
+  };
+  var LEVEL_BIOME = ["grassland", "wetland", "mountain", "forest", "champion"];
+  // 每关起点/终点（随关变化，增加辨识度）
+  var LEVEL_POS = [
+    { start: [14, 17], goal: [27, 2] },
+    { start: [2, 17],  goal: [27, 17] },
+    { start: [14, 2],  goal: [14, 17] },
+    { start: [2, 2],   goal: [27, 17] },
+    { start: [14, 17], goal: [27, 2] }
+  ];
+
   /* ---------- 关卡系统（多关卡，由易到难） ---------- */
   var LEVELS = [
     {
@@ -220,6 +238,10 @@
           party: [ { id: 10, level: 4 }, { id: 13, level: 4 }, { id: 14, level: 5 } ] },
         { id: "l1t2", name: "少女 小茜", x: 22, y: 11,
           party: [ { id: 16, level: 5 }, { id: 19, level: 5 }, { id: 21, level: 6 } ] }
+      ],
+      npcs: [
+        { id: "l1n1", name: "向导 小茂", x: 5, y: 16, color: "#5aa9e0", once: true, gift: "potion", giftCount: 2,
+          lines: ["欢迎来到宝可梦世界！用方向键或 WASD 移动。", "草丛里会遇到野生宝可梦，用精灵球(🔘)捕捉伙伴吧！", "这些伤药给你，路上用得着～"] }
       ]
     },
     {
@@ -234,6 +256,10 @@
           party: [ { id: 54, level: 8 }, { id: 55, level: 10 }, { id: 80, level: 9 } ] },
         { id: "l2t3", name: "水手 阿海", x: 15, y: 4,
           party: [ { id: 79, level: 7 }, { id: 60, level: 8 }, { id: 87, level: 10 } ] }
+      ],
+      npcs: [
+        { id: "l2n1", name: "渔夫爷爷", x: 4, y: 5, color: "#3f9e8f", once: true, gift: "potion", giftCount: 3,
+          lines: ["湿地的水属性宝可梦不少，记得带电系或草系招式。", "蓝色的水面可走不过去，绕路吧。", "这些伤药收好，小伙子！"] }
       ]
     },
     {
@@ -248,6 +274,10 @@
           party: [ { id: 95, level: 12 }, { id: 127, level: 14 }, { id: 108, level: 13 } ] },
         { id: "l3t3", name: "岩石训练家 阿岩", x: 14, y: 5,
           party: [ { id: 74, level: 13 }, { id: 108, level: 14 }, { id: 142, level: 14 } ] }
+      ],
+      npcs: [
+        { id: "l3n1", name: "登山客 老高", x: 25, y: 14, color: "#c08a3e", once: true, gift: "tm_rock", giftCount: 1,
+          lines: ["山路崎岖，岩石与地面系宝可梦横行。", "给你一张「TM 岩崩」，教给合适的伙伴，开路更轻松！", "对面的训练家可不好惹，小心为上。"] }
       ]
     },
     {
@@ -264,6 +294,10 @@
           party: [ { id: 92, level: 16 }, { id: 93, level: 18 }, { id: 94, level: 19 } ] },
         { id: "l4t4", name: "猎人 阿烈", x: 9, y: 14,
           party: [ { id: 52, level: 16 }, { id: 63, level: 17 }, { id: 133, level: 19 } ] }
+      ],
+      npcs: [
+        { id: "l4n1", name: "森林精灵 小露", x: 26, y: 3, color: "#5fae8c", once: true, gift: "potion", giftCount: 5,
+          lines: ["迷雾深处藏着幽灵与妖精属性的宝可梦。", "用恶系或钢系招式能压制它们。", "这些伤药你拿着，森林里可没地方回血哦。"] }
       ]
     },
     {
@@ -275,19 +309,69 @@
         { id: "l5t1", name: "四天王门将 阿蜜", x: 14, y: 13,
           party: [ { id: 134, level: 26 }, { id: 135, level: 26 }, { id: 136, level: 26 } ] },
         { id: "l5t2", name: "冠军 阿渡", x: 27, y: 2,
-          party: [ { id: 6, level: 30 }, { id: 131, level: 28 }, { id: 142, level: 30 }, { id: 149, level: 32 } ] }
+          party: [ { id: 6, level: 30 }, { id: 131, level: 28 }, { id: 142, level: 30 }, { id: 149, level: 32 } ],
+          stages: [
+            [ { id: 6, level: 30 }, { id: 131, level: 28 }, { id: 142, level: 30 }, { id: 149, level: 32 } ],
+            [ { id: 6, level: 32 }, { id: 131, level: 30 }, { id: 142, level: 32 }, { id: 149, level: 35 }, { id: 150, level: 38 } ]
+          ] }
+      ],
+      npcs: [
+        { id: "l5n1", name: "联盟卫士 小雪", x: 3, y: 3, color: "#9b7ede", once: true, gift: "full", giftCount: 2,
+          lines: ["冠军 阿渡可不好对付！", "他会使出全力——战败后会立刻派出更强的第二队，连超梦都会登场。", "出发前务必准备好两支能轮换的队伍。", "这两瓶全复药，关键时刻能救场！"] }
       ]
     }
   ];
 
   // 每关通关奖励（精灵球 + 赠送宝可梦），monLevel 为该宝可梦加入时的等级
   var LEVEL_REWARDS = [
-    { balls: 5,  mon: 25,  monLevel: 6 },   // 皮卡丘
-    { balls: 5,  mon: 130, monLevel: 9 },   // 暴鲤龙
-    { balls: 8,  mon: 95,  monLevel: 13 },  // 大岩蛇
-    { balls: 8,  mon: 149, monLevel: 18 },  // 快龙
-    { balls: 15, mon: 150, monLevel: 32 }   // 超梦（冠军奖励）
+    { balls: 5,  mon: 25,  monLevel: 6,  items: { potion: 3, tm_thunder: 1 } },  // 皮卡丘
+    { balls: 5,  mon: 130, monLevel: 9,  items: { potion: 3, tm_water: 1 } },    // 暴鲤龙
+    { balls: 8,  mon: 95,  monLevel: 13, items: { potion: 5, tm_ice: 1 } },      // 大岩蛇
+    { balls: 8,  mon: 149, monLevel: 18, items: { potion: 5, full: 1, tm_psychic: 1 } }, // 快龙
+    { balls: 15, mon: 150, monLevel: 32, items: { full: 3, tm_fire: 1 } }        // 超梦（冠军奖励）
   ];
+
+  // 道具定义（对战中使用）
+  var ITEM_INFO = {
+    potion: { name: "伤药",   icon: "🧪", desc: "恢复当前宝可梦 30 点 HP", heal: 30,  full: false },
+    full:   { name: "全复药", icon: "💊", desc: "回满 HP 并解除异常状态",    heal: 9999, full: true }
+  };
+  // 技能机 TM（在队伍详情里教授招式）
+  var TM_LIST = [
+    { key: "tm_thunder", move: "thunderbolt", name: "TM 十万伏特", icon: "⚡" },
+    { key: "tm_water",   move: "surf",        name: "TM 水炮",     icon: "💧" },
+    { key: "tm_ice",     move: "ice-beam",    name: "TM 冰冻光束", icon: "❄️" },
+    { key: "tm_fire",    move: "flamethrower",name: "TM 喷射火焰", icon: "🔥" },
+    { key: "tm_psychic", move: "psychic",     name: "TM 精神强念", icon: "🔮" },
+    { key: "tm_grass",   move: "solar-beam",  name: "TM 日光束",   icon: "🌿" },
+    { key: "tm_fight",   move: "brick-break", name: "TM 近身战",   icon: "👊" },
+    { key: "tm_shadow",  move: "shadow-ball", name: "TM 暗影球",   icon: "🌑" },
+    { key: "tm_rock",    move: "rock-slide",  name: "TM 岩崩",     icon: "🪨" },
+    { key: "tm_ground",  move: "earthquake",  name: "TM 地震",     icon: "🌍" }
+  ];
+  function tmByKey(k) { for (var i = 0; i < TM_LIST.length; i++) if (TM_LIST[i].key === k) return TM_LIST[i]; return null; }
+  function moveFromSlug(s) {
+    var md = (window.MOVE_DB || {})[s];
+    if (!md) return null;
+    var m = {
+      name: md.zh || s.replace(/-/g, " "),
+      type: md.type,
+      power: md.kind === "damage" ? (md.power || 0) : 0,
+      cat: md.cat === "status" ? "status" : md.cat,
+      cost: 0, slug: s, kind: md.kind
+    };
+    if (md.kind === "status") { m.status = md.effect; m.statusChance = (md.chance || 0) / 100; }
+    return m;
+  }
+  function itemMeta(k) {
+    if (ITEM_INFO[k]) return { name: ITEM_INFO[k].name, icon: ITEM_INFO[k].icon, desc: ITEM_INFO[k].desc, tm: false };
+    var tm = tmByKey(k);
+    if (tm) {
+      var md = (window.MOVE_DB || {})[tm.move];
+      return { name: tm.name, icon: tm.icon, desc: md ? ("教授招式【" + (md.zh || tm.move) + "】") : tm.name, tm: true };
+    }
+    return { name: k, icon: "🎁", desc: "", tm: false };
+  }
 
   // 确定性随机（保证每关地图固定，刷新后不变）
   function lvlRng(seed) {
@@ -302,9 +386,11 @@
   // 根据关卡配置生成地图（30x20，匹配画布 960x640）
   function buildLevelMap(cfg) {
     var W = 30, H = 20;
+    var pos = LEVEL_POS[LEVELS.indexOf(cfg)] || { start: cfg.start, goal: cfg.goal };
+    var b = BIOMES[LEVEL_BIOME[LEVELS.indexOf(cfg)]] || BIOMES.grassland;
     var reserved = {};
     function mark(p) { if (p) reserved[p[0] + "," + p[1]] = true; }
-    mark(cfg.center); mark(cfg.start); mark(cfg.goal);
+    mark(cfg.center); mark(pos.start); mark(pos.goal);
     cfg.trainers.forEach(function (t) { mark([t.x, t.y]); });
     var rnd = lvlRng((LEVELS.indexOf(cfg) + 1) * 7919);
     var pond = cfg.pond;
@@ -316,18 +402,59 @@
         else if (pond && x >= pond.x && x < pond.x + pond.w && y >= pond.y && y < pond.y + pond.h) row.push("~");
         else if (reserved[x + "," + y]) row.push(".");
         else if (rnd() < cfg.grassProb) row.push(",");
+        else if (rnd() < b.treeProb) row.push("T");
+        else if (rnd() < b.rockProb) row.push("r");
         else row.push(".");
       }
       grid.push(row);
     }
     grid[cfg.center[1]][cfg.center[0]] = "C";
-    grid[cfg.start[1]][cfg.start[0]] = "P";
-    if (cfg.goal) grid[cfg.goal[1]][cfg.goal[0]] = "G";
+    grid[pos.start[1]][pos.start[0]] = "P";
+    if (pos.goal) grid[pos.goal[1]][pos.goal[0]] = "G";
+    ensureConnectivity(grid, pos, cfg);
+    grid[cfg.center[1]][cfg.center[0]] = "C";
+    grid[pos.start[1]][pos.start[0]] = "P";
+    if (pos.goal) grid[pos.goal[1]][pos.goal[0]] = "G";
     return grid.map(function (r) { return r.join(""); });
+  }
+  // 保证起点能走到终点与所有训练家，避免障碍造成软锁
+  function ensureConnectivity(grid, pos, cfg) {
+    var W = grid[0].length, H = grid.length;
+    function reach() {
+      var seen = {}, q = [pos.start.slice()];
+      seen[pos.start[0] + "," + pos.start[1]] = true;
+      while (q.length) {
+        var p = q.shift(), x = p[0], y = p[1];
+        [[1,0],[-1,0],[0,1],[0,-1]].forEach(function (d) {
+          var nx = x + d[0], ny = y + d[1];
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H) return;
+          var k = nx + "," + ny;
+          if (seen[k]) return;
+          if (isBlocking(grid[ny][nx])) return;
+          seen[k] = true; q.push([nx, ny]);
+        });
+      }
+      return seen;
+    }
+    function carve(tx, ty) {
+      var x = pos.start[0], y = pos.start[1];
+      while (x !== tx) { x += x < tx ? 1 : -1; if (grid[y][x] !== "#" && isBlocking(grid[y][x])) grid[y][x] = "."; }
+      while (y !== ty) { y += y < ty ? 1 : -1; if (grid[y][x] !== "#" && isBlocking(grid[y][x])) grid[y][x] = "."; }
+    }
+    var seen = reach();
+    var targets = [pos.goal].concat(cfg.trainers.map(function (t) { return [t.x, t.y]; }));
+    targets.forEach(function (t) {
+      if (!seen[t[0] + "," + t[1]]) { carve(t[0], t[1]); seen = reach(); }
+    });
   }
 
   // 每关可变状态（由 loadLevel 写入）
-  var MAP, MAP_W, MAP_H, START, TRAINERS, WILD_RANGE, CURRENT_WILD_POOL;
+  var MAP, MAP_W, MAP_H, START, TRAINERS, WILD_RANGE, CURRENT_WILD_POOL, NPCS;
+  var CUR_BIOME = "grassland";
+  var terrainCanvas = null, terrainCtx = null; // 离屏静态地形缓存
+
+  function isBlocking(ch) { return ch === "#" || ch === "~" || ch === "T" || ch === "r"; }
+  function biome() { return BIOMES[CUR_BIOME] || BIOMES.grassland; }
 
   function buildWildPool(cfg) {
     var pool = LIST.filter(function (mon) {
@@ -349,15 +476,19 @@
   }
   function loadLevel(idx, withIntro) {
     var cfg = LEVELS[idx];
+    CUR_BIOME = LEVEL_BIOME[idx] || "grassland";
     MAP = buildLevelMap(cfg);
     MAP_W = MAP[0].length; MAP_H = MAP.length;
-    START = { x: cfg.start[0], y: cfg.start[1] };
+    var pos = LEVEL_POS[idx] || { start: cfg.start };
+    START = { x: pos.start[0], y: pos.start[1] };
     TRAINERS = cfg.trainers;
+    NPCS = cfg.npcs || [];
     WILD_RANGE = cfg.wild;
     CURRENT_WILD_POOL = buildWildPool(cfg);
     player.x = START.x; player.y = START.y;
     player.px = player.x * TILE + TILE / 2; player.py = player.y * TILE + TILE / 2;
     player.tx = player.px; player.ty = player.py; player.moving = false;
+    renderTerrainCache();
     renderLevelInfo();
     if (withIntro && cfg.intro) showLevelIntro(cfg);
   }
@@ -376,11 +507,19 @@
     }
     return null;
   }
+  function npcAt(x, y) {
+    if (!NPCS) return null;
+    for (var i = 0; i < NPCS.length; i++) {
+      if (NPCS[i].x === x && NPCS[i].y === y) return NPCS[i];
+    }
+    return null;
+  }
 
   /* ---------- 全局状态 ---------- */
   var save = null;          // { party:[member], balls, defeated:{} }
   var player = { x: 0, y: 0, px: 0, py: 0, tx: 0, ty: 0, moving: false, starterId: null };
   var inBattle = false;
+  var inDialog = false;
   var battle = null;
   var imgCache = {};
 
@@ -406,7 +545,10 @@
           return { id: m.id, level: m.level, exp: m.exp, hp: m.hp, status: m.status || null, moves: m.moves || null };
         }),
         balls: save.balls,
+        items: save.items,
         defeated: save.defeated,
+        npcDone: save.npcDone || {},
+        dex: save.dex,
         level: save.level,
         maxLevel: save.maxLevel || 0,
         champion: !!save.champion
@@ -423,6 +565,8 @@
       return d;
     } catch (e) { return null; }
   }
+  function markSeen(id) { if (save && save.dex) save.dex.seen[id] = true; }
+  function markCaught(id) { if (save && save.dex) { save.dex.seen[id] = true; save.dex.caught[id] = true; } }
 
   /* ---------- 队伍 / 数值 ---------- */
   function makeMember(id, level) {
@@ -456,62 +600,103 @@
       ctx.scale(scale, scale);
     }
 
-    if (!save) { // 尚未选择初始宝可梦：只画地形
-      for (var y = 0; y < MAP_H; y++) for (var x = 0; x < MAP_W; x++) drawTile(x, y, MAP[y][x]);
-    } else {
-      for (var y = 0; y < MAP_H; y++) {
-        for (var x = 0; x < MAP_W; x++) {
-          drawTile(x, y, MAP[y][x]);
-        }
-      }
+    if (terrainCanvas) ctx.drawImage(terrainCanvas, 0, 0);
+    if (save) {
+      // 传送门状态会随训练家战况变化，每帧动态重绘（地形缓存里画的是关闭态）
+      var gp = LEVEL_POS[save.level].goal;
+      drawTile(ctx, gp[0], gp[1], "G");
       // 训练家
       TRAINERS.forEach(function (t) {
         var defeated = save && save.defeated && save.defeated[t.id];
         drawSpriteOnTile(t.party[0].id, t.x, t.y, defeated ? 0.4 : 1);
       });
+      // 友好 NPC
+      if (NPCS) NPCS.forEach(function (n) { drawNPC(n); });
       // 玩家
       drawSpriteOnTile(player.starterId || save.party[0].id, -1, -1, 1, true);
     }
     ctx.restore();
   }
-  function drawTile(x, y, ch) {
+  function drawNPC(n) {
+    var cx = n.x * TILE + TILE / 2, cy = n.y * TILE + TILE / 2;
+    ctx.save();
+    ctx.fillStyle = "#00000033";
+    ctx.beginPath(); ctx.ellipse(cx, cy + TILE / 2 - 3, 11, 4, 0, 0, 7); ctx.fill();
+    // 身体
+    ctx.fillStyle = n.color || "#e07ab0";
+    ctx.beginPath(); ctx.arc(cx, cy + 2, 12, 0, 7); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(cx - 4, cy, 3, 0, 7); ctx.arc(cx + 4, cy, 3, 0, 7); ctx.fill();
+    // 气泡图标：有礼物显示🎁，否则💬
+    ctx.font = "13px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(n.gift ? "🎁" : "💬", cx, cy - 14);
+    ctx.restore();
+  }
+  function drawTile(c, x, y, ch) {
     var px = x * TILE, py = y * TILE;
+    var b = biome();
     if (ch === "#") {
-      ctx.fillStyle = "#27632f"; ctx.fillRect(px, py, TILE, TILE);
-      ctx.fillStyle = "#1d4d24";
-      ctx.beginPath(); ctx.arc(px + TILE/2, py + TILE/2, TILE/2 - 2, 0, 7); ctx.fill();
+      c.fillStyle = b.accent; c.fillRect(px, py, TILE, TILE);
+      c.fillStyle = b.treeDk;
+      c.beginPath(); c.arc(px + TILE/2, py + TILE/2, TILE/2 - 2, 0, 7); c.fill();
     } else if (ch === "~") {
-      ctx.fillStyle = "#3f7fd0"; ctx.fillRect(px, py, TILE, TILE);
-      ctx.fillStyle = "#5a97e0";
-      ctx.fillRect(px, py + 6, TILE, 3); ctx.fillRect(px + 4, py + 18, TILE - 8, 3);
+      c.fillStyle = b.water; c.fillRect(px, py, TILE, TILE);
+      c.fillStyle = "#ffffff55";
+      c.fillRect(px + 5, py + 6, TILE - 10, 2); c.fillRect(px + 3, py + 18, TILE - 8, 2);
     } else if (ch === ",") {
-      ctx.fillStyle = "#9bd36a"; ctx.fillRect(px, py, TILE, TILE);
-      ctx.fillStyle = "#5fae3c";
-      ctx.fillRect(px + 6, py + 8, 3, 8); ctx.fillRect(px + 14, py + 5, 3, 11);
-      ctx.fillRect(px + 22, py + 9, 3, 7);
+      c.fillStyle = b.grass1; c.fillRect(px, py, TILE, TILE);
+      c.fillStyle = b.grass2;
+      c.fillRect(px + 6, py + 8, 3, 8); c.fillRect(px + 14, py + 5, 3, 11);
+      c.fillRect(px + 22, py + 9, 3, 7);
+    } else if (ch === "T") {
+      c.fillStyle = b.ground; c.fillRect(px, py, TILE, TILE);
+      c.fillStyle = b.treeDk;
+      c.beginPath(); c.moveTo(px + TILE/2, py + 4); c.lineTo(px + TILE - 5, py + TILE - 5); c.lineTo(px + 5, py + TILE - 5); c.closePath(); c.fill();
+      c.fillStyle = b.tree;
+      c.beginPath(); c.moveTo(px + TILE/2, py + 7); c.lineTo(px + TILE - 8, py + TILE - 7); c.lineTo(px + 8, py + TILE - 7); c.closePath(); c.fill();
+    } else if (ch === "r") {
+      c.fillStyle = b.ground; c.fillRect(px, py, TILE, TILE);
+      c.fillStyle = b.rock;
+      c.beginPath(); c.ellipse(px + TILE/2, py + TILE/2 + 2, TILE/2 - 5, TILE/2 - 7, 0, 0, 7); c.fill();
+      c.fillStyle = "#00000022";
+      c.fillRect(px + TILE/2 - 4, py + TILE/2 - 2, 4, 2); c.fillRect(px + TILE/2 + 2, py + TILE/2 + 3, 5, 2);
     } else if (ch === "C") {
-      ctx.fillStyle = "#f4d35e"; ctx.fillRect(px, py, TILE, TILE);
-      ctx.fillStyle = "#c79a00";
-      ctx.fillRect(px + TILE/2 - 9, py + 4, 18, 4);
-      ctx.fillRect(px + TILE/2 - 2, py + 4, 4, 24);
-      ctx.fillStyle = "#fff";
-      ctx.beginPath(); ctx.arc(px + TILE/2, py + TILE/2 + 2, 5, 0, 7); ctx.fill();
+      c.fillStyle = "#f4d35e"; c.fillRect(px, py, TILE, TILE);
+      c.fillStyle = "#c79a00";
+      c.fillRect(px + TILE/2 - 9, py + 4, 18, 4);
+      c.fillRect(px + TILE/2 - 2, py + 4, 4, 24);
+      c.fillStyle = "#fff";
+      c.beginPath(); c.arc(px + TILE/2, py + TILE/2 + 2, 5, 0, 7); c.fill();
     } else if (ch === "G") {
       var gOpen = levelCleared();
-      ctx.fillStyle = gOpen ? "#5b34b0" : "#3a3f4a"; ctx.fillRect(px, py, TILE, TILE);
-      ctx.strokeStyle = gOpen ? "#c9b3ff" : "#6b7180"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(px + TILE/2, py + TILE/2, TILE/2 - 6, 0, 7); ctx.stroke();
-      ctx.fillStyle = gOpen ? "#e9deff" : "#7b818f";
-      ctx.beginPath(); ctx.arc(px + TILE/2, py + TILE/2, TILE/2 - 11, 0, 7); ctx.fill();
+      c.fillStyle = gOpen ? "#5b34b0" : "#3a3f4a"; c.fillRect(px, py, TILE, TILE);
+      c.strokeStyle = gOpen ? "#c9b3ff" : "#6b7180"; c.lineWidth = 2;
+      c.beginPath(); c.arc(px + TILE/2, py + TILE/2, TILE/2 - 6, 0, 7); c.stroke();
+      c.fillStyle = gOpen ? "#e9deff" : "#7b818f";
+      c.beginPath(); c.arc(px + TILE/2, py + TILE/2, TILE/2 - 11, 0, 7); c.fill();
       if (gOpen) {
-        ctx.fillStyle = "#fff"; ctx.font = "bold 10px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("✦", px + TILE/2, py + TILE/2);
+        c.fillStyle = "#fff"; c.font = "bold 10px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillText("✦", px + TILE/2, py + TILE/2);
       }
     } else {
-      ctx.fillStyle = "#bfe09a"; ctx.fillRect(px, py, TILE, TILE);
+      c.fillStyle = b.ground; c.fillRect(px, py, TILE, TILE);
     }
     // 网格描边
-    ctx.strokeStyle = "#00000010"; ctx.strokeRect(px + .5, py + .5, TILE - 1, TILE - 1);
+    c.strokeStyle = "#00000010"; c.strokeRect(px + .5, py + .5, TILE - 1, TILE - 1);
+  }
+  // 预渲染静态地形到离屏 canvas（性能优化：每帧只 drawImage 一次）
+  function renderTerrainCache() {
+    if (!terrainCanvas) {
+      terrainCanvas = document.createElement("canvas");
+      terrainCanvas.width = MAP_W * TILE;
+      terrainCanvas.height = MAP_H * TILE;
+      terrainCtx = terrainCanvas.getContext("2d");
+    }
+    terrainCtx.setTransform(1, 0, 0, 1, 0, 0);
+    terrainCtx.clearRect(0, 0, terrainCanvas.width, terrainCanvas.height);
+    for (var y = 0; y < MAP_H; y++)
+      for (var x = 0; x < MAP_W; x++)
+        drawTile(terrainCtx, x, y, MAP[y][x]);
   }
   function drawSpriteOnTile(id, x, y, alpha, isPlayer) {
     var cx, cy;
@@ -589,11 +774,11 @@
 
   /* ---------- 移动 / 遇敌 ---------- */
   function tryMove(dx, dy) {
-    if (inBattle || player.moving || !save) return;
+    if (inBattle || inDialog || player.moving || !save) return;
     var nx = player.x + dx, ny = player.y + dy;
     if (nx < 0 || ny < 0 || ny >= MAP_H || nx >= MAP_W) return;
     var ch = MAP[ny][nx];
-    if (ch === "#" || ch === "~") return;
+    if (isBlocking(ch)) return;
     var tr = trainerAt(nx, ny);
     if (tr) {
       if (save.defeated && save.defeated[tr.id]) {
@@ -605,6 +790,14 @@
         toast(tr.name + "（已战胜）"); return;
       }
       triggerTrainer(tr); return;
+    }
+    var npc = npcAt(nx, ny);
+    if (npc && !(npc.once && save.npcDone && save.npcDone[npc.id])) {
+      // 友好 NPC 不挡路：走到其身旁并触发对话（已完成的只路过）
+      player.x = nx; player.y = ny;
+      player.tx = nx * TILE + TILE / 2; player.ty = ny * TILE + TILE / 2;
+      player.moving = true;
+      triggerNPC(npc); return;
     }
     if (ch === "G") {
       if (!levelCleared()) { toast("先击败本关所有训练家，传送门才会开启！"); return; }
@@ -648,8 +841,10 @@
     startBattle({ wild: true, name: "野生宝可梦", oppParty: [m] });
   }
   function triggerTrainer(t) {
-    var party = t.party.map(function (p) { return makeMember(p.id, p.level); });
-    startBattle({ wild: false, name: t.name, trainerId: t.id, oppParty: party });
+    var firstStage = (t.stages && t.stages[0]) ? t.stages[0] : t.party;
+    var party = firstStage.map(function (p) { return makeMember(p.id, p.level); });
+    var stages = t.stages ? t.stages.length : 1;
+    startBattle({ wild: false, name: t.name, trainerId: t.id, trainerRef: t, trainerStage: 0, trainerStages: stages, oppParty: party });
   }
 
   /* ---------- 战斗：构建 ---------- */
@@ -661,24 +856,36 @@
     return {
       member: member, mon: mon, level: member.level,
       maxHp: st.hp, hp: Math.min(member.hp, st.hp),
-      stats: st, moves: moves, status: member.status || null, fainted: false
+      stats: st, moves: moves, status: member.status || null, fainted: member.hp <= 0
     };
   }
   function startBattle(opts) {
     inBattle = true;
     var youCombat = save.party.map(function (m) { return buildCombat(m, true); });
     var oppCombat = opts.oppParty.map(function (m) { return buildCombat(m, false); });
+    oppCombat.forEach(function (c) { markSeen(c.mon.id); });
     battle = {
       wild: opts.wild,
       you: { party: youCombat, idx: 0, participants: { 0: true } },
-      opp: { party: oppCombat, idx: 0, name: opts.name, trainerId: opts.trainerId || null },
-      turn: "you", over: false, busy: false, log: [], _switch: false,
+      opp: { party: oppCombat, idx: 0, name: opts.name, trainerId: opts.trainerId || null, trainerRef: opts.trainerRef || null },
+      trainerStage: opts.trainerStage || 0, trainerStages: opts.trainerStages || 1,
+      turn: "you", over: false, busy: false, log: [], _switch: false, _item: false,
       startLevels: youCombat.map(function (c) { return c.member.level; })
     };
     showBattle();
     if (opts.wild) battleLog("sys", "野生的 " + oppCombat[0].mon.name_zh + "（Lv." + oppCombat[0].level + "）出现了！");
     else battleLog("sys", opts.name + " 发起了对战！");
     battleRender();
+  }
+  // 多段连战的下一阶段：沿用当前队伍 HP/状态，对手换成下一队
+  function startStage(t, stageIdx) {
+    var stage = t.stages[stageIdx];
+    var oppParty = stage.map(function (p) { return makeMember(p.id, p.level); });
+    startBattle({
+      wild: false, name: t.name + "（第 " + (stageIdx + 1) + " 阶段）",
+      trainerId: t.id, trainerRef: t, trainerStage: stageIdx, trainerStages: t.stages.length,
+      oppParty: oppParty
+    });
   }
   function active(side) { return battle[side].party[battle[side].idx]; }
   function sideName(side) { return side === "you" ? "你" : battle.opp.name; }
@@ -689,19 +896,63 @@
     var dfs = mv.cat === "phys" ? def.stats.defense : def.stats.sp_defense;
     return mv.power * (atk / (dfs + 8)) * 0.42 * typeMult(mv.type, def.mon.types);
   }
-  function applyMove(att, def, mv) {
+  // 计算伤害（不修改 hp），供特效在"命中瞬间"再提交
+  function resolveMove(att, def, mv) {
     var atk = mv.cat === "phys" ? att.stats.attack : att.stats.sp_attack;
     var dfs = mv.cat === "phys" ? def.stats.defense : def.stats.sp_defense;
     var mult = typeMult(mv.type, def.mon.types);
     var base = mv.power * (atk / (dfs + 8)) * 0.42 * mult;
     var variance = 0.85 + Math.random() * 0.15;
     var dmg = Math.max(1, Math.floor(base * variance));
-    def.hp = Math.max(0, def.hp - dmg);
     var statusApplied = false;
     if (mv.status && !def.status && Math.random() < (mv.statusChance || 0)) {
-      def.status = { type: mv.status }; statusApplied = true;
+      statusApplied = true;
     }
     return { dmg: dmg, mult: mult, statusApplied: statusApplied };
+  }
+  // 命中瞬间落实伤害与状态
+  function commitMove(def, res, mv) {
+    def.hp = Math.max(0, def.hp - res.dmg);
+    if (res.statusApplied) def.status = { type: mv.status };
+  }
+  // 触发技能粒子特效；若引擎不可用则直接回调（优雅降级）
+  function castFX(side, mv, res, onImpact) {
+    if (window.SkillFX && window.SkillFX.cast) {
+      try { window.SkillFX.cast(side, mv, { mult: res.mult }, { onImpact: onImpact }); return; }
+      catch (e) {}
+    }
+    onImpact();
+  }
+  // 命中瞬间给防守方卡牌加抖动反馈
+  function flashHit(side) {
+    try {
+      var spr = document.getElementById(side === "you" ? "you-active-card" : "ai-active-card");
+      var card = spr && spr.closest ? spr.closest(".rpg-bc") : null;
+      if (!card) return;
+      card.classList.add("hit");
+      setTimeout(function () { card.classList.remove("hit"); }, 440);
+    } catch (e) {}
+  }
+  // 音效（复用 battle-audio.js；引擎不可用时全部降级为 no-op，绝不抛错）
+  var audioReady = false;
+  function sfx(name) { try { if (window.BattleAudio) window.BattleAudio.play(name); } catch (e) {} }
+  function audioKick() {
+    if (audioReady) return;
+    if (window.BattleAudio) {
+      try {
+        window.BattleAudio.init();
+        window.BattleAudio.startBGM();
+        audioReady = true;
+        updateSoundIcon();
+      } catch (e) {}
+    }
+  }
+  function updateSoundIcon() {
+    var b = document.getElementById("rpg-sound");
+    if (!b) return;
+    var muted = window.BattleAudio && window.BattleAudio.isMuted();
+    b.textContent = muted ? "🔇 已静音" : "🔊 音效";
+    if (muted) b.classList.add("muted"); else b.classList.remove("muted");
   }
 
   /* ---------- 战斗：玩家行动 ---------- */
@@ -710,17 +961,24 @@
     battle.busy = true; battle._switch = false;
     var att = active("you"), def = active("opp");
     var mv = att.moves[idx];
-    var res = applyMove(att, def, mv);
+    var res = resolveMove(att, def, mv);
     battleLog("you", "你 的 " + att.mon.name_zh + " 使用【" + mv.name + "】！");
-    spawnDmg("opp", res.dmg, res.mult);
+    sfx("move");
     battleRender();
-    setTimeout(safeRun(function () {
-      if (def.hp <= 0) { onFaint("opp"); }
-      else {
-        if (res.statusApplied && def.status) battleLog("foe", def.mon.name_zh + " 陷入" + STATUS_ZH[def.status.type] + "状态！");
-        oppTurn();
-      }
-    }), 760);
+    castFX("you", mv, res, function () {
+      commitMove(def, res, mv);
+      spawnDmg("opp", res.dmg, res.mult);
+      flashHit("opp");
+      sfx(res.mult >= 2 ? "crit" : "hit");
+      battleRender();
+      setTimeout(safeRun(function () {
+        if (def.hp <= 0) { onFaint("opp"); }
+        else {
+          if (res.statusApplied && def.status) battleLog("foe", def.mon.name_zh + " 陷入" + STATUS_ZH[def.status.type] + "状态！");
+          oppTurn();
+        }
+      }), 420);
+    });
   }
   function doCapture() {
     if (battle.over || battle.busy || battle.turn !== "you" || !battle.wild || battle._switch) return;
@@ -739,8 +997,10 @@
         var m = { id: opp.mon.id, level: opp.level, exp: 0, hp: opp.hp, status: null, moves: moves };
         save.party.push(m);
         battle.you.party.push(buildCombat(m, true));
+        markCaught(opp.mon.id);
         battleLog("cap", "太好了！抓住了 " + opp.mon.name_zh + "！");
         toast("抓住了 " + opp.mon.name_zh + "！");
+        sfx("achv");
         endBattle("caught");
       } else {
         battleLog("foe", opp.mon.name_zh + " 挣脱了精灵球！");
@@ -756,6 +1016,7 @@
     battle.you.idx = idx;
     battle.you.participants[idx] = true;
     battleLog("sys", "你换上了 " + active("you").mon.name_zh + "！");
+    sfx("switch");
     battleRender();
     setTimeout(safeRun(oppTurn), 450);
   }
@@ -771,6 +1032,21 @@
       else { battleLog("foe", "没能逃掉！"); oppTurn(); }
     }), 700);
   }
+  function doUseItem(kind) {
+    if (battle.over || battle.busy || battle.turn !== "you" || battle._switch) return;
+    if (!ITEM_INFO[kind]) return;
+    if (!save.items[kind] || save.items[kind] <= 0) { toast("没有该道具了！"); return; }
+    battle.busy = true; battle._item = false;
+    var info = ITEM_INFO[kind];
+    var you = active("you");
+    save.items[kind]--;
+    if (info.full) { you.hp = you.maxHp; you.status = null; }
+    else { you.hp = Math.min(you.maxHp, you.hp + info.heal); }
+    battleLog("you", "你使用了" + info.icon + info.name + "！");
+    sfx("heal");
+    battleRender();
+    setTimeout(safeRun(function () { if (!battle.over) oppTurn(); }), 700);
+  }
 
   /* ---------- 战斗：对手回合 ---------- */
   function oppTurn() {
@@ -779,28 +1055,65 @@
     setTimeout(safeRun(function () {
       if (battle.over) return;
       var att = active("opp"), def = active("you");
-      // 选最优招式
-      var best = att.moves[0], be = -1;
+      // 选最优招式；同时看是否有能一击致命的招
+      var best = att.moves[0], be = -1, ko = null;
       for (var i = 0; i < att.moves.length; i++) {
         var e = expected(att, def, att.moves[i]);
         if (e > be) { be = e; best = att.moves[i]; }
+        if (e >= def.hp) ko = att.moves[i];
       }
-      var res = applyMove(att, def, best);
-      battleLog("foe", battle.opp.name + " 的 " + att.mon.name_zh + " 使用【" + best.name + "】！");
-      spawnDmg("you", res.dmg, res.mult);
+      // 若当前宝可梦所有招都被抵抗，且场下有属性克制的替补，则换人
+      var allResisted = att.moves.every(function (m) { return typeMult(m.type, def.mon.types) < 1; });
+      if (!ko && allResisted) {
+        var sw = bestSwitchOpp(def);
+        if (sw >= 0) { oppSwitch(sw); return; }
+      }
+      var mv = ko || best;
+      var res = resolveMove(att, def, mv);
+      battleLog("foe", battle.opp.name + " 的 " + att.mon.name_zh + " 使用【" + mv.name + "】！");
+      sfx("move");
       battleRender();
-      setTimeout(safeRun(function () {
-        if (def.hp <= 0) { onFaint("you"); }
-        else {
-          if (res.statusApplied && def.status) battleLog("you", def.mon.name_zh + " 陷入" + STATUS_ZH[def.status.type] + "状态！");
-          battle.turn = "you"; battle.busy = false; battleRender();
-        }
-      }), 760);
+      castFX("opp", mv, res, function () {
+        commitMove(def, res, mv);
+        spawnDmg("you", res.dmg, res.mult);
+        flashHit("you");
+        sfx(res.mult >= 2 ? "crit" : "hit");
+        battleRender();
+        setTimeout(safeRun(function () {
+          if (def.hp <= 0) { onFaint("you"); }
+          else {
+            if (res.statusApplied && def.status) battleLog("you", def.mon.name_zh + " 陷入" + STATUS_ZH[def.status.type] + "状态！");
+            battle.turn = "you"; battle.busy = false; battleRender();
+          }
+        }), 420);
+      });
     }), 520);
+  }
+  // 寻找属性克制对方(you 当前宝可梦)的替补下标，没有则返回 -1
+  function bestSwitchOpp(def) {
+    var party = battle.opp.party;
+    for (var i = 0; i < party.length; i++) {
+      if (i === battle.opp.idx || party[i].fainted) continue;
+      var found = false;
+      for (var j = 0; j < party[i].moves.length; j++) {
+        if (typeMult(party[i].moves[j].type, def.mon.types) >= 2) { found = true; break; }
+      }
+      if (found) return i;
+    }
+    return -1;
+  }
+  function oppSwitch(idx) {
+    battle.busy = true;
+    battle.opp.idx = idx;
+    battleLog("sys", battle.opp.name + " 换上了 " + active("opp").mon.name_zh + "！");
+    sfx("switch");
+    battleRender();
+    setTimeout(safeRun(function () { battle.turn = "you"; battle.busy = false; battleRender(); }), 600);
   }
 
   /* ---------- 战斗：倒下 / 经验 / 升级 ---------- */
   function onFaint(side) {
+    sfx("faint");
     var arr = battle[side].party, idx = battle[side].idx;
     arr[idx].fainted = true;
     battleLog("sys", arr[idx].mon.name_zh + " 倒下了！");
@@ -863,13 +1176,25 @@
     battle.you.party.forEach(function (c) { c.member.hp = c.hp; c.member.status = c.status; });
     if (result === "win") {
       battleLog("sys", "你赢得了对战！");
+      // 多段连战：还有下一阶段则直接开下一场（不回地图、不标记通关、不回血）
+      if (battle.opp.trainerRef && battle.trainerStage < battle.trainerStages - 1) {
+        var t = battle.opp.trainerRef;
+        var next = battle.trainerStage + 1;
+        saveGame();
+        battleRender();
+        battleLog("sys", t.name + " 派出了更强的队伍（第 " + (next + 1) + " 阶段）！");
+        setTimeout(safeRun(function () { startStage(t, next); }), 1300);
+        return;
+      }
       if (battle.opp.trainerId) save.defeated[battle.opp.trainerId] = true;
+      sfx("victory");
     } else if (result === "caught") {
       battleLog("cap", "收服成功，队伍更强大了！");
     } else if (result === "run") {
       battleLog("sys", "你逃离了战斗。");
     } else if (result === "lose") {
       battleLog("sys", "你输掉了…被送回宝可梦中心。");
+      sfx("defeat");
     }
     saveGame();
     battleRender();
@@ -1088,7 +1413,7 @@
       '<div class="rpg-bc ' + cls + '">' +
         '<div class="rpg-bc-head"><span>' + c.mon.name_zh + '</span><span class="lv">Lv.' + c.level + '</span></div>' +
         '<div class="rpg-bc-body">' +
-          '<div class="rpg-bc-sprite" id="rpg-' + side + '-sprite">' +
+          '<div class="rpg-bc-sprite" id="' + (isYou ? "you-active-card" : "ai-active-card") + '">' +
             '<img src="' + c.mon.sprite + '" alt="' + c.mon.name_zh + '" ' +
             'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
             '<div style="display:none;width:40px;height:40px;border-radius:50%;background:#e3534a;color:#fff;font-weight:800;align-items:center;justify-content:center;">' + c.mon.id + '</div>' +
@@ -1147,6 +1472,17 @@
         '<div class="rpg-bench">' + bench + '</div>';
     }
     var canAct = battle.turn === "you" && !battle.busy;
+    if (battle._item) {
+      var itemBtns = Object.keys(ITEM_INFO).map(function (k) {
+        var info = ITEM_INFO[k];
+        var cnt = (save.items && save.items[k]) || 0;
+        if (cnt <= 0) return "";
+        return '<button class="rpg-act" data-bitem="' + k + '"' + (canAct ? "" : " disabled") + '>' +
+          info.icon + ' ' + info.name + '（' + cnt + '）</button>';
+      }).join("");
+      return '<div class="rpg-subrow"><button class="rpg-act ghost" data-bitemcancel="1">返回</button></div>' +
+        '<div class="rpg-bench">' + (itemBtns || '<div style="color:#cdd7ee;padding:6px;">没有可用道具</div>') + '</div>';
+    }
     var att = active("you"), def = active("opp");
     var moves = att.moves.map(function (mv, i) {
       var mult = typeMult(mv.type, def.mon.types);
@@ -1162,6 +1498,7 @@
     }).join("");
     var sub = '<div class="rpg-subrow">' +
       (battle.wild ? '<button class="rpg-act catch" data-bcatch="1"' + (canAct ? "" : " disabled") + '>捕捉（🔘' + save.balls + '）</button>' : "") +
+      '<button class="rpg-act ghost" data-bitemopen="1"' + (canAct ? "" : " disabled") + '>道具</button>' +
       '<button class="rpg-act ghost" data-bswitchopen="1"' + (canAct ? "" : " disabled") + '>换人</button>' +
       (battle.wild ? '<button class="rpg-act run" data-brun="1"' + (canAct ? "" : " disabled") + '>逃跑</button>' : "") +
       '</div>';
@@ -1175,12 +1512,17 @@
       el.addEventListener("click", function () { playerAct(+el.getAttribute("data-bmove")); });
     })(mv[i]);
     var cap = root.querySelector("[data-bcatch]"); if (cap) cap.addEventListener("click", doCapture);
-    var sw = root.querySelector("[data-bswitchopen]"); if (sw) sw.addEventListener("click", function () { battle._switch = true; battleRender(); });
+    var sw = root.querySelector("[data-bswitchopen]"); if (sw) sw.addEventListener("click", function () { battle._switch = true; battle._item = false; battleRender(); });
     var swb = root.querySelectorAll("[data-bswitch]"); for (var j = 0; j < swb.length; j++) (function (el) {
       el.addEventListener("click", function () { doSwitch(+el.getAttribute("data-bswitch")); });
     })(swb[j]);
     var cancel = root.querySelector("[data-bcancel]"); if (cancel) cancel.addEventListener("click", function () { battle._switch = false; battleRender(); });
     var run = root.querySelector("[data-brun]"); if (run) run.addEventListener("click", doRun);
+    var io = root.querySelector("[data-bitemopen]"); if (io) io.addEventListener("click", function () { battle._item = true; battle._switch = false; battleRender(); });
+    var ic = root.querySelector("[data-bitemcancel]"); if (ic) ic.addEventListener("click", function () { battle._item = false; battleRender(); });
+    var ib = root.querySelectorAll("[data-bitem]"); for (var k = 0; k < ib.length; k++) (function (el) {
+      el.addEventListener("click", function () { doUseItem(el.getAttribute("data-bitem")); });
+    })(ib[k]);
   }
   function battleLog(cls, msg) { battle.log.push({ cls: cls, msg: msg }); if (battle.log.length > 40) battle.log.shift(); }
 
@@ -1190,7 +1532,7 @@
   /* ---------- 浮动伤害文字 ---------- */
   function spawnDmg(side, dmg, mult) {
     try {
-      var spr = document.getElementById("rpg-" + side + "-sprite");
+      var spr = document.getElementById(side === "you" ? "you-active-card" : "ai-active-card");
       var fx = document.getElementById("rpg-fx");
       if (!spr || !fx) return;
       var r = spr.getBoundingClientRect();
@@ -1273,7 +1615,11 @@
   function hideStarter() { var el = document.getElementById("rpg-starter"); if (el) el.classList.add("hidden"); }
 
   function newGame(starterId) {
-    save = { party: [ makeMember(starterId, 5) ], balls: 10, defeated: {}, level: 0, maxLevel: 0, champion: false };
+    save = {
+      party: [ makeMember(starterId, 5) ], balls: 10, items: { potion: 3, full: 0 },
+      defeated: {}, npcDone: {}, dex: { seen: {}, caught: {} }, level: 0, maxLevel: 0, champion: false
+    };
+    markCaught(starterId);
     player.starterId = starterId;
     hideStarter();
     saveGame();
@@ -1282,14 +1628,17 @@
   }
 
   /* ---------- 队伍详情弹窗 ---------- */
+  var tmLearnIdx = -1;
   function showPartyModal() {
     var wrap = document.getElementById("rpg-partydetail");
     var modal = document.getElementById("rpg-partymodal");
     if (!wrap || !modal) return;
-    wrap.innerHTML = save.party.map(function (m) {
+    if (tmLearnIdx >= 0 && save.party[tmLearnIdx]) { renderTMPicker(wrap); bindPartyTM(); return; }
+    tmLearnIdx = -1;
+    wrap.innerHTML = save.party.map(function (m, i) {
       var mon = MON_BY_ID[m.id];
       var st = statLine(mon, m.level);
-      var ratio = clamp(m.hp / st.hp, 0, 1);
+      var tmCount = TM_LIST.filter(function (t) { return (save.items[t.key] || 0) > 0; }).length;
       return '' +
         '<div class="rpg-pd">' +
           '<div class="pd-spr"><img src="' + mon.sprite + '" alt="' + mon.name_zh + '"></div>' +
@@ -1299,13 +1648,140 @@
             '<div class="pd-row"><span>攻 / 防</span><b>' + st.attack + ' / ' + st.defense + '</b></div>' +
             '<div class="pd-row"><span>特攻 / 特防</span><b>' + st.sp_attack + ' / ' + st.sp_defense + '</b></div>' +
             '<div class="pd-row"><span>速度</span><b>' + st.speed + '</b></div>' +
-            '<div class="pd-row"><span>经验</span><b>' + m.exp + ' / ' + expToNext(m.level) + '</b></div>' +
+            '<div class="pd-moves">' + m.moves.map(function (mv) {
+              return '<span class="mv-chip" style="background:' + (TYPE_COLOR[mv.type] || "#888") + '">' + mv.name + '</span>';
+            }).join("") + '</div>' +
           '</div>' +
+          '<button class="rpg-act ghost pd-tm"' + (tmCount ? "" : " disabled style=\"opacity:.5\"") + ' data-tmlearn="' + i + '">📖 技能机' + (tmCount ? "（" + tmCount + "）" : "") + '</button>' +
         '</div>';
     }).join("");
     modal.classList.remove("hidden");
+    bindPartyTM();
   }
-  function hidePartyModal() { var el = document.getElementById("rpg-partymodal"); if (el) el.classList.add("hidden"); }
+  function renderTMPicker(wrap) {
+    var m = save.party[tmLearnIdx]; var mon = MON_BY_ID[m.id];
+    var owned = TM_LIST.filter(function (t) { return (save.items[t.key] || 0) > 0; });
+    var html = '<div class="pd-tm-head">为 <b>' + mon.name_zh + '</b> 选择技能机（已拥有 ' + owned.length + ' 个）</div>';
+    if (owned.length === 0) {
+      html += '<div class="pd-tm-empty">你还没有技能机。通关奖励会赠送技能机，可在「选关」查看每关奖励。</div>';
+    } else {
+      html += owned.map(function (t) {
+        var mv = moveFromSlug(t.move);
+        var have = m.moves.some(function (x) { return x.slug === t.move; });
+        return '<button class="rpg-act tm-opt" data-tmuse="' + t.key + '"' + (have ? ' disabled style="opacity:.5"' : '') + '>' +
+          t.icon + ' ' + t.name +
+          (mv ? ' <small>· ' + (TYPE_ZH[mv.type] || mv.type) + (mv.power ? ' 威力' + mv.power : '') + '</small>' : '') +
+          (have ? ' <span>（已会）</span>' : '') + '</button>';
+      }).join("");
+    }
+    html += '<button class="rpg-act ghost" data-tmback="1">返回</button>';
+    wrap.innerHTML = html;
+  }
+  function bindPartyTM() {
+    var wrap = document.getElementById("rpg-partydetail");
+    if (!wrap) return;
+    var learns = wrap.querySelectorAll("[data-tmlearn]");
+    for (var i = 0; i < learns.length; i++) (function (el) {
+      el.addEventListener("click", function () { tmLearnIdx = +el.getAttribute("data-tmlearn"); showPartyModal(); });
+    })(learns[i]);
+    var uses = wrap.querySelectorAll("[data-tmuse]");
+    for (var j = 0; j < uses.length; j++) (function (el) {
+      el.addEventListener("click", function () { doTeachTM(tmLearnIdx, el.getAttribute("data-tmuse")); });
+    })(uses[j]);
+    var back = wrap.querySelector("[data-tmback]"); if (back) back.addEventListener("click", function () { tmLearnIdx = -1; showPartyModal(); });
+  }
+  function doTeachTM(idx, key) {
+    var tm = tmByKey(key); if (!tm) return;
+    if (!save.items[key] || save.items[key] <= 0) { toast("没有该技能机了"); return; }
+    var m = save.party[idx]; if (!m) return;
+    var mon = MON_BY_ID[m.id];
+    var mv = moveFromSlug(tm.move); if (!mv) { toast("招式数据缺失"); return; }
+    if (m.moves.some(function (x) { return x.slug === tm.move; })) { toast(mon.name_zh + " 已会【" + mv.name + "】"); return; }
+    save.items[key]--;
+    if (m.moves.length < 4) m.moves.push(mv);
+    else { var rep = m.moves[3]; m.moves[3] = mv; toast("用【" + mv.name + "】替换了【" + rep.name + "】"); }
+    saveGame(); renderPartyHUD();
+    toast(mon.name_zh + " 学会了【" + mv.name + "】！");
+    showPartyModal();
+  }
+  function hidePartyModal() { tmLearnIdx = -1; var el = document.getElementById("rpg-partymodal"); if (el) el.classList.add("hidden"); }
+
+  /* ---------- 图鉴 ---------- */
+  function showPokedex() {
+    var grid = document.getElementById("rpg-dex-grid");
+    var statEl = document.getElementById("rpg-dex-stat");
+    var modal = document.getElementById("rpg-dexmodal");
+    if (!grid || !modal || !save) return;
+    var seen = 0, caught = 0;
+    LIST.forEach(function (mon) {
+      if (save.dex.seen[mon.id]) seen++;
+      if (save.dex.caught[mon.id]) caught++;
+    });
+    statEl.innerHTML = '已见到 <b>' + seen + '</b> / 已捕获 <b>' + caught + '</b> / 共 ' + LIST.length + ' 种';
+    grid.innerHTML = LIST.map(function (mon) {
+      var s = save.dex.seen[mon.id], c = save.dex.caught[mon.id];
+      if (c) {
+        return '<div class="rpg-dex-cell caught" title="' + mon.name_zh + '">' +
+          '<img src="' + mon.sprite + '" alt="' + mon.name_zh + '" ' +
+          'onerror="this.style.visibility=\'hidden\';">' +
+          '<span class="rpg-dex-no">#' + mon.id + '</span>' +
+          '<span class="rpg-dex-name">' + mon.name_zh + '</span></div>';
+      }
+      if (s) {
+        return '<div class="rpg-dex-cell seen" title="尚未捕获"><span class="rpg-dex-q">?</span>' +
+          '<span class="rpg-dex-no">#' + mon.id + '</span><span class="rpg-dex-name">？？？</span></div>';
+      }
+      return '<div class="rpg-dex-cell" title="未发现"><span class="rpg-dex-q">·</span>' +
+        '<span class="rpg-dex-no">#' + mon.id + '</span></div>';
+    }).join("");
+    modal.classList.remove("hidden");
+  }
+  function hidePokedex() { var el = document.getElementById("rpg-dexmodal"); if (el) el.classList.add("hidden"); }
+
+  /* ---------- 友好 NPC 对话 ---------- */
+  function triggerNPC(npc) {
+    inDialog = true;
+    var modal = document.getElementById("rpg-npcdialog");
+    var title = document.getElementById("rpg-npc-name");
+    var body = document.getElementById("rpg-npc-line");
+    var btn = document.getElementById("rpg-npc-next");
+    if (!modal || !title || !body || !btn) { inDialog = false; return; }
+    var lines = (npc.lines && npc.lines.length) ? npc.lines : ["（……）"];
+    var idx = 0;
+    function render() {
+      title.textContent = npc.name;
+      body.textContent = lines[idx];
+      btn.textContent = (idx < lines.length - 1) ? "继续 ▶" : "结束";
+    }
+    function next() {
+      idx++;
+      if (idx >= lines.length) { closeNPC(npc); return; }
+      render();
+    }
+    btn.onclick = next;
+    if (modal._keyHandler) document.removeEventListener("keydown", modal._keyHandler);
+    modal._keyHandler = function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); next(); } };
+    document.addEventListener("keydown", modal._keyHandler);
+    render();
+    modal.classList.remove("hidden");
+  }
+  function closeNPC(npc) {
+    var modal = document.getElementById("rpg-npcdialog");
+    if (modal) {
+      if (modal._keyHandler) { document.removeEventListener("keydown", modal._keyHandler); modal._keyHandler = null; }
+      modal.classList.add("hidden");
+    }
+    if (npc.once) { if (!save.npcDone) save.npcDone = {}; save.npcDone[npc.id] = true; }
+    if (npc.once && npc.gift) {
+      var g = itemMeta(npc.gift);
+      if (!save.items[npc.gift]) save.items[npc.gift] = 0;
+      save.items[npc.gift] += (npc.giftCount || 1);
+      saveGame(); renderPartyHUD();
+      toast(g.icon + " 获得 " + g.name + " ×" + (npc.giftCount || 1) + "！");
+    }
+    inDialog = false;
+    drawMap();
+  }
 
   /* ---------- 关卡 UI ---------- */
   function renderLevelInfo() {
@@ -1383,6 +1859,14 @@
     if (!rw) return null;
     var parts = [];
     if (rw.balls) { save.balls += rw.balls; parts.push("🔘 " + rw.balls + " 个精灵球"); }
+    if (rw.items) {
+      Object.keys(rw.items).forEach(function (k) {
+        if (!save.items[k]) save.items[k] = 0;
+        save.items[k] += rw.items[k];
+        var meta = itemMeta(k);
+        parts.push(meta.icon + " " + rw.items[k] + " 个" + meta.name);
+      });
+    }
     if (rw.mon) {
       var mon = MON_BY_ID[rw.mon];
       if (save.party.length < 6) {
@@ -1439,7 +1923,10 @@
         }
       });
       if (typeof save.balls !== "number") save.balls = 10;
+      if (!save.items) save.items = { potion: 0, full: 0 };
       if (!save.defeated) save.defeated = {};
+      if (!save.npcDone) save.npcDone = {};
+      if (!save.dex) save.dex = { seen: {}, caught: {} };
       if (typeof save.level !== "number") save.level = 0;
       if (typeof save.maxLevel !== "number") save.maxLevel = save.level;
       if (typeof save.champion !== "boolean") save.champion = false;
@@ -1475,6 +1962,8 @@
 
     // 顶部按钮
     var menu = document.getElementById("rpg-menu"); if (menu) menu.addEventListener("click", showPartyModal);
+    var dexBtn = document.getElementById("rpg-dex"); if (dexBtn) dexBtn.addEventListener("click", showPokedex);
+    var dexClose = document.getElementById("rpg-dex-close"); if (dexClose) dexClose.addEventListener("click", hidePokedex);
     var lselBtn = document.getElementById("rpg-levelselect-btn"); if (lselBtn) lselBtn.addEventListener("click", showLevelSelect);
     var lselClose = document.getElementById("rpg-levelselect-close"); if (lselClose) lselClose.addEventListener("click", hideLevelSelect);
     var pmc = document.getElementById("rpg-partymodal-close"); if (pmc) pmc.addEventListener("click", hidePartyModal);
@@ -1486,6 +1975,19 @@
         showStarter();
       }
     });
+    // 音效开关（首次点击会启动音频）
+    var soundBtn = document.getElementById("rpg-sound");
+    if (soundBtn) {
+      updateSoundIcon();
+      soundBtn.addEventListener("click", function () {
+        audioKick();
+        if (window.BattleAudio) { window.BattleAudio.toggleMute(); updateSoundIcon(); }
+      });
+    }
+    // 首次用户手势启动音频（浏览器自动播放策略要求）
+    var kick = function () { audioKick(); };
+    document.addEventListener("pointerdown", kick, { once: true });
+    document.addEventListener("keydown", kick, { once: true });
 
     bindZoomControls();
     bindPinchZoom();
