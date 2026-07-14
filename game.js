@@ -64,6 +64,12 @@
   var DYNAMAX_POWER_MULT = 1.4; // move-power multiplier for Max Moves (极巨招式)
   var CRIT_CHANCE = 0.0625;    // 1/16 暴击率（命中且非无效时判定）
   var CRIT_MULT = 1.5;         // 暴击伤害倍率
+  // 突然死亡：对战回合过多后，双方每回合承受递增的真实伤害，避免属性免疫/纯变化招导致的无限对战
+  var SUDDEN_DEATH_START = 50; // 超过该回合数后进入突然死亡
+  var SUDDEN_DEATH_STEP = 0.06; // 每超出一回合，额外真实伤害比例
+  var SUDDEN_DEATH_MAX = 0.5;  // 真实伤害比例上限（半血/回合）
+  // 可引出天气的控场招（slug 白名单）
+  var WEATHER_MOVES = ["sunny-day", "rain-dance", "sandstorm", "hail"];
 
   /* ===== 携带物（道具）===== */
   var ITEM_POOL = {
@@ -169,39 +175,154 @@
     return clamp(Math.round(base * 0.85) + 34, 68, 160);
   }
   function withCooldown(mv) { mv.cooldown = mv.cost >= 3 ? 1 : 0; return mv; }
-  function genMoves(mon) {
-    var t1 = mon.types[0];
-    var t2 = mon.types[1] || "normal";
-    var k1 = MOVE_KIT[t1] || MOVE_KIT.normal;
-    var k2 = MOVE_KIT[t2] || MOVE_KIT.normal;
-    var m1 = withCooldown({ name: k1[0], type: t1, power: movePower(mon.attack,     0), cost: 1, cat: "phys" });
-    var m1b = withCooldown({ name: k2[1], type: t2, power: movePower(mon.sp_attack, 0), cost: 1, cat: "spec" });
-    var m2 = withCooldown({ name: k1[2], type: t1, power: movePower(mon.sp_attack, 1), cost: 2, cat: "spec" });
-    var m3 = withCooldown({ name: k2[3], type: t2, power: movePower(mon.attack,     2), cost: 3, cat: "phys" });
+  // ---- 真实招式系统（基于 moves.js / mon_moves.js）----
+  function statKey(pokeapiName) {
+    return { attack: "atk", defense: "def", "special-attack": "spa",
+             "special-defense": "spd", speed: "spe" }[pokeapiName] || null;
+  }
+  function statMap(statArr) {
+    var o = {};
+    (statArr || []).forEach(function (s) {
+      var k = statKey(s[1]);
+      if (k) o[k] = (o[k] || 0) + s[0];
+    });
+    return o;
+  }
+  function realMove(mon, slug) {
+    var md = (window.MOVE_DB || {})[slug];
+    if (!md) return null;
+    var isStatus = md.kind === "status";
+    var isDmg = md.kind === "damage";
+    return {
+      slug: slug,
+      name: md.zh || slug.replace(/-/g, " "),
+      type: md.type,
+      power: md.power || 0,
+      cat: md.cat,
+      kind: md.kind,
+      effect: md.effect || null,
+      chance: md.chance || 0,
+      heal: md.heal || 0,
+      stat: md.stat || [],
+      acc: (md.acc == null ? 100 : md.acc),
+      weather: null,
+      status: isStatus ? md.effect : (isDmg && md.effect ? md.effect : null),
+      statusChance: isStatus ? 1 : (isDmg && md.effect ? (md.chance || 0) / 100 : 0),
+      buff: md.kind === "boost" ? statMap(md.stat) : null,
+      debuff: md.kind === "debuff" ? statMap(md.stat) : null,
+      cooldown: 0
+    };
+  }
+  function moveWeight(m) {
+    if (m.kind === "damage") return m.power || 0;
+    return 30; // 变化招给予中等权重（费用通常 1）
+  }
+  function pickFour(cands, mon) {
+    var out = [];
+    var isWeather = function (m) { return WEATHER_MOVES.indexOf(m.slug) >= 0; };
+    var dmg = cands.filter(function (m) { return m.kind === "damage"; });
+    var stabs = dmg.filter(function (m) { return mon.types.indexOf(m.type) >= 0; })
+                   .sort(function (a, b) { return (b.power || 0) - (a.power || 0); });
+    // 输出核心：优先本系伤害，退而求其次任意伤害招
+    var core = stabs[0] || dmg.slice().sort(function (a, b) { return (b.power || 0) - (a.power || 0); })[0];
+    if (core) out.push(core);
+    // 天气/控场招单独保留一个槽位（读招博弈核心：天气系统必须能被实装）
+    var weather = cands.filter(function (m) { return m.kind !== "damage" && isWeather(m); })
+                       .sort(function (a, b) { return (movesortKey(b) - movesortKey(a)); });
+    if (weather[0] && out.indexOf(weather[0]) < 0) out.push(weather[0]);
+    // 其他变化招（异常/强化/削弱/寄生/替身等）：再保留一个槽位
+    var sup = cands.filter(function (m) { return m.kind !== "damage" && !isWeather(m); })
+                   .sort(function (a, b) { return (movesortKey(b) - movesortKey(a)); });
+    if (sup[0] && out.indexOf(sup[0]) < 0) out.push(sup[0]);
+    // 其余按：同系伤害 > 其他伤害 > 剩余变化招 填满
+    var rest = cands.filter(function (m) { return out.indexOf(m) < 0; });
+    var fillDmg = rest.filter(function (m) { return m.kind === "damage"; })
+                      .sort(function (a, b) { return (b.power || 0) - (a.power || 0); });
+    while (out.length < 3 && fillDmg.length) {
+      out.push(fillDmg.shift());
+      rest = rest.filter(function (m) { return out.indexOf(m) < 0; });
+    }
+    while (out.length < 4 && rest.length) {
+      out.push(rest.shift());
+    }
+    var i = 0;
+    while (out.length < 4 && i < cands.length) {
+      if (out.indexOf(cands[i]) < 0) out.push(cands[i]);
+      i++;
+    }
+    return out.slice(0, 4);
+  }
+  // 变化招的优先度：异常/控场类（博弈价值高）略优先于回复类
+  function movesortKey(m) {
+    if (m.kind === "control") return 40;
+    if (m.kind === "status") return 35;
+    if (m.kind === "boost" || m.kind === "debuff") return 30;
+    if (m.kind === "heal") return 20;
+    if (m.kind === "damage") return m.power || 0;
+    return 10;
+  }
+  function genMovesKit(mon) {
+    // 兜底：数据缺失时用原属性模板
+    var t1 = mon.types[0], t2 = mon.types[1] || "normal";
+    var k1 = MOVE_KIT[t1] || MOVE_KIT.normal, k2 = MOVE_KIT[t2] || MOVE_KIT.normal;
+    var m1 = { name: k1[0], type: t1, power: movePower(mon.attack, 0), cost: 1, cat: "phys", kind: "damage" };
+    var m1b = { name: k2[1], type: t2, power: movePower(mon.sp_attack, 0), cost: 1, cat: "spec", kind: "damage" };
+    var m2 = { name: k1[2], type: t1, power: movePower(mon.sp_attack, 1), cost: 2, cat: "spec", kind: "damage" };
+    var m3 = { name: k2[3], type: t2, power: movePower(mon.attack, 2), cost: 3, cat: "phys", kind: "damage" };
     var s1 = TYPE_STATUS[t1]; if (s1) { m2.status = s1; m2.statusChance = 0.20; }
     var s2 = TYPE_STATUS[t2]; if (s2) { m3.status = s2; m3.statusChance = 0.35; }
-    // 中招（2 费）附带削弱对手；大招（3 费）附带强化自身
     var fd = FOE_DEBUFF_BY_TYPE[t1]; if (fd) m2.debuff = fd;
     var sb = SELF_BUFF_BY_TYPE[t2]; if (sb) m3.buff = sb;
-    // 特定招式引出天气
     if (WEATHER_MOVE[m2.name]) m2.weather = WEATHER_MOVE[m2.name];
     if (WEATHER_MOVE[m3.name]) m3.weather = WEATHER_MOVE[m3.name];
     return [m1, m1b, m2, m3];
+  }
+  function genMoves(mon) {
+    var slugs = (window.MON_MOVES && window.MON_MOVES[mon.id]) || [];
+    var cands = [];
+    slugs.forEach(function (s) {
+      var m = realMove(mon, s);
+      if (!m) return;
+      // 本系统用威力结算伤害，无法表示固定伤害/一击必杀招（power 为 0/null），剔除
+      if (m.kind === "damage" && !(m.power > 0)) return;
+      cands.push(m);
+    });
+    var hasDamage = cands.some(function (m) { return m.kind === "damage"; });
+    if (!hasDamage) cands = genMovesKit(mon);            // 完全无伤害招 -> 整体模板兜底
+    else if (cands.length < 4) cands = cands.concat(genMovesKit(mon));
+    var chosen = pickFour(cands, mon);
+    // 双保险：极端情况下仍保证有伤害招，否则对战无法结束
+    if (!chosen.some(function (m) { return m.kind === "damage"; })) {
+      var kit = genMovesKit(mon);
+      chosen[0] = kit[0];
+    }
+    // 先按威力/权重降序决定费用档位：最强=3 费，次强=2 费，其余=1 费
+    chosen.sort(function (a, b) { return moveWeight(b) - moveWeight(a); });
+    var tier = [3, 2, 1, 1];
+    chosen.forEach(function (m, i) {
+      m.cost = tier[i];
+      m.cooldown = tier[i] >= 3 ? 1 : 0;
+    });
+    // 最终按费用升序排列，满足不变量 costs=[1,1,2,3]（强招落在高费槽）
+    chosen.sort(function (a, b) { return a.cost - b.cost; });
+    return chosen;
   }
   // 极巨招式：保留同一套招式的属性/类型/费用，威力提升并以「极巨」前缀重命名。
   // 与超级进化不同，极巨化不改变物种，而是把现有招式临时升级为极巨招式。
   function genMaxMoves(mon) {
     return genMoves(mon).map(function (mv) {
+      var isDmg = mv.kind === "damage";
       return {
         name: "极巨" + mv.name,
         type: mv.type,
-        power: clamp(Math.round(mv.power * DYNAMAX_POWER_MULT), 40, 220),
+        power: isDmg ? clamp(Math.round(mv.power * DYNAMAX_POWER_MULT), 40, 220) : 90,
         cost: mv.cost,
-        cat: mv.cat,
-        status: mv.status,
-        statusChance: mv.statusChance,
-        buff: mv.buff,
-        debuff: mv.debuff,
+        cat: mv.cat === "status" ? "phys" : mv.cat,
+        kind: "damage",
+        status: isDmg ? mv.status : null,
+        statusChance: isDmg ? mv.statusChance : 0,
+        buff: null,
+        debuff: null,
         weather: mv.weather,
         max: true
       };
@@ -234,6 +355,7 @@
       ai: buildPlayer("电脑", aiMons),
       turn: "you", firstMover: "you", over: false, winner: null, log: [],
       weather: { type: "none", turns: 0 },
+      round: 0,
       difficulty: setup.difficulty || "normal",
       replay: []
     };
@@ -379,6 +501,10 @@
     var crit = mult > 0 && Math.random() < CRIT_CHANCE;
     if (crit) dmg = Math.floor(dmg * CRIT_MULT);
     dmg = Math.floor(dmg * itemDamageMult(attacker, move));
+    if (defender.screens) {
+      if (defender.screens.phys > 0 && move.cat === "phys") dmg = Math.floor(dmg * 0.67);
+      if (defender.screens.spec > 0 && move.cat === "spec") dmg = Math.floor(dmg * 0.67);
+    }
     return { dmg: dmg, mult: mult, crit: crit };
   }
 
@@ -388,16 +514,33 @@
     var foeSide = side === "you" ? "ai" : "you";
     var attacker = me.active, defender = foe.active;
     var move = attacker.moves[moveIdx];
+    if (move.kind && move.kind !== "damage") { useStatusMove(side, moveIdx, callback, move); return; }
     if (attacker.energy < move.cost) { if (callback) callback(); return; }
     if (attacker.cooldowns && attacker.cooldowns[moveIdx] > 0) { if (callback) callback(); return; }
     attacker.energy -= move.cost;
     if (attacker.cooldowns) attacker.cooldowns[moveIdx] = move.cooldown || 0;
 
     var who = side === "you" ? "你" : "电脑";
+
+    // 命中判定：真实招式带 acc 字段，按命中率掷骰；模板招式无 acc，默认必中
+    if (move.acc != null && Math.random() * 100 >= move.acc) {
+      log(side, who + "的" + attacker.mon.name_zh + " 的【" + move.name + "】没有命中！");
+      render(); sfx("move");
+      animateStrike(side, move, { dmg: 0, mult: 1, crit: false });
+      setTimeout(function () { if (callback) callback(); }, IMPACT_MS);
+      return;
+    }
+
     var r = rollDamage(attacker, defender, move);
 
+    // 替身：抵挡一次攻击
+    if (defender.substitute && r.dmg > 0) {
+      defender.substitute = false;
+      r.dmg = 0;
+      log("eff", foe.name + "的" + defender.mon.name_zh + " 的替身抵挡了攻击！");
+    }
     // 气势披带：满血受致命伤时保命（每场一次）
-    if (defender.item === "sash" && defender.hp === defender.maxHp && r.dmg >= defender.hp) {
+    if (r.dmg > 0 && defender.item === "sash" && defender.hp === defender.maxHp && r.dmg >= defender.hp) {
       defender.item = null;
       r.dmg = defender.maxHp - 1;
       defender.hp = 1;
@@ -446,13 +589,102 @@
         handleFaint(foeSide, callback);
       } else {
         if (move.status && !defender.status && Math.random() < move.statusChance) {
-          defender.status = { type: move.status, turns: statusTurns(move.status) };
-          log("eff", foe.name + "的" + defender.mon.name_zh + " 陷入了" + STATUS_ZH[move.status] + "状态！");
+          if (defender.safeguard && defender.safeguard > 0) {
+            log("eff", foe.name + "的" + defender.mon.name_zh + " 被神秘守护保护，未陷入异常！");
+          } else {
+            defender.status = { type: move.status, turns: statusTurns(move.status) };
+            log("eff", foe.name + "的" + defender.mon.name_zh + " 陷入了" + STATUS_ZH[move.status] + "状态！");
+          }
         }
         sfx(r.crit ? "crit" : "hit");
         if (callback) callback();
       }
-    }, IMPACT_MS);
+      }, IMPACT_MS);
+  }
+
+  function useStatusMove(side, moveIdx, callback, move) {
+    var me = state[side];
+    var foe = state[side === "you" ? "ai" : "you"];
+    var attacker = me.active, defender = foe.active;
+    if (attacker.energy < move.cost) { if (callback) callback(); return; }
+    if (attacker.cooldowns && attacker.cooldowns[moveIdx] > 0) { if (callback) callback(); return; }
+    attacker.energy -= move.cost;
+    if (attacker.cooldowns) attacker.cooldowns[moveIdx] = move.cooldown || 0;
+    var who = side === "you" ? "你" : "电脑";
+    var line = who + "的" + attacker.mon.name_zh + " 使用【" + move.name + "】！";
+    log(side, line);
+    recordEvent("move", line);
+    var acted = false;
+    function finish() {
+      if (acted) return; acted = true;
+      render();
+      sfx("move");
+      animateStrike(side, move, { dmg: 0, mult: 1, crit: false });
+      setTimeout(function () { if (callback) callback(); }, IMPACT_MS);
+    }
+    if (move.kind === "boost") {
+      applyBuff(attacker, move.buff, attacker.mon.name_zh, who);
+      finish();
+    } else if (move.kind === "debuff") {
+      applyBuff(defender, move.debuff, defender.mon.name_zh, foe.name);
+      finish();
+    } else if (move.kind === "heal") {
+      var amt = Math.max(1, Math.floor(attacker.maxHp * (move.heal / 100)));
+      attacker.hp = Math.min(attacker.maxHp, attacker.hp + amt);
+      log("eff", who + "的" + attacker.mon.name_zh + " 回复了 " + amt + " 点体力！");
+      finish();
+    } else if (move.kind === "status") {
+      if (Math.random() * 100 < move.chance) {
+        if (move.effect === "sleep2") {
+          attacker.status = { type: "sleep", turns: 2, rest: true };
+          attacker.hp = attacker.maxHp;
+          log("eff", who + "的" + attacker.mon.name_zh + " 睡着了，回复了全部体力！");
+        } else if (!defender.status) {
+          defender.status = { type: move.effect, turns: statusTurns(move.effect) };
+          log("eff", foe.name + "的" + defender.mon.name_zh + " 陷入了" + STATUS_ZH[move.effect] + "状态！");
+        }
+      } else {
+        log("eff", "但是【" + move.name + "】没有命中…");
+      }
+      finish();
+    } else if (move.kind === "control") {
+      applyControl(side, move);
+      finish();
+    } else {
+      finish();
+    }
+  }
+
+  function applyControl(side, move) {
+    var me = state[side];
+    var foe = state[side === "you" ? "ai" : "you"];
+    var attacker = me.active, defender = foe.active;
+    var who = side === "you" ? "你" : "电脑";
+    var slug = move.slug;
+    if (slug === "leech-seed") {
+      defender.leech = attacker;
+      log("eff", foe.name + "的" + defender.mon.name_zh + " 被寄生种子附身！");
+    } else if (slug === "substitute") {
+      attacker.substitute = true;
+      log("eff", who + "的" + attacker.mon.name_zh + " 制造了替身！");
+    } else if (slug === "reflect") {
+      attacker.screens = attacker.screens || {}; attacker.screens.phys = 5;
+      log("eff", who + "的" + attacker.mon.name_zh + " 竖起了反射壁（物理伤害减半）！");
+    } else if (slug === "light-screen") {
+      attacker.screens = attacker.screens || {}; attacker.screens.spec = 5;
+      log("eff", who + "的" + attacker.mon.name_zh + " 竖起了光墙（特殊伤害减半）！");
+    } else if (slug === "safeguard") {
+      attacker.safeguard = 5;
+      log("eff", who + "的" + attacker.mon.name_zh + " 被神秘守护笼罩（免疫异常）！");
+    } else if (slug === "sunny-day" || slug === "rain-dance" || slug === "sandstorm" || slug === "hail") {
+      var wmap = { "sunny-day": "sunny", "rain-dance": "rain", "sandstorm": "sandstorm", "hail": "hail" };
+      var wt = wmap[slug];
+      state.weather = { type: wt, turns: WEATHER_DURATION };
+      log("eff", who + "的" + attacker.mon.name_zh + " 引发了" + WEATHER[wt].name + "！");
+      sfx("weather");
+    } else {
+      log("eff", "【" + move.name + "】的效果暂未实装。");
+    }
   }
 
   function applyBuff(card, delta, monName, whoName) {
@@ -564,6 +796,7 @@
 
   function startRound() {
     if (state.over) return;
+    state.round += 1;
     // 天气倒计时：每回合（一轮）结束递减，归零则消散
     try {
       if (state.weather && state.weather.type !== "none") {
@@ -623,6 +856,46 @@
           }
         }
       }
+    } catch (e) {}
+
+    // 寄生种子：每回合损失体力，转移给施法者
+    try {
+      var lc = p.active;
+      if (lc.leech && lc.leech.active) {
+        var lp = Math.max(1, Math.floor(lc.maxHp / 8));
+        lc.hp = Math.max(0, lc.hp - lp);
+        var srcC = lc.leech;
+        if (srcC && srcC.active) srcC.active.hp = Math.min(srcC.active.maxHp, srcC.active.hp + lp);
+        log("sys", p.name + "的" + lc.mon.name_zh + " 因寄生种子损失 " + lp + " 点体力！");
+        if (lc.hp <= 0) {
+          render();
+          handleFaint(side, function () { afterMove(side); });
+          return;
+        }
+      }
+    } catch (e) {}
+    // 突然死亡：回合过多后，双方每回合承受递增的真实伤害（无视防御/守住/抗性），保证对战必然终结
+    try {
+      if (state.round > SUDDEN_DEATH_START) {
+        var sdFactor = Math.min(SUDDEN_DEATH_MAX, SUDDEN_DEATH_STEP * (state.round - SUDDEN_DEATH_START));
+        var sdDmg = Math.max(1, Math.floor(p.active.maxHp * sdFactor));
+        p.active.hp = Math.max(0, p.active.hp - sdDmg);
+        log("sys", p.name + "的" + p.active.mon.name_zh + " 在突然死亡下损失 " + sdDmg + " 点体力！");
+        if (p.active.hp <= 0) {
+          render();
+          handleFaint(side, function () { afterMove(side); });
+          return;
+        }
+      }
+    } catch (e) {}
+    // 场地/守护倒计时
+    try {
+      var sc = p.active;
+      if (sc.screens) {
+        if (sc.screens.phys > 0) sc.screens.phys -= 1;
+        if (sc.screens.spec > 0) sc.screens.spec -= 1;
+      }
+      if (sc.safeguard > 0) sc.safeguard -= 1;
     } catch (e) {}
 
     // 回合开始结算异常状态
@@ -1303,6 +1576,14 @@
       '</div>';
   }
 
+  function moveKindText(mv) {
+    if (mv.kind === "boost") return "强化";
+    if (mv.kind === "debuff") return "削弱";
+    if (mv.kind === "heal") return "回复";
+    if (mv.kind === "status") return "异常:" + (STATUS_ZH[mv.effect] || mv.effect);
+    if (mv.kind === "control") return "控场";
+    return "变化";
+  }
   function movesHTML() {
     var p = state.you;
     var c = p.active;
@@ -1328,12 +1609,19 @@
           '<div class="mn"><span class="type-chip" style="background:' + (TYPE_COLOR[mv.type] || "#888") + '">' +
             (TYPE_ZH[mv.type] || mv.type) + '</span>' + mv.name +
             '<span class="cost"' + costColor + '>⚡ ' + mv.cost + '</span></div>' +
-          '<div class="md"><span>威力 ' + mv.power + '</span><span>' +
-            (mv.cat === "phys" ? "物理" : "特殊") + '</span></div>' +
-          (effTxt ? '<div class="eff ' + effCls + '">' + effIcon + ' ' + effTxt + '</div>' : "") +
+          '<div class="md">' +
+            (mv.kind === "damage"
+              ? '<span>威力 ' + mv.power + '</span><span>' + (mv.cat === "phys" ? "物理" : "特殊") + '</span>'
+              : '<span class="kind-' + mv.kind + '">' + moveKindText(mv) + '</span><span>变化招</span>') +
+          '</div>' +
+          (mv.kind === "damage" && effTxt ? '<div class="eff ' + effCls + '">' + effIcon + ' ' + effTxt + '</div>' : "") +
           (mv.weather && WEATHER[mv.weather] ? '<div class="eff weather">' + WEATHER[mv.weather].icon + ' 引发' + WEATHER[mv.weather].name + '</div>' : "") +
           (onCd ? '<div class="eff cd">❄ 冷却 ' + c.cooldowns[i] + '</div>' : "") +
-          (mv.status ? '<div class="eff status-hint">可使对手' + STATUS_ZH[mv.status] + '</div>' : "") +
+          (mv.kind === "status" ? '<div class="eff status-hint">可使对手' + (STATUS_ZH[mv.effect] || mv.effect) + '</div>' : "") +
+          (mv.kind === "boost" ? '<div class="eff buff-hint">强化自身</div>' : "") +
+          (mv.kind === "debuff" ? '<div class="eff debuff-hint">削弱对手</div>' : "") +
+          (mv.kind === "heal" ? '<div class="eff heal-hint">回复体力</div>' : "") +
+          (mv.kind === "control" ? '<div class="eff ctrl-hint">' + (mv.slug === "leech-seed" ? "寄生种子" : mv.slug === "substitute" ? "替身" : mv.slug === "reflect" ? "反射壁" : mv.slug === "light-screen" ? "光墙" : "控场") + '</div>' : "") +
         '</button>';
     }).join("");
     var canRecover = canAct && c.energy < MAX_ENERGY;

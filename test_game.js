@@ -23,6 +23,8 @@ global.document = {
 const fs = require("fs");
 // load data + game
 eval(fs.readFileSync("data.js", "utf8"));
+try { eval(fs.readFileSync("moves.js", "utf8")); } catch (e) { console.log("WARN: moves.js not ready, using fallback moves"); }
+try { eval(fs.readFileSync("mon_moves.js", "utf8")); } catch (e) { console.log("WARN: mon_moves.js not ready, using fallback moves"); }
 eval(fs.readFileSync("game.js", "utf8"));
 
 // ---- 1. dataset integrity ----
@@ -121,7 +123,8 @@ for (const deck of decks) {
     if (mv.length !== 4) { moveKitOk = false; console.log("FAIL: mon", card.mon.id, "has", mv.length, "moves"); }
     for (let i = 0; i < 4; i++) {
       if (mv[i].cost !== expectCosts[i]) { moveKitOk = false; console.log("FAIL: mon", card.mon.id, "move", i, "cost", mv[i].cost); }
-      if (typeof mv[i].power !== "number" || mv[i].power <= 0) { moveKitOk = false; console.log("FAIL: mon", card.mon.id, "move", i, "bad power"); }
+      // 伤害招必须 power>0；变化招(强化/削弱/回复/异常/控场)power 为 0 属正常
+      if (mv[i].kind === "damage" && (typeof mv[i].power !== "number" || mv[i].power <= 0)) { moveKitOk = false; console.log("FAIL: mon", card.mon.id, "move", i, "bad power"); }
       if (!TZ[mv[i].type]) { moveKitOk = false; console.log("FAIL: mon", card.mon.id, "move", i, "bad type", mv[i].type); }
     }
   });
@@ -172,9 +175,17 @@ global.setTimeout = function () { return 0; }; // no-op: isolate mega effects fr
 const megaTeam = [byId(6), byId(4), byId(5), byId(7), byId(8), byId(9), byId(1), byId(2), byId(3), byId(10), byId(11), byId(12)];
 window.PK._beginCustom(megaTeam);
 let ms = window.PK._state();
-ms.you.active.mon = byId(6);            // force active = Charizard (has mega)
+// no-op setTimeout may have cascaded a full battle (if AI moved first); reset to a clean,
+// non-finished state so onMega's `state.over` guard doesn't block the test.
+ms.over = false; ms.winner = null; busy = false;
+ms.turn = "you"; ms.firstMover = "you";
+const _ch = byId(6);
+ms.you.active.mon = _ch;                // force active = Charizard (has mega)
+ms.you.active.maxHp = _ch.hp; ms.you.active.hp = _ch.hp;
+ms.you.active.buffs = { atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+ms.you.active.status = null;
 ms.you.active.energy = 5;
-ms.turn = "you"; busy = false;
+ms.you.megaUsed = false; ms.you.dynamaxUsed = false;
 const beforeName = ms.you.active.mon.name_zh;
 window.PK._mega(0);                      // Mega Evolve into X form
 const ac = ms.you.active;
@@ -193,9 +204,16 @@ global.setTimeout = function (fn) { fn(); return 0; }; // synchronous: drive tur
 const dmaxTeam = [byId(6), byId(4), byId(5), byId(7), byId(8), byId(9), byId(1), byId(2), byId(3), byId(10), byId(11), byId(12)];
 window.PK._beginCustom(dmaxTeam);
 let ds = window.PK._state();
-ds.you.active.mon = byId(6);            // Charizard (any species can Dynamax)
+// synchronous setTimeout cascades a full battle to completion; reset to a clean state
+ds.over = false; ds.winner = null; busy = false;
+ds.turn = "you"; ds.firstMover = "you";
+const _dch = byId(6);
+ds.you.active.mon = _dch;               // Charizard (any species can Dynamax)
+ds.you.active.maxHp = _dch.hp; ds.you.active.hp = _dch.hp;
+ds.you.active.buffs = { atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+ds.you.active.status = null; ds.you.active.dynamaxTurns = 0;
 ds.you.active.energy = 5;
-ds.turn = "you";
+ds.you.megaUsed = false; ds.you.dynamaxUsed = false;
 // make the opponent harmless so our mon survives the 3-turn sim (no HP/maxHp pollution)
 [ds.ai.active, ...ds.ai.bench, ...ds.ai.deck].forEach(function (c) {
   c.mon.attack = 0; c.mon.sp_attack = 0;
@@ -263,9 +281,23 @@ var fm = window.PK._state().you.active;
 assert(fm.moves.length === 4, "fire mon 4 moves");
 assert(fm.moves[3].cooldown === 1, "3-cost big move has cooldown 1");
 assert(fm.moves[0].cooldown === 0, "1-cost move no cooldown");
-assert(fm.moves[2].weather === "sunny", "fire 2-cost sets sunny (got " + fm.moves[2].weather + ")");
-assert(fm.moves[3].buff && fm.moves[3].buff.spd === 1, "flying big move buffs spd");
-assert(!!fm.moves[2].debuff, "fire mid move has debuff");
+// 招式真实化后，策略深度由真实招式提供（不再保证特定费用槽）；改为校验招式库确实带出这些系统
+assert(fm.moves.some(function (m) { return m.kind === "control" || m.kind === "status" || m.kind === "boost" || m.kind === "debuff"; }),
+  "fire mon kit carries a strategy move (control/status/boost/debuff)");
+// 扫描全图：确认 强化 / 削弱 系统被真实招式实装并进入对战
+var anyBuff = false, anyDebuff = false, anyWeather = false;
+for (var z = 1; z <= 1025 && !(anyBuff && anyDebuff && anyWeather); z++) {
+  window.PK._beginCustom([byId(z)].concat(L.slice(0, 11)));
+  var k = window.PK._state().you.active.moves;
+  k.forEach(function (m) {
+    if (m.kind === "boost") anyBuff = true;
+    if (m.kind === "debuff") anyDebuff = true;
+    if (m.kind === "control" && (m.slug === "sunny-day" || m.slug === "rain-dance" || m.slug === "sandstorm" || m.slug === "hail")) anyWeather = true;
+  });
+}
+assert(anyBuff, "some mon's real kit includes a self-buff move (强化 system used)");
+assert(anyDebuff, "some mon's real kit includes a foe-debuff move (削弱 system used)");
+assert(anyWeather, "some mon's real kit includes a weather move (天气 system used)");
 
 // item assignment is deterministic by id (id%3===0 carries an item)
 function findCard(st, id) { return [st.active].concat(st.bench, st.deck).filter(function (c) { return c.mon.id === id; })[0]; }
