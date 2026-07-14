@@ -206,6 +206,26 @@ body {
 .rpg-move .eff { font-size: 10px; font-weight: 800; margin-top: 2px; }
 .rpg-move .eff.sup { color: #ffd14d; }
 .rpg-move .eff.weak { color: #6fe09a; }
+.rpg-move .eff.weather { color: #bfe0ff; background: #1c3a5a; border-radius: 6px; padding: 0 5px; align-self: flex-start; }
+
+/* 天气横幅 */
+.rpg-weather {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 86; font-weight: 800; font-size: 14px; color: #fff;
+  padding: 6px 14px; border-radius: 999px; box-shadow: 0 4px 12px #0007;
+  border: 2px solid #fff; letter-spacing: .5px; pointer-events: none;
+}
+.rpg-weather.hidden { display: none; }
+.rpg-weather.sunny     { background: linear-gradient(90deg,#f6a623,#ffd14d); }
+.rpg-weather.rain      { background: linear-gradient(90deg,#2f6fb0,#5aa9e0); }
+.rpg-weather.sandstorm { background: linear-gradient(90deg,#b9852f,#e0b35a); }
+.rpg-weather.hail      { background: linear-gradient(90deg,#5aa0c0,#bfe6f2); }
+
+/* 对战背景氛围（随关卡 atmos 变化） */
+.rpg-battle.atm-mist  .rpg-battle-box { background: linear-gradient(160deg,#2a4a63,#16314a); }
+.rpg-battle.atm-dusk  .rpg-battle-box { background: linear-gradient(160deg,#5a3a2a,#2e2030); }
+.rpg-battle.atm-fog   .rpg-battle-box { background: linear-gradient(160deg,#2f3a33,#1a2420); }
+.rpg-battle.atm-night .rpg-battle-box { background: linear-gradient(160deg,#1a2148,#0c1030); border-color: #9fb3ff; }
 .rpg-subrow { display: flex; gap: 8px; }
 .rpg-act {
   flex: 1; border: none; border-radius: 10px; padding: 10px; font-size: 13px; font-weight: 800;

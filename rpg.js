@@ -225,12 +225,21 @@
     { start: [2, 2],   goal: [27, 17] },
     { start: [14, 17], goal: [27, 2] }
   ];
+  // 地图氛围（昼夜/雾）：叠在地形之上的半透明色调，营造每关的氛围差异
+  var ATMOS = {
+    day:   { tint: null,                                     battleBg: null },
+    mist:  { tint: "rgba(120,175,205,0.16)",                battleBg: "linear-gradient(160deg,#2a4a63,#16314a)" },
+    dusk:  { tint: "rgba(255,150,70,0.16)",                 battleBg: "linear-gradient(160deg,#5a3a2a,#2e2030)" },
+    fog:   { tint: "rgba(150,165,150,0.30)",                battleBg: "linear-gradient(160deg,#2f3a33,#1a2420)" },
+    night: { tint: "rgba(18,28,68,0.44)",                   battleBg: "linear-gradient(160deg,#1a2148,#0c1030)" }
+  };
 
   /* ---------- 关卡系统（多关卡，由易到难） ---------- */
   var LEVELS = [
     {
       name: "初心草原",
       intro: "新手训练家的起点。野生宝可梦等级很低，先熟悉操作、捕捉伙伴吧！",
+      atmos: "day",
       wild: [3, 6], wildMaxBst: 360,
       center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.20,
       trainers: [
@@ -247,6 +256,7 @@
     {
       name: "溪流湿地",
       intro: "水边潮湿，常见水属性宝可梦。注意水面（蓝色）无法通行。",
+      atmos: "mist", ambientWeather: "rain",
       wild: [6, 11], wildMaxBst: 405, wildTypes: ["water"],
       center: [2, 2], start: [14, 17], goal: [27, 2], pond: { x: 10, y: 6, w: 9, h: 4 }, grassProb: 0.18,
       trainers: [
@@ -265,6 +275,7 @@
     {
       name: "岩石山道",
       intro: "崎岖山路，岩石与地面属性宝可梦盘踞，训练家等级明显提升。",
+      atmos: "dusk",
       wild: [10, 16], wildMaxBst: 435, wildTypes: ["rock", "ground"],
       center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.14,
       trainers: [
@@ -283,6 +294,7 @@
     {
       name: "迷雾森林",
       intro: "雾气弥漫，幽灵与妖精出没，训练家等级大幅上涨，小心迷路。",
+      atmos: "fog",
       wild: [14, 22], wildMaxBst: 470, wildTypes: ["ghost", "fairy", "bug", "grass"],
       center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.24,
       trainers: [
@@ -303,6 +315,7 @@
     {
       name: "冠军殿堂",
       intro: "最终决战之地！先击败四天王门将，再挑战冠军，成为新的联盟冠军！",
+      atmos: "night",
       wild: [20, 32], allowEvolved: true, wildMaxBst: 520,
       center: [2, 2], start: [14, 17], goal: [27, 2], pond: { x: 11, y: 7, w: 8, h: 3 }, grassProb: 0.16,
       trainers: [
@@ -601,6 +614,10 @@
     }
 
     if (terrainCanvas) ctx.drawImage(terrainCanvas, 0, 0);
+    // 氛围色调（昼夜/雾）：叠在地形之上、精灵之下
+    var atmKey = (save && LEVELS[save.level]) ? LEVELS[save.level].atmos : "day";
+    var atm = ATMOS[atmKey];
+    if (atm && atm.tint) { ctx.fillStyle = atm.tint; ctx.fillRect(0, 0, MAP_W * TILE, MAP_H * TILE); }
     if (save) {
       // 传送门状态会随训练家战况变化，每帧动态重绘（地形缓存里画的是关闭态）
       var gp = LEVEL_POS[save.level].goal;
@@ -853,6 +870,7 @@
     var st = statLine(mon, member.level);
     var moves = equippedMoves(member);
     if (moves.length === 0) { moves = getLearnset(mon).filter(function (m) { return m.level <= member.level; }); member.moves = moves; }
+    tagWeather(moves);
     return {
       member: member, mon: mon, level: member.level,
       maxHp: st.hp, hp: Math.min(member.hp, st.hp),
@@ -870,6 +888,9 @@
       opp: { party: oppCombat, idx: 0, name: opts.name, trainerId: opts.trainerId || null, trainerRef: opts.trainerRef || null },
       trainerStage: opts.trainerStage || 0, trainerStages: opts.trainerStages || 1,
       turn: "you", over: false, busy: false, log: [], _switch: false, _item: false,
+      weather: (LEVELS[save.level] && LEVELS[save.level].ambientWeather)
+        ? { type: LEVELS[save.level].ambientWeather, turns: 999 }
+        : { type: "none", turns: 0 },
       startLevels: youCombat.map(function (c) { return c.member.level; })
     };
     showBattle();
@@ -890,17 +911,76 @@
   function active(side) { return battle[side].party[battle[side].idx]; }
   function sideName(side) { return side === "you" ? "你" : battle.opp.name; }
 
+  /* ---------- 战斗：天气系统（机制镜像 game.js 的卡牌战天气） ---------- */
+  var WEATHER = {
+    none:      { name: "无",     icon: "🌤️", atk: null,   weak: null,   mult: 1,   chip: false, immune: [] },
+    sunny:     { name: "大晴天", icon: "☀️", atk: "fire",  weak: "water", mult: 1.5, chip: false, immune: [] },
+    rain:      { name: "下雨",   icon: "🌧️", atk: "water", weak: "fire",  mult: 1.5, chip: false, immune: [] },
+    sandstorm: { name: "沙暴",   icon: "🌪️", atk: "rock",  weak: null,   mult: 1.5, chip: true,  immune: ["rock", "ground", "steel"] },
+    hail:      { name: "冰雹",   icon: "❄️", atk: "ice",   weak: null,   mult: 1.5, chip: true,  immune: ["ice"] }
+  };
+  // 招式名 → 天气（出该招即引发天气；镜像 game.js 的 WEATHER_MOVE）
+  var WEATHER_MOVE = {
+    "大字爆炎": "sunny", "喷射火焰": "sunny",
+    "水流尾": "rain", "水炮": "rain",
+    "岩崩": "sandstorm", "尖石攻击": "sandstorm",
+    "暴风雪": "hail", "冰冻光束": "hail"
+  };
+  var WEATHER_DURATION = 5;
+  function weatherMult(moveType, wType) {
+    var w = WEATHER[wType] || WEATHER.none;
+    if (w.atk === moveType) return w.mult;
+    if (w.weak === moveType) return 1 / w.mult;
+    return 1;
+  }
+  // 给战斗成员的招式标注 weather（喷射火焰等出招即引发天气）
+  function tagWeather(moves) {
+    moves.forEach(function (m) {
+      if (WEATHER_MOVE[m.name]) m.weather = WEATHER_MOVE[m.name];
+    });
+    return moves;
+  }
+  // 出招时若招式带 weather 则引发
+  function applyMoveWeather(att, mv) {
+    if (!mv.weather || !WEATHER[mv.weather]) return;
+    battle.weather = { type: mv.weather, turns: WEATHER_DURATION };
+    battleLog("eff", att.mon.name_zh + " 引发了" + WEATHER[mv.weather].name + "！");
+    sfx("weather");
+  }
+  // 回合末：天气递减；沙暴/冰雹对场上双方造成 chip（不致命，仅持续消耗）
+  function tickWeather() {
+    if (!battle.weather || battle.weather.type === "none") return false;
+    var w = WEATHER[battle.weather.type];
+    if (w.chip) {
+      ["you", "opp"].forEach(function (side) {
+        var c = active(side);
+        if (!c || c.fainted) return;
+        var t = c.mon.types;
+        if (w.immune.indexOf(t[0]) >= 0 || (t[1] && w.immune.indexOf(t[1]) >= 0)) return;
+        var d = Math.max(1, Math.floor(c.maxHp * 0.0625));
+        c.hp = Math.max(1, c.hp - d);
+      });
+    }
+    battle.weather.turns -= 1;
+    if (battle.weather.turns <= 0) {
+      battleLog("sys", w.name + " 散去了。");
+      battle.weather = { type: "none", turns: 0 };
+    }
+    return false;
+  }
+
   /* ---------- 战斗：伤害 ---------- */
   function expected(att, def, mv) {
     var atk = mv.cat === "phys" ? att.stats.attack : att.stats.sp_attack;
     var dfs = mv.cat === "phys" ? def.stats.defense : def.stats.sp_defense;
     return mv.power * (atk / (dfs + 8)) * 0.42 * typeMult(mv.type, def.mon.types);
   }
-  // 计算伤害（不修改 hp），供特效在"命中瞬间"再提交
+  // 计算伤害（不修改 hp），供特效在"命中瞬间"再提交；含天气修正
   function resolveMove(att, def, mv) {
     var atk = mv.cat === "phys" ? att.stats.attack : att.stats.sp_attack;
     var dfs = mv.cat === "phys" ? def.stats.defense : def.stats.sp_defense;
-    var mult = typeMult(mv.type, def.mon.types);
+    var wType = (battle.weather && battle.weather.type) || "none";
+    var mult = typeMult(mv.type, def.mon.types) * weatherMult(mv.type, wType);
     var base = mv.power * (atk / (dfs + 8)) * 0.42 * mult;
     var variance = 0.85 + Math.random() * 0.15;
     var dmg = Math.max(1, Math.floor(base * variance));
@@ -963,6 +1043,7 @@
     var mv = att.moves[idx];
     var res = resolveMove(att, def, mv);
     battleLog("you", "你 的 " + att.mon.name_zh + " 使用【" + mv.name + "】！");
+    applyMoveWeather(att, mv);
     sfx("move");
     battleRender();
     castFX("you", mv, res, function () {
@@ -1051,6 +1132,7 @@
   /* ---------- 战斗：对手回合 ---------- */
   function oppTurn() {
     if (battle.over) return;
+    tickWeather();
     battle.turn = "opp"; battleRender();
     setTimeout(safeRun(function () {
       if (battle.over) return;
@@ -1071,6 +1153,7 @@
       var mv = ko || best;
       var res = resolveMove(att, def, mv);
       battleLog("foe", battle.opp.name + " 的 " + att.mon.name_zh + " 使用【" + mv.name + "】！");
+      applyMoveWeather(att, mv);
       sfx("move");
       battleRender();
       castFX("opp", mv, res, function () {
@@ -1447,6 +1530,18 @@
       logEl.scrollTop = logEl.scrollHeight;
     }
     if (actEl) actEl.innerHTML = actionsHTML();
+    var wb = document.getElementById("rpg-weather");
+    if (wb) {
+      var w = (battle.weather && battle.weather.type && battle.weather.type !== "none") ? battle.weather : null;
+      if (w && WEATHER[w.type]) {
+        wb.className = "rpg-weather " + w.type;
+        wb.innerHTML = WEATHER[w.type].icon + " " + WEATHER[w.type].name +
+          (w.turns >= 999 ? "" : "（剩余 " + w.turns + " 回合）");
+        wb.classList.remove("hidden");
+      } else {
+        wb.className = "rpg-weather hidden"; wb.innerHTML = "";
+      }
+    }
     bindBattleEvents();
   }
   function actionsHTML() {
@@ -1494,6 +1589,7 @@
             (TYPE_ZH[mv.type] || mv.type) + '</span>' + mv.name + '</div>' +
           '<div class="md"><span>威力 ' + mv.power + '</span><span>' + (mv.cat === "phys" ? "物理" : "特殊") + '</span></div>' +
           (effTxt ? '<div class="eff ' + effCls + '">' + effTxt + '</div>' : "") +
+          (mv.weather && WEATHER[mv.weather] ? '<div class="eff weather">' + WEATHER[mv.weather].icon + "天气</div>" : "") +
         '</button>';
     }).join("");
     var sub = '<div class="rpg-subrow">' +
@@ -1526,8 +1622,20 @@
   }
   function battleLog(cls, msg) { battle.log.push({ cls: cls, msg: msg }); if (battle.log.length > 40) battle.log.shift(); }
 
-  function showBattle() { var el = document.getElementById("rpg-battle"); if (el) el.classList.remove("hidden"); }
-  function hideBattle() { var el = document.getElementById("rpg-battle"); if (el) el.classList.add("hidden"); }
+  function showBattle() {
+    var el = document.getElementById("rpg-battle");
+    if (!el) return;
+    el.classList.remove("hidden");
+    var key = (save && LEVELS[save.level]) ? LEVELS[save.level].atmos : "day";
+    ["day", "mist", "dusk", "fog", "night"].forEach(function (k) { el.classList.remove("atm-" + k); });
+    el.classList.add("atm-" + key);
+  }
+  function hideBattle() {
+    var el = document.getElementById("rpg-battle");
+    if (!el) return;
+    el.classList.add("hidden");
+    ["day", "mist", "dusk", "fog", "night"].forEach(function (k) { el.classList.remove("atm-" + k); });
+  }
 
   /* ---------- 浮动伤害文字 ---------- */
   function spawnDmg(side, dmg, mult) {
