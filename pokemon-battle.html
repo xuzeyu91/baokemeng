@@ -19,6 +19,7 @@
     </div>
     <button class="btn ghost" onclick="PK.toSetup()">重选宝可梦</button>
     <button class="btn ghost" id="audio-btn">🔊 音效</button>
+    <button class="btn ghost" id="shiny-toggle">✨ 闪光模式</button>
   </header>
   <div class="field">
     <div class="weather-bar" id="weather-bar"></div>
@@ -57,6 +58,11 @@
         <button class="seg diff" data-diff="hard">😈 困难</button>
       </div>
       <span class="setup-hint">困难 AI 会读克制、低血换人、合理使用进化/极巨</span>
+    </div>
+    <div class="setup-row">
+      <span class="setup-label">外观</span>
+      <button class="seg shiny-toggle" id="setup-shiny-toggle">✨ 闪光模式</button>
+      <span class="setup-hint">所有精灵图切换为闪光配色</span>
     </div>
     <div id="stats-panel" class="stats-panel"></div>
     <div id="custom-panel" class="hidden">

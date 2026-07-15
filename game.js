@@ -140,10 +140,39 @@
   var setup = { mode: "random", selected: [], typeFilter: "all", genFilter: "all", query: "", difficulty: "normal" };
   var statsCollapsed = true; // 战绩面板默认折叠，给选择区域留空间
   var _memStats = null; // headless/无 localStorage 时的内存兜底
+  var shinyMode = false; // 闪光模式开关
 
   // 安全音效封装：无 BattleAudio 或 AudioContext 时降级为 no-op
   function sfx(name) {
     try { if (window.BattleAudio && !window.BattleAudio.isMuted()) window.BattleAudio.play(name); } catch (e) {}
+  }
+
+  /* ---------- 闪光模式 ---------- */
+  function loadShinyMode() {
+    try { shinyMode = localStorage.getItem("pk_shiny_mode") === "1"; } catch (e) { shinyMode = false; }
+  }
+  function saveShinyMode() {
+    try { localStorage.setItem("pk_shiny_mode", shinyMode ? "1" : "0"); } catch (e) {}
+  }
+  function updateShinyToggles() {
+    var mainBtn = document.getElementById("shiny-toggle");
+    var setupBtn = document.getElementById("setup-shiny-toggle");
+    var label = shinyMode ? "✨ 普通模式" : "✨ 闪光模式";
+    if (mainBtn) mainBtn.textContent = label;
+    if (setupBtn) setupBtn.textContent = label;
+    if (mainBtn) mainBtn.classList.toggle("active", shinyMode);
+    if (setupBtn) setupBtn.classList.toggle("active", shinyMode);
+  }
+  function setShinyMode(v) {
+    shinyMode = !!v;
+    saveShinyMode();
+    updateShinyToggles();
+    // 重新渲染当前可见的精灵图
+    if (state && !state.over) render();
+    if (document.getElementById("setup").classList.contains("show")) {
+      renderPicker();
+    }
+    toast("已切换到" + (shinyMode ? "闪光" : "普通") + "模式");
   }
 
   if (typeof console !== "undefined" && console.log) {
@@ -160,6 +189,11 @@
     return a;
   }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function spriteOf(mon) {
+    if (!mon) return "";
+    if (shinyMode && mon.shiny_sprite) return mon.shiny_sprite;
+    return mon.sprite || "";
+  }
   function typeMult(moveType, defTypes) {
     var m = 1;
     for (var i = 0; i < defTypes.length; i++) {
@@ -1486,7 +1520,7 @@
           '<span class="no">#' + ("00" + c.mon.id).slice(-3) + (faster ? '<span class="first">先手</span>' : '') + '</span>' +
         '</div>' +
         '<div class="art">' +
-          '<img src="' + c.mon.sprite + '" alt="' + c.mon.name_zh + '" ' +
+          '<img src="' + spriteOf(c.mon) + '" alt="' + c.mon.name_zh + '" ' +
             'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
           '<div class="fallback">' + c.mon.id + '</div>' +
         '</div>' +
@@ -1523,7 +1557,7 @@
             (switchable ? ' data-switch="' + i + '" title="点击换上这只宝可梦"' : "") + '>' +
           '<div class="mh" style="background:' + hc + '"><span>' + c.mon.name_zh + '</span>' +
             '<span>#' + ("00" + c.mon.id).slice(-3) + '</span></div>' +
-          '<div class="ma"><img src="' + c.mon.sprite + '" alt="' + c.mon.name_zh + '" ' +
+          '<div class="ma"><img src="' + spriteOf(c.mon) + '" alt="' + c.mon.name_zh + '" ' +
             'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
             '<div class="fb"></div></div>' +
           '<div class="mb">' +
@@ -1568,7 +1602,7 @@
         ' data-pkid="' + mon.id + '" data-side="' + side + '"' +
         ' style="border-color:' + hc + '">' +
         '<div class="fc-art" style="background:' + hc + '22">' +
-          '<img src="' + mon.sprite + '" alt="' + mon.name_zh + '" ' +
+          '<img src="' + spriteOf(mon) + '" alt="' + mon.name_zh + '" ' +
             'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
           '<div class="fb">' + mon.id + '</div>' +
         '</div>' +
@@ -1831,7 +1865,7 @@
     var dead = c.fainted;
     return '' +
       '<div class="pv-art" style="background:linear-gradient(180deg,#f3f5fb,#dfe5f2)' + (dead ? ";filter:grayscale(1)" : "") + '">' +
-        '<img src="' + mon.sprite + '" alt="' + mon.name_zh + '" ' +
+        '<img src="' + spriteOf(mon) + '" alt="' + mon.name_zh + '" ' +
           'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
         '<div class="fb" style="display:none;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#fff 0 30%,#e3534a 31% 100%);border:3px solid #fff;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;">' + mon.id + '</div>' +
       '</div>' +
@@ -1982,7 +2016,7 @@ function evoHTML(mon) {
   var h = '<div class="pv-evo">';
   if (prev) {
     h += '<span class="evo-node">' +
-      '<img src="' + prev.sprite + '" alt="' + prev.name_zh + '" ' +
+      '<img src="' + spriteOf(prev) + '" alt="' + prev.name_zh + '" ' +
         'onerror="this.style.visibility=\'hidden\'">' +
       '<span class="evo-lab">进化前</span><b>' + prev.name_zh + '</b></span>';
   } else {
@@ -1994,7 +2028,7 @@ function evoHTML(mon) {
     h += '<span class="evo-arrow">→</span>';
     nexts.forEach(function (nx) {
       h += '<span class="evo-node">' +
-        '<img src="' + nx.sprite + '" alt="' + nx.name_zh + '" ' +
+        '<img src="' + spriteOf(nx) + '" alt="' + nx.name_zh + '" ' +
           'onerror="this.style.visibility=\'hidden\'">' +
         '<span class="evo-lab">进化后</span><b>' + nx.name_zh + '</b></span>';
     });
@@ -2011,7 +2045,7 @@ function setupPreviewHTML(mon) {
     }).join("");
     return '' +
       '<div class="pv-art" style="background:linear-gradient(180deg,#f3f5fb,#dfe5f2)">' +
-        '<img src="' + mon.sprite + '" alt="' + mon.name_zh + '" ' +
+        '<img src="' + spriteOf(mon) + '" alt="' + mon.name_zh + '" ' +
           'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
         '<div class="fb" style="display:none;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 50% 38%,#fff 0 30%,#e3534a 31% 100%);border:3px solid #fff;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;">' + mon.id + '</div>' +
       '</div>' +
@@ -2345,7 +2379,7 @@ function setupPreviewHTML(mon) {
       html += '<div class="pk' + (sel ? " sel" : "") + '" data-pk="' + m.id + '">' +
         (sel ? '<div class="pk-check">✓</div>' : '') +
         '<div class="pk-art" style="background:' + hc + '22">' +
-          '<img src="' + m.sprite + '" alt="' + m.name_zh + '" ' +
+          '<img src="' + spriteOf(m) + '" alt="' + m.name_zh + '" ' +
             'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
           '<div class="pk-fb">' + m.id + '</div>' +
         '</div>' +
@@ -2465,6 +2499,15 @@ function setupPreviewHTML(mon) {
       audioBtn.textContent = muted ? "🔇 静音" : "🔊 音效";
       if (!muted && window.BattleAudio) window.BattleAudio.startBGM();
     });
+    // 闪光模式开关
+    var mainShiny = document.getElementById("shiny-toggle");
+    var setupShiny = document.getElementById("setup-shiny-toggle");
+    function bindShinyBtn(btn) {
+      if (!btn) return;
+      btn.addEventListener("click", function () { setShinyMode(!shinyMode); });
+    }
+    bindShinyBtn(mainShiny);
+    bindShinyBtn(setupShiny);
     // 回放控制
     var rc = document.getElementById("replay-close");
     if (rc) rc.addEventListener("click", closeReplay);
@@ -2509,7 +2552,9 @@ function setupPreviewHTML(mon) {
 
   // boot
   if (typeof document !== "undefined" && document.getElementById) {
+    loadShinyMode();
     wireSetup();
+    updateShinyToggles();
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", function () { showSetup(); });
     } else {

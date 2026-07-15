@@ -425,6 +425,14 @@ button.btn:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.4); 
   cursor: pointer; transition: .12s;
 }
 .seg.active { border-color: var(--accent2); background: #eef3ff; color: var(--accent2); }
+.seg.shiny-toggle { flex: 0 0 auto; min-width: 110px; padding: 7px 12px; font-size: 12px; }
+.seg.shiny-toggle.active {
+  border-color: #e8a200; background: #fff8e1; color: #8a5c00;
+  box-shadow: 0 0 0 2px #ffd54a66;
+}
+
+/* Header 闪光按钮高亮 */
+#shiny-toggle.active { background: #fff8e1; color: #8a5c00; }
 
 .picker-tools { display: flex; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
 .pk-search {

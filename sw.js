@@ -2,7 +2,7 @@
  * 缓存应用壳与精灵图片，减少重复下载。
  * 修改 CACHE_VERSION 即可强制刷新缓存。
  */
-const CACHE_VERSION = "pk-assets-v1";
+const CACHE_VERSION = "pk-assets-v2";
 
 // 应用壳资源：关键 HTML/CSS/JS
 const SHELL_ASSETS = [
