@@ -59,6 +59,7 @@
   var MAX_ENERGY = 5;
   var MEGA_COST = 2; // energy cost to Mega Evolve (once per battle)
   var DYNAMAX_COST = 3;        // energy cost to Dynamax (once per battle)
+  var TERA_COST = 2;            // energy cost to Terastallize (once per battle, lasts till end)
   var DYNAMAX_TURNS = 3;       // number of boosted "Max Move" attack turns after activation
   var DYNAMAX_HP_MULT = 1.5;   // max-HP multiplier while Dynamaxed
   var DYNAMAX_POWER_MULT = 1.4; // move-power multiplier for Max Moves (极巨招式)
@@ -138,6 +139,32 @@
   var state = null;
   var busy = false;
   var setup = { mode: "random", selected: [], typeFilter: "all", genFilter: "all", query: "", difficulty: "normal" };
+
+  /* ---------- 快进模式：缩短所有节奏 setTimeout ---------- */
+  var FAST = false;
+  function monById(id) { for (var i = 0; i < LIST.length; i++) if (LIST[i].id === id) return LIST[i]; return null; }
+  function wait(ms, cb) { return setTimeout(cb, FAST ? Math.min(16, ms) : ms); }
+
+  /* ---------- 对战计时器（仅浏览器；headless 因 document.body 为 null 自动跳过）---------- */
+  var battleTimerId = null;
+  function fmtTime(ms) {
+    var s = Math.floor(ms / 1000), m = Math.floor(s / 60); s = s % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+  }
+  function updateBattleTimer() {
+    var el = document.getElementById("battle-timer");
+    if (!el || !state || !state.startTime) return;
+    if (state.over) { if (!state.endTime) state.endTime = Date.now(); stopBattleTimer(); }
+    var ms = (state.over && state.endTime ? state.endTime : Date.now()) - state.startTime;
+    el.textContent = "⏱ " + fmtTime(ms);
+  }
+  function startBattleTimer() {
+    if (typeof document === "undefined" || !document.body) return;
+    stopBattleTimer();
+    battleTimerId = setInterval(updateBattleTimer, 250);
+    updateBattleTimer();
+  }
+  function stopBattleTimer() { if (battleTimerId) { clearInterval(battleTimerId); battleTimerId = null; } }
   var statsCollapsed = true; // 战绩面板默认折叠，给选择区域留空间
   var _memStats = null; // headless/无 localStorage 时的内存兜底
   var shinyMode = false; // 闪光模式开关
@@ -153,6 +180,37 @@
   }
   function saveShinyMode() {
     try { localStorage.setItem("pk_shiny_mode", shinyMode ? "1" : "0"); } catch (e) {}
+  }
+
+  /* ---------- 设置（持久化到 localStorage）---------- */
+  var settings = { muted: false, reduceMotion: false };
+  var ONBOARD_KEY = "pk_onboarded";
+  function loadSettings() {
+    try {
+      var raw = localStorage.getItem("pk_settings_v1");
+      if (raw) {
+        var o = JSON.parse(raw);
+        if (typeof o.muted === "boolean") settings.muted = o.muted;
+        if (typeof o.reduceMotion === "boolean") settings.reduceMotion = o.reduceMotion;
+      }
+    } catch (e) {}
+  }
+  function saveSettings() {
+    try { localStorage.setItem("pk_settings_v1", JSON.stringify(settings)); } catch (e) {}
+  }
+  function applySettings() {
+    if (window.BattleAudio && window.BattleAudio.setMuted) {
+      try { window.BattleAudio.setMuted(settings.muted); } catch (e) {}
+    }
+    if (typeof document !== "undefined" && document.body) {
+      document.body.classList.toggle("reduce-motion", !!settings.reduceMotion);
+    }
+  }
+  function hasOnboarded() {
+    try { return localStorage.getItem(ONBOARD_KEY) === "1"; } catch (e) { return false; }
+  }
+  function markOnboarded() {
+    try { localStorage.setItem(ONBOARD_KEY, "1"); } catch (e) {}
   }
   function updateShinyToggles() {
     var mainBtn = document.getElementById("shiny-toggle");
@@ -201,6 +259,13 @@
       if (row && row[defTypes[i]] !== undefined) m *= row[defTypes[i]];
     }
     return m;
+  }
+  // 太晶化：出招时所有招式按太晶属性计算（获得 STAB）；防御时变为单一太晶属性
+  function atkType(card, move) {
+    return (card && card.teraType) ? card.teraType : (move ? move.type : null);
+  }
+  function defTypes(card) {
+    return (card && card.teraType) ? [card.teraType] : (card ? card.mon.types : []);
   }
   // 依据费用档位（0=1费, 1=2费, 2=3费）把基础数值换算成技能威力
   function movePower(base, tier) {
@@ -368,7 +433,8 @@
       fainted: false, moves: genMoves(mon),
       item: itemForKey(mon),
       buffs: { atk: 0, def: 0, spa: 0, spd: 0, spe: 0 },
-      cooldowns: [0, 0, 0, 0]
+      cooldowns: [0, 0, 0, 0],
+      teraType: null // 太晶属性（null=未太晶化）
     };
   }
   function randomMons(n) {
@@ -382,7 +448,7 @@
       var active = cards[0];
       var bench = cards.slice(1, 1 + BENCH_START);
       var deck = cards.slice(1 + BENCH_START);
-      return { name: name, active: active, bench: bench, deck: deck, graveyard: [], megaUsed: false, dynamaxUsed: false };
+      return { name: name, active: active, bench: bench, deck: deck, graveyard: [], megaUsed: false, dynamaxUsed: false, teraUsed: false };
     }
     state = {
       you: buildPlayer("你", youMons),
@@ -404,13 +470,17 @@
     var rest = LIST.filter(function (m) { return !used[m.id]; });
     var aiPool = shuffle(rest).slice(0, DECK_SIZE);
     buildState(youPool, aiPool);
+    state.startTime = Date.now();
+    state.endTime = 0;
     log("sys", "对战开始！双方各派出一只宝可梦，先让对方无宝可梦可派者获胜。");
     render();
+    startBattleTimer();
   }
 
   function beginGame(youMons) {
     hideOverlays();
     setup.selected = [];
+    busy = false; // fresh battle must never inherit a stuck busy-lock from a previous one
     newGame(youMons);
     startRound();
   }
@@ -426,7 +496,7 @@
     return {
       wins: 0, losses: 0, streak: 0, best: 0, total: 0,
       byDiff: { easy: 0, normal: 0, hard: 0 },
-      ach: {}, weatherWin: 0, megaWin: 0, dynaWin: 0, flawless: 0
+      ach: {}, weatherWin: 0, megaWin: 0, dynaWin: 0, teraWin: 0, flawless: 0
     };
   }
   function loadStats() {
@@ -457,6 +527,7 @@
       if (state.weather && state.weather.type !== "none") s.weatherWin += 1;
       if (state.you.megaUsed) s.megaWin += 1;
       if (state.you.dynamaxUsed) s.dynaWin += 1;
+      if (state.you.teraUsed) s.teraWin += 1;
       if (state.you.graveyard.length === 0) s.flawless += 1; // 无一只倒下
     } else {
       s.losses += 1; s.streak = 0;
@@ -469,6 +540,7 @@
     if (s.total >= 100) unlock("hundred", "百战老兵");
     if (s.megaWin >= 1) unlock("mega_win", "超级进化胜利");
     if (s.dynaWin >= 1) unlock("dyna_win", "极巨化胜利");
+    if (s.teraWin >= 1) unlock("tera_win", "太晶化胜利");
     if (s.weatherWin >= 1) unlock("weather", "天气大师");
     if (s.flawless >= 1) unlock("flawless", "全员凯旋");
     saveStats(s);
@@ -517,7 +589,7 @@
   function expectedDamage(attacker, defender, move) {
     var atk = effStat(attacker, move.cat === "phys" ? "atk" : "spa");
     var def = effStat(defender, move.cat === "phys" ? "def" : "spd");
-    var typeM = typeMult(move.type, defender.mon.types);
+    var typeM = typeMult(atkType(attacker, move), defTypes(defender));
     var mult = typeM * weatherMult(move.type, state.weather.type);
     var dmg = Math.max(1, Math.floor(move.power * (atk / (def + 10)) * 0.5 * mult));
     if (attacker.status && attacker.status.type === "burn" && move.cat === "phys") dmg = Math.floor(dmg * 0.5);
@@ -527,7 +599,7 @@
   function rollDamage(attacker, defender, move) {
     var atk = effStat(attacker, move.cat === "phys" ? "atk" : "spa");
     var def = effStat(defender, move.cat === "phys" ? "def" : "spd");
-    var typeM = typeMult(move.type, defender.mon.types);
+    var typeM = typeMult(atkType(attacker, move), defTypes(defender));
     var mult = typeM * weatherMult(move.type, state.weather.type);
     var variance = 0.85 + Math.random() * 0.15;
     var dmg = Math.max(1, Math.floor(move.power * (atk / (def + 10)) * 0.5 * mult * variance));
@@ -561,7 +633,7 @@
       log(side, who + "的" + attacker.mon.name_zh + " 的【" + move.name + "】没有命中！");
       render(); sfx("move");
       animateStrike(side, move, { dmg: 0, mult: 1, crit: false });
-      setTimeout(function () { if (callback) callback(); }, IMPACT_MS);
+      wait(IMPACT_MS, function () { if (callback) callback(); });
       return;
     }
 
@@ -618,7 +690,7 @@
     sfx("move");
     animateStrike(side, move, r);
 
-    setTimeout(function () {
+    wait(IMPACT_MS, function () {
       if (defender.hp <= 0) {
         handleFaint(foeSide, callback);
       } else {
@@ -633,7 +705,7 @@
         sfx(r.crit ? "crit" : "hit");
         if (callback) callback();
       }
-      }, IMPACT_MS);
+    });
   }
 
   function useStatusMove(side, moveIdx, callback, move) {
@@ -654,7 +726,7 @@
       render();
       sfx("move");
       animateStrike(side, move, { dmg: 0, mult: 1, crit: false });
-      setTimeout(function () { if (callback) callback(); }, IMPACT_MS);
+      wait(IMPACT_MS, function () { if (callback) callback(); });
     }
     if (move.kind === "boost") {
       applyBuff(attacker, move.buff, attacker.mon.name_zh, who);
@@ -770,7 +842,7 @@
     render();
     animateFaint(side);
 
-    setTimeout(function () {
+    wait(FAINT_MS, function () {
       if (p.bench.length > 0) {
         p.graveyard.push(dead);
         var best = 0;
@@ -799,10 +871,10 @@
       }
       render();
       animateSwitch(side);
-      setTimeout(function () {
+      wait(SWITCH_MS, function () {
         if (callback) callback();
-      }, SWITCH_MS);
-    }, FAINT_MS);
+      });
+    });
   }
 
   function doSwitch(side, benchIdx) {
@@ -968,7 +1040,7 @@
     if (skip) {
       busy = true;
       render();
-      setTimeout(function () { afterMove(side); }, side === "ai" ? AI_PAUSE_MS : 450);
+      wait(side === "ai" ? AI_PAUSE_MS : 450, function () { afterMove(side); });
       return;
     }
     if (side === "ai") {
@@ -1020,10 +1092,26 @@
     var diff = state.difficulty || "normal";
     var smart = diff !== "easy";
 
-    setTimeout(function () {
-      // 当前形态面对对手的"被克制程度"与"输出覆盖"
-      var myVuln = bestFoeMult(d.moves, a.mon.types);
-      var myCov = bestMyMult(a.moves, d.mon.types);
+    wait(AI_PAUSE_MS, function () {
+      // 当前形态面对对手的"被克制程度"与"输出覆盖"（太晶化后防御变为单一太晶属性）
+      var myVuln = bestFoeMult(d.moves, defTypes(a));
+      var myCovMoves = a.teraType
+        ? a.moves.map(function (m) { return { type: a.teraType, power: m.power }; })
+        : a.moves;
+      var myCov = bestMyMult(myCovMoves, defTypes(d));
+
+      // --- 太晶化（防守/进攻收益导向，持续至对战结束）---
+      var teraChance = diff === "hard" ? 0.7 : diff === "normal" ? 0.45 : 0.3;
+      if (!me.teraUsed && a.dynamaxTurns === 0 && a.energy >= TERA_COST) {
+        var tt = a.mon.types[0];
+        var foeBestVsTera = bestFoeMult(d.moves, [tt]);
+        var teraWorth = (myVuln >= 2 && foeBestVsTera < myVuln - 0.4)
+          || (a.hp / a.maxHp < 0.6 && Math.random() < teraChance);
+        if (teraWorth) {
+          useTera("ai", function () { afterMove("ai"); });
+          return;
+        }
+      }
 
       // --- 超级进化（收益导向）---
       var megaChance = diff === "hard" ? 0.85 : diff === "normal" ? 0.6 : 0.4;
@@ -1093,7 +1181,7 @@
           doSwitch("ai", sBest);
           render();
           animateSwitch("ai");
-          setTimeout(function () { afterMove("ai"); }, SWITCH_MS);
+          wait(SWITCH_MS, function () { afterMove("ai"); });
           return;
         }
       }
@@ -1108,7 +1196,7 @@
           doSwitch("ai", bestBench);
           render();
           animateSwitch("ai");
-          setTimeout(function () { afterMove("ai"); }, SWITCH_MS);
+          wait(SWITCH_MS, function () { afterMove("ai"); });
           return;
         }
       }
@@ -1128,7 +1216,7 @@
           doSwitch("ai", bBest);
           render();
           animateSwitch("ai");
-          setTimeout(function () { afterMove("ai"); }, SWITCH_MS);
+          wait(SWITCH_MS, function () { afterMove("ai"); });
           return;
         }
       }
@@ -1136,7 +1224,7 @@
       useMove("ai", pick.i, function () {
         afterMove("ai");
       });
-    }, AI_PAUSE_MS);
+    });
   }
 
   /* human actions */
@@ -1155,9 +1243,9 @@
     doSwitch("you", idx);
     render();
     animateSwitch("you");
-    setTimeout(function () {
+    wait(SWITCH_MS, function () {
       afterMove("you");
-    }, SWITCH_MS);
+    });
   }
 
   /* 恢复能量支援技（独立动作，不计入 4 技能组） */
@@ -1184,7 +1272,7 @@
     if (window.SkillFX && window.SkillFX.recover) window.SkillFX.recover(side, gained);
     animateRecover(side, gained);
     busy = true;
-    setTimeout(function () { if (callback) callback(); }, RECOVER_MS);
+    wait(RECOVER_MS, function () { if (callback) callback(); });
   }
   function animateRecover(side, gained) {
     try {
@@ -1205,6 +1293,8 @@
   /* Mega Evolution: transform active card into its mega form (once per battle) */
   function onMega(i) {
     if (busy || state.over || state.turn !== "you") return;
+    var me = state.you, c = me.active;
+    if (!c.mon.mega || !c.mon.mega[i] || me.megaUsed || c.energy < MEGA_COST) return; // 不可用则不消耗回合
     busy = true;
     useMega("you", i, function () { afterMove("you"); });
   }
@@ -1233,7 +1323,7 @@
     render();
     animateMega(side);
     busy = true;
-    setTimeout(function () { if (callback) callback(); }, 720);
+    wait(720, function () { if (callback) callback(); });
   }
   function animateMega(side) {
     try {
@@ -1290,7 +1380,7 @@
     render();
     animateDynamax(side);
     busy = true;
-    setTimeout(function () { if (callback) callback(); }, 720);
+    wait(720, function () { if (callback) callback(); });
   }
   function revertDynamax(side) {
     var me = state[side];
@@ -1304,6 +1394,56 @@
     c.dynamaxTurns = 0;
     c._dynamaxJustActivated = false;
     log("sys", me.name + "的" + c.mon.name_zh + " 极巨化结束了，恢复原状。");
+  }
+
+  /* Terastallization: change the active card's type to a single Tera Type (default
+     its first type). All its moves gain that type's STAB offensively; defensively it
+     becomes mono-type. Once per battle (whole team), lasts until battle ends. Does
+     NOT change species/stats. */
+  function onTera() {
+    if (busy || state.over || state.turn !== "you") return;
+    var me = state.you, c = me.active;
+    if (me.teraUsed || c.dynamaxTurns > 0 || c.energy < TERA_COST) return; // 不可用则不消耗回合
+    busy = true;
+    useTera("you", function () { afterMove("you"); });
+  }
+  function useTera(side, callback) {
+    var me = state[side];
+    var c = me.active;
+    if (me.teraUsed || c.dynamaxTurns > 0 || c.energy < TERA_COST) {
+      if (callback) callback();
+      return;
+    }
+    var baseName = c.mon.name_zh;
+    c.energy -= TERA_COST;
+    c.teraType = c.mon.types[0]; // 太晶属性（默认首位属性），攻防均按此属性
+    me.teraUsed = true;             // 每场仅一次（全队共享），持续到对战结束
+    var who = side === "you" ? "你" : "电脑";
+    var tt = TYPE_ZH[c.teraType] || c.teraType;
+    var teraLine = who + "的" + baseName + " 太晶化，属性变为【" + tt + "】！(持续至对战结束)";
+    log(side, teraLine);
+    recordEvent("tera", teraLine);
+    sfx("tera");
+    render();
+    animateTera(side);
+    busy = true;
+    wait(720, function () { if (callback) callback(); });
+  }
+  function animateTera(side) {
+    try {
+      var fx = fxLayer();
+      var card = document.getElementById(elId(side));
+      if (card) card.classList.add("tera-flash");
+      var c = centerOf(card);
+      if (fx) {
+        var p = document.createElement("div");
+        p.className = "dmg-txt tera"; p.textContent = "太晶化!";
+        p.style.left = c.x + "px"; p.style.top = (c.y - 30) + "px";
+        fx.appendChild(p);
+        setTimeout(function () { try { if (p && p.parentNode) p.parentNode.removeChild(p); } catch (_) {} }, 1100);
+      }
+      setTimeout(function () { try { if (card) card.classList.remove("tera-flash"); } catch (_) {} }, 900);
+    } catch (e) { console.warn("[PK] tera:", e); }
   }
   function animateDynamax(side) {
     try {
@@ -1372,7 +1512,7 @@
       if (window.SkillFX && document.getElementById("fx3d")) {
         window.SkillFX.cast(side, move, r, { onImpact: runImpact });
       } else {
-        setTimeout(runImpact, IMPACT_MS);
+        wait(IMPACT_MS, runImpact);
       }
     } catch(e) { console.warn("[PK] animateStrike:", e); }
   }
@@ -1514,9 +1654,9 @@
       ? (c.buffs.spe > 0 ? " ↑" + c.buffs.spe : " ↓" + (-c.buffs.spe))
       : '';
     return '' +
-      '<div class="card' + (c.dynamaxTurns > 0 ? " dynamax" : "") + '" id="' + elId(side) + '" style="border-color:' + headColor + ';--head:' + headColor + ';--ry:' + (side === "you" ? "9deg" : "-9deg") + '">' +
+      '<div class="card' + (c.dynamaxTurns > 0 ? " dynamax" : "") + (c.teraType ? " tera" : "") + '" id="' + elId(side) + '" style="border-color:' + headColor + ';--head:' + headColor + ';--ry:' + (side === "you" ? "9deg" : "-9deg") + '">' +
         '<div class="head" style="background:' + headColor + '">' +
-          '<span class="nm">' + c.mon.name_zh + (c.dynamaxTurns > 0 ? '<span class="dmax-tag">极巨化</span>' : '') + itemTag + '</span>' +
+          '<span class="nm">' + c.mon.name_zh + (c.dynamaxTurns > 0 ? '<span class="dmax-tag">极巨化</span>' : '') + (c.teraType ? '<span class="tera-tag">💠' + (TYPE_ZH[c.teraType] || c.teraType) + '</span>' : '') + itemTag + '</span>' +
           '<span class="no">#' + ("00" + c.mon.id).slice(-3) + (faster ? '<span class="first">先手</span>' : '') + '</span>' +
         '</div>' +
         '<div class="art">' +
@@ -1524,7 +1664,7 @@
             'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\';">' +
           '<div class="fallback">' + c.mon.id + '</div>' +
         '</div>' +
-        '<div class="types">' + typeChips(c.mon.types) + '</div>' +
+        '<div class="types">' + typeChips(c.teraType ? [c.teraType] : c.mon.types) + '</div>' +
         '<div class="body">' +
           '<div class="hp-row"><span>HP</span>' +
             '<div class="hp-bar"><div class="hp-fill" style="width:' + (ratio * 100) +
@@ -1624,7 +1764,8 @@
     var d = state.ai.active;
     var canAct = !busy && !state.over && state.turn === "you";
     var html = c.moves.map(function (mv, i) {
-      var mult = typeMult(mv.type, d.mon.types);
+      var dmt = atkType(c, mv);
+      var mult = typeMult(dmt, defTypes(d));
       var effCls = mult >= 2 ? "sup" : mult < 1 ? "weak" : "";
       var effIcon = mult >= 2 ? "⚔" : mult === 0 ? "✕" : mult < 1 ? "🛡" : "";
       var effTxt = mult >= 2 ? "克制 ×" + mult : mult === 0 ? "无效" : mult < 1 ? "被抵抗 ×" + mult : "";
@@ -1640,8 +1781,8 @@
       return '' +
         '<button class="move' + sup + ready + cdCls + '" data-move="' + i + '"' + (disabled ? " disabled" : "") +
           ' title="' + costTitle + '">' +
-          '<div class="mn"><span class="type-chip" style="background:' + (TYPE_COLOR[mv.type] || "#888") + '">' +
-            (TYPE_ZH[mv.type] || mv.type) + '</span>' + mv.name +
+          '<div class="mn"><span class="type-chip' + (c.teraType ? " tera" : "") + '" style="background:' + (TYPE_COLOR[dmt] || "#888") + '">' +
+            (TYPE_ZH[dmt] || dmt) + '</span>' + mv.name +
             '<span class="cost"' + costColor + '>⚡ ' + mv.cost + '</span></div>' +
           '<div class="md">' +
             (mv.kind === "damage"
@@ -1695,6 +1836,24 @@
         '<div class="mn"><span class="type-chip dynamax">MAX</span>极巨化中' +
           '<span class="cost">剩余 ' + c.dynamaxTurns + ' 回合</span></div>' +
         '<div class="md"><span>极巨招式中</span><span>最大HP 已提升</span></div>' +
+      '</button>';
+    }
+    // Terastallize button (once per battle, costs TERA_COST energy; not while Dynamaxed)
+    if (!state.you.teraUsed && c.dynamaxTurns === 0) {
+      var canTera = canAct && c.energy >= TERA_COST;
+      var ttype = c.mon.types[0];
+      html += '<button class="move tera' + (canTera ? "" : " disabled") + '" data-tera="1"' +
+        (canTera ? "" : " disabled") + '>' +
+        '<div class="mn"><span class="type-chip tera">TERA</span>太晶化' +
+          '<span class="cost">能量 ' + TERA_COST + '</span></div>' +
+        '<div class="md"><span>属性变为 ' + (TYPE_ZH[ttype] || ttype) + '</span>' +
+          '<span>全招式获得本属性</span></div>' +
+      '</button>';
+    } else if (c.teraType) {
+      html += '<button class="move tera is-active" data-tera-disabled="1" disabled>' +
+        '<div class="mn"><span class="type-chip tera">TERA</span>太晶化中' +
+          '<span class="cost">' + (TYPE_ZH[c.teraType] || c.teraType) + '</span></div>' +
+        '<div class="md"><span>属性已变化</span><span>持续到对战结束</span></div>' +
       '</button>';
     }
     return html;
@@ -1757,6 +1916,7 @@
     var turnTxt = state.over ? "对战结束" : (state.turn === "you" ? "你的回合" : "电脑思考中…");
     var ti = document.getElementById("turn-indicator");
     if (ti) ti.textContent = turnTxt;
+    updateBattleTimer();
 
     var mv = document.getElementById("moves");
     if (mv) mv.innerHTML = movesHTML();
@@ -1826,6 +1986,12 @@
       (function (el) {
         el.addEventListener("click", function () { onDynamax(); });
       })(dmx[dd]);
+    }
+    var ter = document.querySelectorAll("[data-tera]");
+    for (var tt = 0; tt < ter.length; tt++) {
+      (function (el) {
+        el.addEventListener("click", function () { onTera(); });
+      })(ter[tt]);
     }
     bindPreviewEvents();
     bindTouchPreview();
@@ -2253,6 +2419,66 @@ function setupPreviewHTML(mon) {
     var idxEl = document.getElementById("replay-idx");
     if (idxEl) idxEl.textContent = (replayIdx + 1) + " / " + frames.length;
   }
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function drawBar(ctx, x, y, w, h, r, color) {
+    ctx.fillStyle = "#e3e8f2"; roundRect(ctx, x, y, w, h, 6); ctx.fill();
+    if (r > 0) { ctx.fillStyle = color; roundRect(ctx, x, y, w * r, h, 6); ctx.fill(); }
+  }
+  function clipText(ctx, text, maxW) {
+    if (ctx.measureText(text).width <= maxW) return text;
+    var t = text;
+    while (t.length > 1 && ctx.measureText(t + "…").width > maxW) t = t.slice(0, -1);
+    return t + "…";
+  }
+  function exportReplayImage() {
+    if (!state || !state.replay || !state.replay.length) { toast("暂无回放数据"); return; }
+    var W = 600, pad = 24, lineH = 22, headH = 96, barH = 14, youW = 150, aiW = 150;
+    var frames = state.replay, last = frames[frames.length - 1];
+    var cap = Math.min(frames.length, 18), logLines = [];
+    for (var i = frames.length - cap; i < frames.length; i++) logLines.push((i + 1) + ". " + (frames[i].text || ""));
+    var logH = logLines.length * lineH + 16;
+    var H = headH + 40 + barH + 16 + logH + 30;
+    var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    var ctx = cv.getContext("2d");
+    ctx.fillStyle = "#f3f5fb"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#fff"; roundRect(ctx, 8, 8, W - 16, H - 16, 16); ctx.fill();
+    ctx.fillStyle = "#1f2540"; ctx.font = "700 22px sans-serif";
+    ctx.fillText("宝可梦卡牌对战 · 战报", pad, 42);
+    ctx.fillStyle = "#98a3b8"; ctx.font = "13px sans-serif";
+    ctx.fillText("难度：" + (state.difficulty || "normal") + "   结果：" + (state.winner === "you" ? "胜利" : (state.winner === "ai" ? "失败" : "进行中")), pad, 64);
+    var yName = last.youName || "你", aName = last.aiName || "电脑";
+    ctx.font = "700 16px sans-serif";
+    ctx.fillStyle = "#2f9e4f"; ctx.fillText(yName, pad, headH - 4);
+    ctx.fillStyle = "#e3534a"; ctx.fillText(aName, W - pad - ctx.measureText(aName).width, headH - 4);
+    ctx.fillStyle = "#1f2540"; ctx.textAlign = "center";
+    ctx.fillText(state.winner === "you" ? "你 胜" : (state.winner === "ai" ? "电脑 胜" : "对战中"), W / 2, headH - 4);
+    ctx.textAlign = "left";
+    var yR = last.youMax ? Math.max(0, last.youHp / last.youMax) : 0;
+    var aR = last.aiMax ? Math.max(0, last.aiHp / last.aiMax) : 0;
+    drawBar(ctx, pad, headH + 8, youW, barH, yR, "#2f9e4f");
+    drawBar(ctx, W - pad - aiW, headH + 8, aiW, barH, aR, "#e3534a");
+    ctx.fillStyle = "#555"; ctx.font = "12px sans-serif";
+    ctx.fillText((last.youHp || 0) + "/" + (last.youMax || 0), pad, headH + 8 + barH + 14);
+    ctx.textAlign = "right"; ctx.fillText((last.aiHp || 0) + "/" + (last.aiMax || 0), W - pad, headH + 8 + barH + 14); ctx.textAlign = "left";
+    var lx = pad, ly = headH + 8 + barH + 30;
+    ctx.fillStyle = "#1f2540"; ctx.font = "13px sans-serif";
+    logLines.forEach(function (t, i) { ctx.fillText(clipText(ctx, t, W - pad * 2), lx, ly + i * lineH); });
+    ctx.fillStyle = "#98a3b8"; ctx.font = "11px sans-serif";
+    ctx.fillText("生成于 " + new Date().toLocaleString(), pad, H - 12);
+    var url; try { url = cv.toDataURL("image/png"); } catch (e) { toast("导出失败"); return; }
+    var a0 = document.createElement("a");
+    a0.href = url; a0.download = "battle-report.png";
+    if (a0.click) a0.click();
+    toast("已导出战报图");
+  }
 
   /* ---------- setup screen ---------- */
   function showSetup() {
@@ -2297,6 +2523,60 @@ function setupPreviewHTML(mon) {
     }
     var cnt = document.getElementById("pick-count");
     if (cnt) cnt.textContent = setup.selected.length;
+    renderPickOrder();
+  }
+
+  /* ---------- 已选序列：拖拽 / 箭头调整出战顺序 ---------- */
+  function renderPickOrder() {
+    var box = document.getElementById("pick-order");
+    if (!box) return;
+    if (setup.mode !== "custom" || setup.selected.length === 0) { box.innerHTML = ""; box.classList.add("hidden"); return; }
+    box.classList.remove("hidden");
+    var html = '<div class="po-title">出战顺序（首位出战领队，可拖拽或点箭头调整）</div>';
+    setup.selected.forEach(function (m, i) {
+      var hc = TYPE_COLOR[m.types[0]] || "#555";
+      html += '<div class="po' + (i === 0 ? " lead" : "") + '" draggable="true" data-idx="' + i + '">' +
+        '<span class="po-no">' + (i + 1) + '</span>' +
+        '<span class="po-sp" style="background:' + hc + '22"><img src="' + spriteOf(m) + '" alt=""></span>' +
+        '<span class="po-nm">' + m.name_zh + '</span>' +
+        '<span class="po-mv">' +
+          '<button class="po-btn" data-dir="-1"' + (i === 0 ? " disabled" : "") + '>◀</button>' +
+          '<button class="po-btn" data-dir="1"' + (i === setup.selected.length - 1 ? " disabled" : "") + '>▶</button>' +
+        '</span></div>';
+    });
+    box.innerHTML = html;
+    var rows = box.querySelectorAll(".po");
+    for (var r = 0; r < rows.length; r++) {
+      (function (el) {
+        var idx = parseInt(el.getAttribute("data-idx"), 10);
+        var b1 = el.querySelector('[data-dir="-1"]'), b2 = el.querySelector('[data-dir="1"]');
+        if (b1) b1.addEventListener("click", function (e) { e.stopPropagation(); movePick(idx, -1); });
+        if (b2) b2.addEventListener("click", function (e) { e.stopPropagation(); movePick(idx, 1); });
+        el.addEventListener("dragstart", function (e) {
+          if (e.dataTransfer) e.dataTransfer.setData("text/plain", String(idx));
+          el.classList.add("dragging");
+        });
+        el.addEventListener("dragend", function () { el.classList.remove("dragging"); });
+        el.addEventListener("dragover", function (e) { e.preventDefault(); el.classList.add("drag-over"); });
+        el.addEventListener("dragleave", function () { el.classList.remove("drag-over"); });
+        el.addEventListener("drop", function (e) {
+          e.preventDefault(); el.classList.remove("drag-over");
+          var from = parseInt((e.dataTransfer && e.dataTransfer.getData("text/plain")) || "-1", 10);
+          if (!isNaN(from) && from !== idx) reorderPick(from, idx);
+        });
+      })(rows[r]);
+    }
+  }
+  function movePick(i, dir) {
+    var j = i + dir;
+    if (j < 0 || j >= setup.selected.length) return;
+    var arr = setup.selected, t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    renderPickOrder();
+  }
+  function reorderPick(from, to) {
+    var arr = setup.selected, t = arr.splice(from, 1)[0];
+    arr.splice(to, 0, t);
+    renderPickOrder();
   }
 
   function renderGenFilters() {
@@ -2358,7 +2638,7 @@ function setupPreviewHTML(mon) {
     var q = setup.query.trim().toLowerCase();
     var selIds = {};
     setup.selected.forEach(function (m) { selIds[m.id] = true; });
-    var html = "";
+    var items = [];
     LIST.forEach(function (m) {
       var matchType = setup.typeFilter === "all" || m.types.indexOf(setup.typeFilter) >= 0;
       var matchQ = !q || m.name_zh.indexOf(q) >= 0 || m.name.indexOf(q) >= 0 ||
@@ -2374,9 +2654,52 @@ function setupPreviewHTML(mon) {
         (setup.genFilter === "gen8" && m.id >= 810 && m.id <= 898) ||
         (setup.genFilter === "gen9" && m.id >= 899);
       if (!matchType || !matchQ || !matchGen) return;
-      var sel = selIds[m.id];
+      items.push(m);
+    });
+    if (grid.__vscroll !== true) {
+      grid.__vscroll = true;
+      grid.addEventListener("scroll", renderPickerWindow, { passive: true });
+      if (window.addEventListener) window.addEventListener("resize", renderPickerWindow);
+    }
+    grid._items = items;
+    var cols = computePickerCols(grid);
+    var rowH = 122;
+    grid._cols = cols; grid._rowH = rowH;
+    var totalH = Math.ceil(items.length / cols) * rowH;
+    grid.innerHTML = '<div class="pk-spacer" style="height:' + totalH + 'px"></div>';
+    renderPickerWindow();
+  }
+  function computePickerCols(grid) {
+    var w = grid.clientWidth || 600;
+    var cols = Math.floor((w + 10) / 128);
+    if (cols < 2) cols = 2;
+    if (cols > 8) cols = 8;
+    return cols;
+  }
+  // 虚拟滚动：仅渲染可视区 + 缓冲，避免一次性 1025 张卡顿
+  function renderPickerWindow() {
+    var grid = document.getElementById("pk-grid");
+    if (!grid || !grid._items) return;
+    var items = grid._items, cols = grid._cols, rowH = grid._rowH;
+    var scrollTop = grid.scrollTop || 0;
+    var viewH = grid.clientHeight || 440;
+    var firstRow = Math.max(0, Math.floor(scrollTop / rowH) - 2);
+    var lastRow = Math.ceil((scrollTop + viewH) / rowH) + 2;
+    var start = firstRow * cols, end = Math.min(items.length, lastRow * cols);
+    var old = grid.querySelectorAll(".pk-win");
+    for (var o = 0; o < old.length; o++) old[o].remove();
+    if (!items.length) return;
+    var colW = 100 / cols;
+    var html = "";
+    for (var i = start; i < end; i++) {
+      var m = items[i];
+      var row = Math.floor(i / cols), col = i % cols;
+      var top = row * rowH + 4;
+      var left = col * colW;
+      var sel = setup.selected.some(function (s) { return s.id === m.id; });
       var hc = TYPE_COLOR[m.types[0]] || "#555";
-      html += '<div class="pk' + (sel ? " sel" : "") + '" data-pk="' + m.id + '">' +
+      html += '<div class="pk pk-win' + (sel ? " sel" : "") + '" data-pk="' + m.id + '" ' +
+        'style="position:absolute;top:' + top + 'px;left:' + left + '%;width:calc(' + colW + '% - 10px);height:' + (rowH - 10) + 'px">' +
         (sel ? '<div class="pk-check">✓</div>' : '') +
         '<div class="pk-art" style="background:' + hc + '22">' +
           '<img src="' + spriteOf(m) + '" alt="' + m.name_zh + '" ' +
@@ -2386,15 +2709,15 @@ function setupPreviewHTML(mon) {
         '<div class="pk-name">' + m.name_zh + '</div>' +
         '<div class="pk-types">' + typeChips(m.types) + '</div>' +
       '</div>';
-    });
-    grid.innerHTML = html;
+    }
+    grid.insertAdjacentHTML("beforeend", html);
     var cells = grid.querySelectorAll("[data-pk]");
-    for (var i = 0; i < cells.length; i++) {
+    for (var c = 0; c < cells.length; c++) {
       (function (el) {
         el.addEventListener("click", function () {
           togglePick(parseInt(el.getAttribute("data-pk"), 10));
         });
-      })(cells[i]);
+      })(cells[c]);
     }
     bindPickerHoverEvents();
     bindTouchPreview();
@@ -2414,7 +2737,7 @@ function setupPreviewHTML(mon) {
       }
     }
     syncSetupUI();
-    updatePickerCell(id);
+    renderPickerWindow();
   }
 
   function updatePickerCell(id) {
@@ -2492,13 +2815,23 @@ function setupPreviewHTML(mon) {
         });
       })(diffBtns[di]);
     }
-    // 音效开关
+    // 音效开关（持久化）
     var audioBtn = document.getElementById("audio-btn");
-    if (audioBtn) audioBtn.addEventListener("click", function () {
-      var muted = window.BattleAudio ? window.BattleAudio.toggleMute() : true;
-      audioBtn.textContent = muted ? "🔇 静音" : "🔊 音效";
-      if (!muted && window.BattleAudio) window.BattleAudio.startBGM();
-    });
+    if (audioBtn) {
+      audioBtn.textContent = settings.muted ? "🔇 静音" : "🔊 音效";
+      audioBtn.addEventListener("click", function () {
+        settings.muted = window.BattleAudio ? !window.BattleAudio.isMuted() : true;
+        if (window.BattleAudio && window.BattleAudio.setMuted) {
+          try { window.BattleAudio.setMuted(settings.muted); } catch (e) {}
+        }
+        audioBtn.textContent = settings.muted ? "🔇 静音" : "🔊 音效";
+        if (!settings.muted && window.BattleAudio) window.BattleAudio.startBGM();
+        saveSettings();
+      });
+    }
+    // 设置按钮
+    var setBtn = document.getElementById("settings-btn");
+    if (setBtn) setBtn.addEventListener("click", openSettings);
     // 闪光模式开关
     var mainShiny = document.getElementById("shiny-toggle");
     var setupShiny = document.getElementById("setup-shiny-toggle");
@@ -2517,6 +2850,309 @@ function setupPreviewHTML(mon) {
     if (rnext) rnext.addEventListener("click", function () { replayStep(1); });
     var rplay = document.getElementById("rp-play");
     if (rplay) rplay.addEventListener("click", replayTogglePlay);
+    var rexport = document.getElementById("rp-export");
+    if (rexport) rexport.addEventListener("click", exportReplayImage);
+    // 快进按钮（与空格键同步）
+    var fastBtn = document.getElementById("fast-btn");
+    if (fastBtn) fastBtn.addEventListener("click", function () {
+      FAST = !FAST;
+      fastBtn.textContent = FAST ? "⏩ 快进中" : "⏩ 快进";
+      toast(FAST ? "⏩ 快进模式：开（剩余动画将加速）" : "⏩ 快进模式：关");
+    });
+  }
+
+  /* ---------- 新手引导 ---------- */
+  var ONBOARD_STEPS = [
+    { t: "① 组建战队", h: "进入先选 12 只宝可梦：点「随机组队」一键成军，或「自选」按世代/属性筛选。难度越高，电脑 AI 越会读克制、低血换人、用进化与极巨。" },
+    { t: "② 能量与费用", h: "每回合自动 +1 能量（上限 5）。每只 4 招费用固定为 1/1/2/3：费越高威力越强，3 费大招用完有 1 回合冷却。金色描边的招式＝克制当前对手，优先打它！" },
+    { t: "③ 出招与操作", h: "你的回合：按 1–4 出对应招式，5 聚气回能解状态，Q/W/E/R 换上后备。也能全程鼠标点击。能量够时可用超级进化 / 极巨化放大招。" },
+    { t: "④ 状态·天气·道具", h: "中毒/灼烧/麻痹/睡眠/冰冻会持续影响战局；部分招式引发天气改变属性威力；宝可梦可能携带道具（回血/防秒/增伤）。前排倒下就从后备换人，全队倒下即败。" }
+  ];
+  var onboardStep = 0;
+  function renderOnboard() {
+    var box = document.getElementById("onboard-box");
+    if (!box) return;
+    var s = ONBOARD_STEPS[onboardStep];
+    var tEl = box.querySelector(".ob-title"); if (tEl) tEl.textContent = s.t;
+    var bEl = box.querySelector(".ob-body"); if (bEl) bEl.textContent = s.h;
+    var dots = box.querySelector(".ob-dots");
+    if (dots) dots.innerHTML = ONBOARD_STEPS.map(function (_, i) {
+      return '<span class="ob-dot' + (i === onboardStep ? " on" : "") + '"></span>';
+    }).join("");
+    var prev = box.querySelector(".ob-prev"); if (prev) prev.disabled = onboardStep === 0;
+    var next = box.querySelector(".ob-next");
+    if (next) next.textContent = (onboardStep === ONBOARD_STEPS.length - 1) ? "开始游戏 ▶" : "下一步 ▶";
+  }
+  function showOnboard() {
+    var ob = document.getElementById("onboard");
+    if (!ob) return;
+    onboardStep = 0;
+    renderOnboard();
+    ob.classList.add("show");
+  }
+  function closeOnboard() {
+    var ob = document.getElementById("onboard");
+    if (ob) ob.classList.remove("show");
+    markOnboarded();
+  }
+  function wireOnboard() {
+    var ob = document.getElementById("onboard");
+    if (!ob) return;
+    var box = document.getElementById("onboard-box");
+    if (!box) return;
+    var prev = box.querySelector(".ob-prev");
+    if (prev) prev.addEventListener("click", function () {
+      if (onboardStep > 0) { onboardStep--; renderOnboard(); }
+    });
+    var next = box.querySelector(".ob-next");
+    if (next) next.addEventListener("click", function () {
+      if (onboardStep < ONBOARD_STEPS.length - 1) { onboardStep++; renderOnboard(); }
+      else closeOnboard();
+    });
+    var skip = ob.querySelector(".ob-skip");
+    if (skip) skip.addEventListener("click", closeOnboard);
+  }
+
+  /* ---------- 设置面板 ---------- */
+  function openSettings() {
+    var m = document.getElementById("settings-modal");
+    if (!m) return;
+    var mb = document.getElementById("set-mute");
+    var rb = document.getElementById("set-rm");
+    if (mb) mb.checked = settings.muted;
+    if (rb) rb.checked = settings.reduceMotion;
+    m.classList.add("show");
+  }
+  function closeSettings() {
+    var m = document.getElementById("settings-modal");
+    if (m) m.classList.remove("show");
+  }
+  function wireSettings() {
+    var m = document.getElementById("settings-modal");
+    if (!m) return;
+    var mb = document.getElementById("set-mute");
+    var rb = document.getElementById("set-rm");
+    if (mb) mb.addEventListener("change", function () {
+      settings.muted = mb.checked;
+      if (window.BattleAudio && window.BattleAudio.setMuted) {
+        try { window.BattleAudio.setMuted(settings.muted); } catch (e) {}
+      }
+      var ab = document.getElementById("audio-btn");
+      if (ab) ab.textContent = settings.muted ? "🔇 静音" : "🔊 音效";
+      saveSettings();
+    });
+    if (rb) rb.addEventListener("change", function () {
+      settings.reduceMotion = rb.checked;
+      if (typeof document !== "undefined" && document.body) {
+        document.body.classList.toggle("reduce-motion", settings.reduceMotion);
+      }
+      saveSettings();
+    });
+    var help = document.getElementById("set-onboard");
+    if (help) help.addEventListener("click", function () { closeSettings(); showOnboard(); });
+    var sc = document.getElementById("settings-close");
+    if (sc) sc.addEventListener("click", closeSettings);
+  }
+
+  /* ---------- 键盘操作 ---------- */
+  function isModalOpen() {
+    return !!document.querySelector("#onboard.show, #setup.show, #replay-modal.show, #overlay.show, #typechart.show");
+  }
+  function kbSwitch(i) {
+    if (state && state.you && state.you.bench && state.you.bench[i]) onSwitch(i);
+  }
+  function onKey(e) {
+    if (!e || !e.key) return;
+    var t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    var k = e.key;
+    if (isModalOpen()) {
+      if (k === "Escape") {
+        var ob = document.getElementById("onboard");
+        if (ob && ob.classList.contains("show")) { closeOnboard(); e.preventDefault(); return; }
+        var rp = document.getElementById("replay-modal");
+        if (rp && rp.classList.contains("show")) { closeReplay(); e.preventDefault(); return; }
+        var tc = document.getElementById("typechart");
+        if (tc && tc.classList.contains("show")) { closeTypeChart(); e.preventDefault(); return; }
+      }
+      return;
+    }
+    if (k === " ") {
+      FAST = !FAST;
+      toast(FAST ? "⏩ 快进模式：开（剩余动画将加速）" : "⏩ 快进模式：关");
+      if (e.preventDefault) e.preventDefault();
+      return;
+    }
+    if (busy || state.over || state.turn !== "you") return;
+    var handled = true;
+    if (k >= "1" && k <= "4") onMove(parseInt(k, 10) - 1);
+    else if (k === "5") onRecover();
+    else if (k === "q" || k === "Q") kbSwitch(0);
+    else if (k === "w" || k === "W") kbSwitch(1);
+    else if (k === "e" || k === "E") kbSwitch(2);
+    else if (k === "r" || k === "R") kbSwitch(3);
+    else if (k === "m" || k === "M") onMega(0);
+    else if (k === "g" || k === "G") onDynamax();
+    else if (k === "t" || k === "T") onTera();
+    else handled = false;
+    if (handled) e.preventDefault();
+  }
+
+  /* ---------- 招式详情 tooltip + 类型克制速查表 ---------- */
+  var mvTip = null;
+  function ensureMvTip() {
+    if (!mvTip) {
+      mvTip = document.createElement("div");
+      mvTip.id = "mv-tip"; mvTip.className = "mv-tip";
+      if (typeof document !== "undefined" && document.body) document.body.appendChild(mvTip);
+    }
+    return mvTip;
+  }
+  function tcTypes() { return Object.keys(EFFECT); }
+  function typeEffSummary(type) {
+    var sup = [], imm = [], res = [];
+    tcTypes().forEach(function (t) {
+      var m = EFFECT[type] && EFFECT[type][t];
+      if (m === 2) sup.push(TYPE_ZH[t] || t);
+      else if (m === 0) imm.push(TYPE_ZH[t] || t);
+      else if (m === 0.5) res.push(TYPE_ZH[t] || t);
+    });
+    return { sup: sup, imm: imm, res: res };
+  }
+  function statLine(map) {
+    if (!map) return "";
+    var names = { atk: "攻", def: "防", spa: "特攻", spd: "特防", spe: "速" };
+    return Object.keys(map).map(function (k) { return (names[k] || k) + "+" + map[k]; }).join(" ");
+  }
+  function moveTipEffect(mv) {
+    if (mv.kind === "heal") return "回复自身体力";
+    if (mv.kind === "status") return (STATUS_ZH[mv.status] || mv.status || "异常") + (mv.statusChance ? "（" + Math.round(mv.statusChance * 100) + "% 触发）" : "");
+    if (mv.kind === "control") {
+      var c = mv.slug === "leech-seed" ? "寄生种子" : mv.slug === "substitute" ? "替身" : mv.slug === "reflect" ? "反射壁" : mv.slug === "light-screen" ? "光墙" : "控场";
+      return c;
+    }
+    if (mv.kind === "boost") return "强化自身：" + statLine(mv.buff);
+    if (mv.kind === "debuff") return "削弱对手：" + statLine(mv.debuff);
+    if (mv.kind === "damage") {
+      if (mv.status) return "可能使对手" + (STATUS_ZH[mv.status] || mv.status) + (mv.statusChance ? "（" + Math.round(mv.statusChance * 100) + "%）" : "");
+      if (mv.weather) return "引发" + (WEATHER[mv.weather] ? WEATHER[mv.weather].name : mv.weather);
+    }
+    return "";
+  }
+  function moveTipHTML(mv) {
+    var sub = [];
+    if (mv.kind === "damage") { sub.push("威力 " + (mv.power || 0)); sub.push(mv.cat === "phys" ? "物理" : "特殊"); }
+    else sub.push("变化招");
+    sub.push("命中 " + (mv.acc == null ? 100 : mv.acc) + "%");
+    sub.push("费用 " + (mv.cost || 0));
+    var html = '<div class="mt-head"><span class="type-chip" style="background:' + (TYPE_COLOR[mv.type] || "#888") + '">' + (TYPE_ZH[mv.type] || mv.type) + '</span>' + (mv.name || "") + '</div>';
+    html += '<div class="mt-sub">' + sub.join(" · ") + '</div>';
+    var eff = moveTipEffect(mv);
+    if (eff) html += '<div class="mt-eff">' + eff + '</div>';
+    var s = typeEffSummary(mv.type);
+    var parts = [];
+    if (s.sup.length) parts.push('<span class="mt-sup">克制 ' + s.sup.join("/") + '</span>');
+    if (s.imm.length) parts.push('<span class="mt-imm">无效 ' + s.imm.join("/") + '</span>');
+    if (s.res.length) parts.push('<span class="mt-res">被抵抗 ' + s.res.join("/") + '</span>');
+    if (parts.length) html += '<div class="mt-eff">' + parts.join(" ") + '</div>';
+    return html;
+  }
+  function showMvTip(target) {
+    var html = null;
+    if (target.getAttribute("data-move") != null) {
+      var i = parseInt(target.getAttribute("data-move"), 10);
+      var c = state.you.active; if (!c || !c.moves[i]) return;
+      html = moveTipHTML(c.moves[i]);
+    } else if (target.getAttribute("data-recover") != null) {
+      html = '<div class="mt-head">聚气 · 回复能量</div><div class="mt-sub">支援 · 0 能量</div><div class="mt-eff">恢复 2 点能量，并解除自身异常状态</div>';
+    } else if (target.getAttribute("data-mega") != null) {
+      var mi = parseInt(target.getAttribute("data-mega"), 10);
+      var m = state.you.active.mon.mega; if (!m || !m[mi]) return;
+      html = '<div class="mt-head">超级进化 → ' + m[mi].name_zh + '</div><div class="mt-sub">费用 ' + MEGA_COST + ' · 整队每场一次</div><div class="mt-eff">属性 ' + m[mi].types.map(function (t) { return TYPE_ZH[t] || t; }).join("/") + ' · 攻 ' + m[mi].attack + ' · 速 ' + m[mi].speed + '</div>';
+    } else if (target.getAttribute("data-dynamax") != null) {
+      html = '<div class="mt-head">极巨化</div><div class="mt-sub">费用 ' + DYNAMAX_COST + ' · 持续 ' + DYNAMAX_TURNS + ' 回合</div><div class="mt-eff">体型暴涨，最大HP×' + DYNAMAX_HP_MULT + '，招式变为极巨招式</div>';
+    } else if (target.getAttribute("data-tera") != null) {
+      var c = state.you.active; if (!c) return;
+      var tt = c.mon.types[0];
+      html = '<div class="mt-head">太晶化</div><div class="mt-sub">费用 ' + TERA_COST + ' · 整队每场一次 · 持续到对战结束</div><div class="mt-eff">属性变为【' + (TYPE_ZH[tt] || tt) + '】，攻防均按此属性计算，所有招式获得该属性 STAB</div>';
+    } else return;
+    var tip = ensureMvTip();
+    tip.innerHTML = html;
+    tip.classList.add("show");
+    var r = target.getBoundingClientRect();
+    var tr = tip.getBoundingClientRect();
+    var left = r.left + r.width / 2 - tr.width / 2;
+    left = Math.max(8, Math.min(left, (window.innerWidth || 9999) - tr.width - 8));
+    var top = r.top - tr.height - 10;
+    if (top < 8) { top = r.bottom + 10; tip.classList.add("below"); } else tip.classList.remove("below");
+    tip.style.left = left + "px"; tip.style.top = top + "px";
+  }
+  function hideMvTip() { if (mvTip) mvTip.classList.remove("show"); }
+
+  function openTypeChart() {
+    var m = document.getElementById("typechart"); if (!m) return;
+    var grid = document.getElementById("tc-grid");
+    if (grid && grid.getAttribute("data-built") !== "1") { buildTcGrid(grid); grid.setAttribute("data-built", "1"); }
+    var sum = document.getElementById("tc-sum");
+    if (sum) sum.textContent = "点击左侧属性，查看它的克制关系";
+    m.classList.add("show");
+  }
+  function closeTypeChart() {
+    var m = document.getElementById("typechart");
+    if (m) m.classList.remove("show");
+  }
+  function buildTcGrid(grid) {
+    var T = tcTypes();
+    var html = '<div class="tc-h"></div>';
+    T.forEach(function (t) { html += '<div class="tc-h">' + (TYPE_ZH[t] || t) + '</div>'; });
+    T.forEach(function (at) {
+      html += '<button class="tc-rh" data-at="' + at + '">' + (TYPE_ZH[at] || at) + '</button>';
+      T.forEach(function (dt) {
+        var m = EFFECT[at] && EFFECT[at][dt];
+        var cls = m === 2 ? "te-2" : m === 0 ? "te-0" : m === 0.5 ? "te-05" : "te-1";
+        var txt = m === 2 ? "2" : m === 0 ? "0" : m === 0.5 ? "½" : "1";
+        html += '<div class="tc-cell ' + cls + '">' + txt + '</div>';
+      });
+    });
+    grid.innerHTML = html;
+    var rhs = grid.querySelectorAll(".tc-rh");
+    for (var i = 0; i < rhs.length; i++) {
+      (function (rh) {
+        rh.addEventListener("click", function () { selectTc(rh.getAttribute("data-at")); });
+      })(rhs[i]);
+    }
+  }
+  function selectTc(at) {
+    var grid = document.getElementById("tc-grid");
+    if (grid) {
+      var rhs = grid.querySelectorAll(".tc-rh");
+      for (var i = 0; i < rhs.length; i++) rhs[i].classList.toggle("on", rhs[i].getAttribute("data-at") === at);
+    }
+    var s = typeEffSummary(at);
+    var parts = [(TYPE_ZH[at] || at) + " 属性："];
+    if (s.sup.length) parts.push("克制 " + s.sup.join("、"));
+    if (s.imm.length) parts.push("无效 " + s.imm.join("、"));
+    if (s.res.length) parts.push("被抵抗 " + s.res.join("、"));
+    var sum = document.getElementById("tc-sum");
+    if (sum) sum.textContent = parts.join(" · ");
+  }
+
+  function wireExtras() {
+    var movesEl = document.getElementById("moves");
+    if (movesEl) {
+      movesEl.addEventListener("mouseover", function (e) { var t = e.target && e.target.closest ? e.target.closest(".move") : null; if (t) showMvTip(t); });
+      movesEl.addEventListener("mouseout", function (e) { var t = e.target && e.target.closest ? e.target.closest(".move") : null; if (t) hideMvTip(); });
+      movesEl.addEventListener("focusin", function (e) { var t = e.target && e.target.closest ? e.target.closest(".move") : null; if (t) showMvTip(t); });
+      movesEl.addEventListener("focusout", hideMvTip);
+      var tt = null;
+      movesEl.addEventListener("touchstart", function (e) { var t = e.target && e.target.closest ? e.target.closest(".move") : null; if (!t) return; tt = setTimeout(function () { showMvTip(t); }, 350); }, { passive: true });
+      movesEl.addEventListener("touchend", function () { if (tt) { clearTimeout(tt); tt = null; } hideMvTip(); });
+      movesEl.addEventListener("touchmove", function () { if (tt) { clearTimeout(tt); tt = null; } hideMvTip(); }, { passive: true });
+    }
+    var tcb = document.getElementById("typechart-btn");
+    if (tcb) tcb.addEventListener("click", openTypeChart);
+    var tcc = document.getElementById("tc-close");
+    if (tcc) tcc.addEventListener("click", closeTypeChart);
   }
 
   window.PK = {
@@ -2539,7 +3175,9 @@ function setupPreviewHTML(mon) {
     _switch: onSwitch,
     _mega: onMega,
     _dynamax: onDynamax,
+    _tera: onTera,
     _beginCustom: function (mons) { beginGame(mons); },
+    _resetBusy: function () { busy = false; }, // test hook: clear the turn-lock (headless no-op setTimeout can't fire wait()'s callback)
     _debug: {
       stageMult: stageMult,
       weatherMult: weatherMult,
@@ -2551,14 +3189,26 @@ function setupPreviewHTML(mon) {
   };
 
   // boot
+  function intro() {
+    showSetup();
+    if (!hasOnboarded()) showOnboard();
+  }
   if (typeof document !== "undefined" && document.getElementById) {
     loadShinyMode();
+    loadSettings();
+    applySettings();
     wireSetup();
+    wireOnboard();
+    wireSettings();
+    wireExtras();
     updateShinyToggles();
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("keydown", onKey);
+    }
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", function () { showSetup(); });
+      document.addEventListener("DOMContentLoaded", function () { intro(); });
     } else {
-      showSetup();
+      intro();
     }
   }
 })();

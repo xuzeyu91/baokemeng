@@ -19,7 +19,11 @@
     </div>
     <button class="btn ghost" onclick="PK.toSetup()">重选宝可梦</button>
     <button class="btn ghost" id="audio-btn">🔊 音效</button>
+    <button class="btn ghost" id="settings-btn">⚙️ 设置</button>
+    <button class="btn ghost" id="typechart-btn">⚔️ 克制表</button>
+    <button class="btn ghost" id="fast-btn">⏩ 快进</button>
     <button class="btn ghost" id="shiny-toggle">✨ 闪光模式</button>
+    <span class="battle-timer" id="battle-timer">⏱ 00:00</span>
   </header>
   <div class="field">
     <div class="weather-bar" id="weather-bar"></div>
@@ -75,26 +79,62 @@
       </div>
       <div id="pk-gen" class="gen-filters"></div>
       <div id="pk-types" class="type-filters"></div>
-      <div id="pk-grid" class="pk-grid"></div>
-      <div class="pick-foot">已选 <b id="pick-count">0</b> / 12</div>
+        <div id="pk-grid" class="pk-grid"></div>
+        <div id="pick-order" class="pick-order"></div>
+        <div class="pick-foot">已选 <b id="pick-count">0</b> / 12（首位为出战领队，可拖拽或点箭头调整顺序）</div>
     </div>
     <div class="setup-actions"><button class="btn start-btn" id="start-btn">开始对战</button></div>
   </div>
 </div>
 <div id="pk-preview" class="pk-preview"></div>
 <div id="toast" class="toast"></div>
+<div class="overlay onboard" id="onboard">
+  <div class="onboard-box" id="onboard-box">
+    <button class="ob-skip" id="ob-skip">跳过 ▶</button>
+    <div class="ob-emoji">📘</div>
+    <h2 class="ob-title"></h2>
+    <p class="ob-body"></p>
+    <div class="ob-dots"></div>
+    <div class="ob-ctrls">
+      <button class="mini-btn ghost ob-prev">◀ 上一步</button>
+      <button class="mini-btn ob-next">下一步 ▶</button>
+    </div>
+    <div class="ob-foot">提示：随时可在「设置 → 重新观看新手引导」回看本说明</div>
+  </div>
+</div>
+<div class="overlay" id="settings-modal">
+  <div class="settings-box">
+    <button class="setup-close" id="settings-close">✕</button>
+    <h2>⚙️ 设置</h2>
+    <label class="set-row"><span>🔊 音效</span><input type="checkbox" id="set-mute"></label>
+    <label class="set-row"><span>🌿 减弱动效（晕动友好）</span><input type="checkbox" id="set-rm"></label>
+    <button class="mini-btn set-onboard" id="set-onboard">📘 重新观看新手引导</button>
+    <div class="set-tip">键盘：1–4 出招 · 5 聚气 · Q/W/E/R 换人 · M 超级进化 · G 极巨化 · Esc 关闭弹窗</div>
+  </div>
+</div>
 <div class="overlay replay" id="replay-modal"><div class="replay-box">
   <button class="setup-close" id="replay-close">✕</button>
   <h2>🎬 战斗回放</h2>
   <div class="replay-bars" id="replay-bars"></div>
   <div class="replay-log" id="replay-log"></div>
-  <div class="replay-ctrls">
-    <button class="mini-btn" id="rp-prev">◀ 上一步</button>
-    <span class="replay-idx" id="replay-idx">0 / 0</span>
-    <button class="mini-btn" id="rp-play">▶ 自动播放</button>
-    <button class="mini-btn" id="rp-next">下一步 ▶</button>
-  </div>
+    <div class="replay-ctrls">
+      <button class="mini-btn" id="rp-prev">◀ 上一步</button>
+      <span class="replay-idx" id="replay-idx">0 / 0</span>
+      <button class="mini-btn" id="rp-play">▶ 自动播放</button>
+      <button class="mini-btn" id="rp-next">下一步 ▶</button>
+      <button class="mini-btn" id="rp-export">🖼️ 导出战报图</button>
+    </div>
 </div></div>
+<div class="overlay" id="typechart">
+  <div class="tc-box">
+    <button class="setup-close" id="tc-close">✕</button>
+    <h2>⚔️ 属性克制速查表</h2>
+    <p class="tc-sub">行 = 攻击方属性，列 = 防御方属性。点击左侧属性名查看克制摘要。</p>
+    <div class="tc-scroll"><div class="tc-grid" id="tc-grid"></div></div>
+    <div class="tc-sum" id="tc-sum">点击左侧属性，查看它的克制关系</div>
+    <div class="tc-legend"><span class="te-2">2 克制</span><span class="te-1">1 普通</span><span class="te-05">½ 被抵抗</span><span class="te-0">0 无效</span></div>
+  </div>
+</div>
 <div id="fx"></div>
 <canvas id="fx3d"></canvas>
 <script src="data.js"></script>

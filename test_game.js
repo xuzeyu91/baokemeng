@@ -4,9 +4,11 @@ global.setTimeout = function (fn) { fn(); return 0; }; // run synchronously
 function fakeEl() {
   return {
     innerHTML: "", textContent: "", value: "", disabled: false,
-    style: {}, classList: { add(){}, remove(){}, toggle(){} },
+    style: {}, classList: { add(){}, remove(){}, toggle(){}, contains(){ return false; } },
     addEventListener(){}, setAttribute(){}, getAttribute(){ return null; },
-    appendChild(){}, removeChild(){}, querySelectorAll(){ return []; },
+    appendChild(){}, removeChild(){}, remove(){}, insertAdjacentHTML(){},
+    querySelector(){ return fakeEl(); }, querySelectorAll(){ return []; },
+    parentNode: null, parentElement: null,
     getBoundingClientRect(){ return { left:0, top:0, width:100, height:100 }; }
   };
 }
@@ -153,6 +155,7 @@ for (let b = 0; b < battles; b++) {
 console.log("Battles:", battles, "| you wins:", wins.you, "| ai wins:", wins.ai, "| maxSteps:", maxTurns);
 
 // ---- 4. custom deck start ----
+ok = true; // isolate per-section reporting
 // NOTE: _beginCustom -> beginGame -> startRound. In this headless harness
 // setTimeout runs synchronously, so if the AI moves first the whole battle
 // cascades to completion and mutates the roster before we can inspect it.
@@ -171,13 +174,14 @@ assert(st2.ai.active.mon.id !== 1, "ai avoids player's #1");
 console.log(ok ? "CUSTOM DECK OK (12 chosen, 4 bench, 7 deck)" : "CUSTOM DECK ISSUES");
 
 // ---- 5. Mega Evolution mechanics (player path) ----
+ok = true; // isolate per-section reporting
 global.setTimeout = function () { return 0; }; // no-op: isolate mega effects from turn flow
 const megaTeam = [byId(6), byId(4), byId(5), byId(7), byId(8), byId(9), byId(1), byId(2), byId(3), byId(10), byId(11), byId(12)];
 window.PK._beginCustom(megaTeam);
 let ms = window.PK._state();
 // no-op setTimeout may have cascaded a full battle (if AI moved first); reset to a clean,
 // non-finished state so onMega's `state.over` guard doesn't block the test.
-ms.over = false; ms.winner = null; busy = false;
+ms.over = false; ms.winner = null; window.PK._resetBusy();
 ms.turn = "you"; ms.firstMover = "you";
 const _ch = byId(6);
 ms.you.active.mon = _ch;                // force active = Charizard (has mega)
@@ -200,12 +204,13 @@ assert(ac.mon.name_zh === "喷火龙 超级进化 X", "no second mega (still X)"
 console.log(ok ? "MEGA OK (player path: transform, cost, once-per-battle, moves rebuilt)" : "MEGA ISSUES");
 
 // ---- 6. Dynamax mechanics (player path + timed revert) ----
+ok = true; // isolate per-section reporting
 global.setTimeout = function (fn) { fn(); return 0; }; // synchronous: drive turns directly
 const dmaxTeam = [byId(6), byId(4), byId(5), byId(7), byId(8), byId(9), byId(1), byId(2), byId(3), byId(10), byId(11), byId(12)];
 window.PK._beginCustom(dmaxTeam);
 let ds = window.PK._state();
 // synchronous setTimeout cascades a full battle to completion; reset to a clean state
-ds.over = false; ds.winner = null; busy = false;
+ds.over = false; ds.winner = null; window.PK._resetBusy();
 ds.turn = "you"; ds.firstMover = "you";
 const _dch = byId(6);
 ds.you.active.mon = _dch;               // Charizard (any species can Dynamax)
@@ -256,9 +261,49 @@ window.PK._dynamax();
 assert(ds.you.dynamaxUsed === true && !ds.you.active.dynamaxTurns, "no second dynamax this battle");
 console.log(ok ? "DYNAMAX OK (activate, cost, HP boost, max moves, timed revert, once-per-battle, mutual exclusion)" : "DYNAMAX ISSUES");
 
+// ---- 6b. Terastallize mechanics (player path) ----
+ok = true; // isolate per-section reporting
+global.setTimeout = function () { return 0; }; // no-op: isolate tera effects from turn flow
+const teraTeam = [byId(6), byId(4), byId(5), byId(7), byId(8), byId(9), byId(1), byId(2), byId(3), byId(10), byId(11), byId(12)];
+window.PK._beginCustom(teraTeam);
+let ts = window.PK._state();
+ts.over = false; ts.winner = null; window.PK._resetBusy();
+ts.turn = "you"; ts.firstMover = "you";
+const _tch = byId(6);
+ts.you.active.mon = _tch;
+ts.you.active.maxHp = _tch.hp; ts.you.active.hp = _tch.hp;
+ts.you.active.buffs = { atk: 0, def: 0, spa: 0, spd: 0, spe: 0 };
+ts.you.active.status = null; ts.you.active.dynamaxTurns = 0;
+ts.you.teraUsed = false;
+// edge: blocked when not enough energy (no turn consumed)
+ts.you.active.energy = 1; // < TERA_COST (2)
+window.PK._tera();
+assert(ts.you.teraUsed === false, "tera blocked when energy < cost (no turn consumed)");
+assert(ts.you.active.teraType == null, "teraType unset on insufficient energy");
+// edge: blocked while Dynamaxed
+ts.you.active.energy = 5;
+ts.you.active.dynamaxTurns = 2;
+window.PK._tera();
+assert(ts.you.teraUsed === false, "tera blocked while Dynamaxed");
+ts.you.active.dynamaxTurns = 0;
+// activate
+const _tmax = 5; ts.you.active.energy = _tmax;
+window.PK._tera();
+const tc = ts.you.active;
+assert(ts.you.teraUsed === true, "teraUsed flag set");
+assert(tc.teraType === _tch.types[0], "teraType = mon's first type (got " + tc.teraType + ")");
+assert(tc.maxHp === _tch.hp, "tera does NOT change maxHp (got " + tc.maxHp + ")");
+assert(tc.moves.length === 4, "tera keeps the same 4 moves (got " + tc.moves.length + ")");
+assert(tc.energy === _tmax - 2, "tera cost 2 energy (got " + tc.energy + ")");
+// persistence: no auto-revert, and cannot tera again this battle
+window.PK._tera();
+assert(tc.teraType === _tch.types[0], "no second tera this battle (type unchanged)");
+console.log(ok ? "TERA OK (activate, cost, type change, no maxHp change, once-per-battle, no revert, blocked while dynamax/low energy)" : "TERA ISSUES");
+
 console.log("All battles terminated without infinite loop. SIM OK");
 
 // ---- 7. strategy-depth systems: items / weather / stat-stages / cooldown ----
+ok = true; // isolate per-section reporting
 global.setTimeout = function () { return 0; }; // no-op: inspect data without cascading
 var D = window.PK._debug;
 assert(Math.abs(D.stageMult(0) - 1) < 1e-9, "stage 0 -> x1");
@@ -312,6 +357,7 @@ assert(c3.buffs && c3.buffs.atk === 0, "buffs init zeroed");
 console.log(ok ? "STRATEGY SYSTEMS OK (items/weather/stages/cooldown metadata + multipliers)" : "STRATEGY SYSTEMS ISSUES");
 
 // ---- 8. polish features: stats/achievements, difficulty, replay ----
+ok = true; // isolate per-section reporting
 var Dbg = window.PK._debug;
 var s0 = Dbg.loadStats();
 var w0 = s0.wins || 0, t0 = s0.total || 0;

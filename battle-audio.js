@@ -72,6 +72,7 @@
       case "faint":   blip(200, 0.40, "sine", 0.25, 0); blip(120, 0.50, "sine", 0.20, 0.10); break;
       case "mega":    [523, 659, 784, 1046].forEach(function (f, i) { blip(f, 0.18, "square", 0.22, i * 0.06); }); break;
       case "dynamax": blip(120, 0.50, "sawtooth", 0.30, 0); blip(240, 0.50, "sawtooth", 0.20, 0.05); break;
+      case "tera":     [659, 880, 1175, 1568].forEach(function (f, i) { blip(f, 0.16, "triangle", 0.22, i * 0.05); }); break;
       case "switch":  blip(440, 0.08, "triangle", 0.20, 0); blip(660, 0.10, "triangle", 0.20, 0.06); break;
       case "heal":    blip(660, 0.12, "sine", 0.20, 0); blip(880, 0.16, "sine", 0.20, 0.08); break;
       case "weather": [784, 988, 1175].forEach(function (f, i) { blip(f, 0.20, "sine", 0.15, i * 0.07); }); break;
@@ -103,10 +104,13 @@
     bgmOn = false;
     if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; }
   }
-  function toggleMute() {
-    muted = !muted;
+  function setMuted(m) {
+    muted = !!m;
     if (master) master.gain.value = muted ? 0 : 0.22;
     return muted;
+  }
+  function toggleMute() {
+    return setMuted(!muted);
   }
   function isMuted() { return muted; }
 
@@ -116,6 +120,7 @@
       play: play,
       startBGM: startBGM,
       stopBGM: stopBGM,
+      setMuted: setMuted,
       toggleMute: toggleMute,
       isMuted: isMuted
     };
