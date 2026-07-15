@@ -321,6 +321,13 @@
     // 输出核心：优先本系伤害，退而求其次任意伤害招
     var core = stabs[0] || dmg.slice().sort(function (a, b) { return (b.power || 0) - (a.power || 0); })[0];
     if (core) out.push(core);
+    // 保证「最弱本系(STAB)招」也在组合内（与 core 不同时）：这样廉价 1 费槽能吃到
+    // 本系加成，而强本系招留给高费槽，攻防层次更合理。否则很多宝可梦的 1 费槽会落到
+    // 居合斩/百万吨重拳等 off-type 普攻，开局进攻无本系加成。
+    if (stabs.length > 1) {
+      var weakStab = stabs[stabs.length - 1];
+      if (weakStab !== core && out.indexOf(weakStab) < 0) out.push(weakStab);
+    }
     // 天气/控场招（若拥有）各预留 1 个槽位，但始终保证至少 2 个伤害招；
     // 纯攻击手（无天气/支援）可多达 3-4 个伤害招，避免「仅 1 个伤害招」的死板组合。
     var weather = cands.filter(function (m) { return m.kind !== "damage" && isWeather(m); })
@@ -360,7 +367,9 @@
   // 分配费用：满足不变量 costs=[1,1,2,3]，并保证至少 1 个 1 能量招是伤害招
   // （开局即可进攻，避免「1 能量全是状态技」的死局）。最弱伤害招固定 1 费（廉价进攻），
   // 最强伤害→3 费、次强→2 费，剩余槽位按价值从「剩余伤害(强优先)+变化招」中取最优。
-  function assignMoveCosts(chosen) {
+  function assignMoveCosts(chosen, mon) {
+    var types = (mon && mon.types) || [];
+    function isStab(m) { return types.indexOf(m.type) >= 0; }
     var dmg = chosen.filter(function (m) { return m.kind === "damage"; })
                  .sort(function (a, b) { return (b.power || 0) - (a.power || 0); }); // 强 -> 弱
     var oth = chosen.filter(function (m) { return m.kind !== "damage"; })
@@ -370,8 +379,16 @@
       if (dmg.length && (!oth.length || (dmg[0].power || 0) >= movesortKey(oth[0]))) return dmg.shift();
       return oth.length ? oth.shift() : null;
     }
-    // 1) 廉价进攻槽：最弱伤害招固定 1 费（保证开局有伤害可用）
-    if (dmg.length) set(dmg.pop(), 1);
+    // 1) 廉价进攻槽：优先取「最弱的本系(STAB)伤害招」作 1 费，
+    //    保证开局既能进攻、又吃本系加成；无本系伤害招时才退而求其次取最弱伤害招。
+    var stabSorted = dmg.filter(isStab).sort(function (a, b) { return (a.power || 0) - (b.power || 0); });
+    var anySorted  = dmg.slice().sort(function (a, b) { return (a.power || 0) - (b.power || 0); });
+    var cheap = stabSorted[0] || anySorted[0];
+    if (cheap) {
+      set(cheap, 1);
+      // 从 dmg 中剔除已分配的廉价招，避免重复占用其它槽位
+      dmg = dmg.filter(function (m) { return m !== cheap; });
+    }
     // 2) 高费槽从「剩余伤害 + 变化招」取最优
     set(popBest(), 3);
     set(popBest(), 2);
@@ -417,7 +434,7 @@
     }
     // 分配费用：保证至少 1 个 1 能量招式是伤害招（开局即可进攻），
     // 强招落高费槽，最弱伤害招作廉价进攻固定 1 费。
-    assignMoveCosts(chosen);
+    assignMoveCosts(chosen, mon);
     // 最终按费用升序排列，满足不变量 costs=[1,1,2,3]
     chosen.sort(function (a, b) { return a.cost - b.cost; });
     return chosen;
