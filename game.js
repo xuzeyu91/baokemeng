@@ -321,30 +321,31 @@
     // 输出核心：优先本系伤害，退而求其次任意伤害招
     var core = stabs[0] || dmg.slice().sort(function (a, b) { return (b.power || 0) - (a.power || 0); })[0];
     if (core) out.push(core);
-    // 天气/控场招单独保留一个槽位（读招博弈核心：天气系统必须能被实装）
+    // 天气/控场招（若拥有）各预留 1 个槽位，但始终保证至少 2 个伤害招；
+    // 纯攻击手（无天气/支援）可多达 3-4 个伤害招，避免「仅 1 个伤害招」的死板组合。
     var weather = cands.filter(function (m) { return m.kind !== "damage" && isWeather(m); })
                        .sort(function (a, b) { return (movesortKey(b) - movesortKey(a)); });
-    if (weather[0] && out.indexOf(weather[0]) < 0) out.push(weather[0]);
-    // 其他变化招（异常/强化/削弱/寄生/替身等）：再保留一个槽位
     var sup = cands.filter(function (m) { return m.kind !== "damage" && !isWeather(m); })
                    .sort(function (a, b) { return (movesortKey(b) - movesortKey(a)); });
+    var wantDmg = 4 - (weather[0] ? 1 : 0) - (sup[0] ? 1 : 0);
+    if (wantDmg < 2) wantDmg = 2;
+    wantDmg = Math.min(wantDmg, dmg.length);
+    // 已放入 core（1 个伤害），继续补到目标伤害数量
+    for (var di = 0; di < dmg.length && out.filter(function (m) { return m.kind === "damage"; }).length < wantDmg; di++) {
+      if (out.indexOf(dmg[di]) < 0) out.push(dmg[di]);
+    }
+    // 天气系统必须能被实装：单独保留一个槽位
+    if (weather[0] && out.indexOf(weather[0]) < 0) out.push(weather[0]);
+    // 其他变化招（异常/强化/削弱/寄生/替身等）：再保留一个槽位
     if (sup[0] && out.indexOf(sup[0]) < 0) out.push(sup[0]);
-    // 其余按：同系伤害 > 其他伤害 > 剩余变化招 填满
-    var rest = cands.filter(function (m) { return out.indexOf(m) < 0; });
-    var fillDmg = rest.filter(function (m) { return m.kind === "damage"; })
-                      .sort(function (a, b) { return (b.power || 0) - (a.power || 0); });
-    while (out.length < 3 && fillDmg.length) {
-      out.push(fillDmg.shift());
-      rest = rest.filter(function (m) { return out.indexOf(m) < 0; });
-    }
-    while (out.length < 4 && rest.length) {
-      out.push(rest.shift());
-    }
-    var i = 0;
-    while (out.length < 4 && i < cands.length) {
-      if (out.indexOf(cands[i]) < 0) out.push(cands[i]);
-      i++;
-    }
+    // 仍不足 4：按「伤害优先 > 变化招价值」补齐（保证进攻手段充足）
+    var rest = cands.filter(function (m) { return out.indexOf(m) < 0; })
+                 .sort(function (a, b) {
+                   var va = a.kind === "damage" ? 1000 + (a.power || 0) : movesortKey(a);
+                   var vb = b.kind === "damage" ? 1000 + (b.power || 0) : movesortKey(b);
+                   return vb - va;
+                 });
+    while (out.length < 4 && rest.length) out.push(rest.shift());
     return out.slice(0, 4);
   }
   // 变化招的优先度：异常/控场类（博弈价值高）略优先于回复类
