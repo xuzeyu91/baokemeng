@@ -312,10 +312,6 @@
       cooldown: 0
     };
   }
-  function moveWeight(m) {
-    if (m.kind === "damage") return m.power || 0;
-    return 30; // 变化招给予中等权重（费用通常 1）
-  }
   function pickFour(cands, mon) {
     var out = [];
     var isWeather = function (m) { return WEATHER_MOVES.indexOf(m.slug) >= 0; };
@@ -360,6 +356,29 @@
     if (m.kind === "damage") return m.power || 0;
     return 10;
   }
+  // 分配费用：满足不变量 costs=[1,1,2,3]，并保证至少 1 个 1 能量招是伤害招
+  // （开局即可进攻，避免「1 能量全是状态技」的死局）。最弱伤害招固定 1 费（廉价进攻），
+  // 最强伤害→3 费、次强→2 费，剩余槽位按价值从「剩余伤害(强优先)+变化招」中取最优。
+  function assignMoveCosts(chosen) {
+    var dmg = chosen.filter(function (m) { return m.kind === "damage"; })
+                 .sort(function (a, b) { return (b.power || 0) - (a.power || 0); }); // 强 -> 弱
+    var oth = chosen.filter(function (m) { return m.kind !== "damage"; })
+                 .sort(function (a, b) { return movesortKey(b) - movesortKey(a); });
+    function set(m, c) { if (!m) return; m.cost = c; m.cooldown = c >= 3 ? 1 : 0; }
+    function popBest() {
+      if (dmg.length && (!oth.length || (dmg[0].power || 0) >= movesortKey(oth[0]))) return dmg.shift();
+      return oth.length ? oth.shift() : null;
+    }
+    // 1) 廉价进攻槽：最弱伤害招固定 1 费（保证开局有伤害可用）
+    if (dmg.length) set(dmg.pop(), 1);
+    // 2) 高费槽从「剩余伤害 + 变化招」取最优
+    set(popBest(), 3);
+    set(popBest(), 2);
+    set(popBest(), 1);
+    // 3) 兜底：chosen 多于 4（不应发生）或前述未分配满，全部补到 1 费
+    while (dmg.length) set(dmg.shift(), 1);
+    while (oth.length) set(oth.shift(), 1);
+  }
   function genMovesKit(mon) {
     // 兜底：数据缺失时用原属性模板
     var t1 = mon.types[0], t2 = mon.types[1] || "normal";
@@ -395,14 +414,10 @@
       var kit = genMovesKit(mon);
       chosen[0] = kit[0];
     }
-    // 先按威力/权重降序决定费用档位：最强=3 费，次强=2 费，其余=1 费
-    chosen.sort(function (a, b) { return moveWeight(b) - moveWeight(a); });
-    var tier = [3, 2, 1, 1];
-    chosen.forEach(function (m, i) {
-      m.cost = tier[i];
-      m.cooldown = tier[i] >= 3 ? 1 : 0;
-    });
-    // 最终按费用升序排列，满足不变量 costs=[1,1,2,3]（强招落在高费槽）
+    // 分配费用：保证至少 1 个 1 能量招式是伤害招（开局即可进攻），
+    // 强招落高费槽，最弱伤害招作廉价进攻固定 1 费。
+    assignMoveCosts(chosen);
+    // 最终按费用升序排列，满足不变量 costs=[1,1,2,3]
     chosen.sort(function (a, b) { return a.cost - b.cost; });
     return chosen;
   }
