@@ -1046,7 +1046,7 @@
     applyMoveWeather(att, mv);
     sfx("move");
     battleRender();
-    castFX("you", mv, res, function () {
+    castFX("you", mv, res, safeRun(function () {
       commitMove(def, res, mv);
       spawnDmg("opp", res.dmg, res.mult);
       flashHit("opp");
@@ -1059,12 +1059,12 @@
           oppTurn();
         }
       }), 420);
-    });
+    }));
   }
   function doCapture() {
     if (battle.over || battle.busy || battle.turn !== "you" || !battle.wild || battle._switch) return;
-    if (save.balls <= 0) { toast("没有精灵球了！"); return; }
-    if (battle.you.party.length >= 6) { toast("队伍已满（最多 6 只），无法捕捉！"); return; }
+    if (save.balls <= 0) { battleLog("sys", "没有精灵球了！无法捕捉！"); toast("没有精灵球了！"); battleRender(); return; }
+    if (battle.you.party.length >= 6) { battleLog("sys", "队伍已满（最多 6 只），无法捕捉！"); toast("队伍已满（最多 6 只），无法捕捉！"); battleRender(); return; }
     battle.busy = true;
     save.balls--; renderPartyHUD();
     var opp = active("opp");
@@ -1156,7 +1156,7 @@
       applyMoveWeather(att, mv);
       sfx("move");
       battleRender();
-      castFX("opp", mv, res, function () {
+      castFX("opp", mv, res, safeRun(function () {
         commitMove(def, res, mv);
         spawnDmg("you", res.dmg, res.mult);
         flashHit("you");
@@ -1169,7 +1169,7 @@
             battle.turn = "you"; battle.busy = false; battleRender();
           }
         }), 420);
-      });
+      }));
     }), 520);
   }
   // 寻找属性克制对方(you 当前宝可梦)的替补下标，没有则返回 -1

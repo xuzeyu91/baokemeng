@@ -77,10 +77,11 @@ body {
 
 /* Toast */
 .rpg-toast {
-  position: absolute; left: 50%; top: 16px; transform: translateX(-50%) translateY(-8px);
+  position: fixed; left: 50%; top: 16px; transform: translateX(-50%) translateY(-8px);
   background: #0f1830ee; color: #fff; padding: 9px 18px; border-radius: 22px;
   font-size: 13px; font-weight: 700; opacity: 0; pointer-events: none;
   transition: opacity .2s, transform .2s; box-shadow: var(--shadow); max-width: 88%; text-align: center;
+  z-index: 90;
 }
 .rpg-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
