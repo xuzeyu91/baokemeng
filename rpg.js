@@ -1,4 +1,5 @@
-/* 宝可梦 RPG 冒险 — 独立模式（地图探索 / 捕捉 / 对战 / 升级）
+/* 宝可梦 RPG 冒险 — 对标初代红蓝节奏
+ * 地图探索 / 捕捉 / 对战 / 升级 / 徽章 / 金钱商店
  * 仅依赖 data.js（POKEMON_LIST / TYPE_EFFECT / TYPE_ZH），不加载 game.js。
  */
 (function () {
@@ -21,6 +22,97 @@
     poison:"poison", fire:"burn", electric:"paralysis",
     ice:"freeze", grass:"sleep", psychic:"sleep", ghost:"sleep"
   };
+
+  /* ---------- 红蓝版进度：徽章 / 金钱 / 道具 ---------- */
+  var BADGE_ORDER = [
+    { id: "boulder",  name: "灰色徽章", gym: "小刚",   city: "深灰市" },
+    { id: "cascade",  name: "蓝色徽章", gym: "小霞",   city: "华蓝市" },
+    { id: "thunder",  name: "橙色徽章", gym: "马志士", city: "枯叶市" },
+    { id: "rainbow",  name: "彩虹徽章", gym: "莉佳",   city: "金黄市" },
+    { id: "soul",     name: "粉红徽章", gym: "阿桔",   city: "浅红市" },
+    { id: "marsh",    name: "金色徽章", gym: "娜姿",   city: "金黄市" },
+    { id: "volcano",  name: "深红徽章", gym: "夏伯",   city: "红莲镇" },
+    { id: "earth",    name: "绿色徽章", gym: "坂木",   city: "常磐市" }
+  ];
+  var ITEM_CATALOG = {
+    potion:       { name: "伤药",     icon: "🧪", heal: 20,  full: false, price: 300,  battle: true,  field: true },
+    super:        { name: "好伤药",   icon: "💊", heal: 50,  full: false, price: 700,  battle: true,  field: true },
+    hyper:        { name: "厉害伤药", icon: "💉", heal: 200, full: false, price: 1200, battle: true,  field: true },
+    full:         { name: "全复药",   icon: "✨", heal: 9999, full: true, price: 2500, battle: true, field: true },
+    antidote:     { name: "解毒药",   icon: "🟢", heal: 0, cure: "poison",     price: 100, battle: true, field: true },
+    awaken:       { name: "解眠药",   icon: "💤", heal: 0, cure: "sleep",      price: 250, battle: true, field: true },
+    burnheal:     { name: "灼伤药",   icon: "🔥", heal: 0, cure: "burn",       price: 250, battle: true, field: true },
+    paralyzeheal: { name: "解麻药",   icon: "⚡", heal: 0, cure: "paralysis",  price: 200, battle: true, field: true },
+    iceheal:      { name: "解冻药",   icon: "❄️", heal: 0, cure: "freeze",     price: 250, battle: true, field: true },
+    ball:         { name: "精灵球",   icon: "🔘", ball: true, price: 200, battle: false, field: false },
+    greatball:    { name: "超级球",   icon: "🔷", ball: true, ballMult: 1.5, price: 600, battle: false, field: false },
+    ultraball:    { name: "高级球",   icon: "🟡", ball: true, ballMult: 2,   price: 1200, battle: false, field: false }
+  };
+  function badgeCount(s) {
+    if (!s || !s.badges) return 0;
+    var n = 0;
+    for (var i = 0; i < BADGE_ORDER.length; i++) if (s.badges[BADGE_ORDER[i].id]) n++;
+    return n;
+  }
+  function ensureItems(s) {
+    if (!s.items || typeof s.items !== "object") s.items = {};
+    ["potion", "super", "hyper", "full", "antidote", "awaken", "burnheal", "paralyzeheal", "iceheal", "greatball", "ultraball"].forEach(function (k) {
+      if (s.items[k] == null) s.items[k] = 0;
+    });
+    return s.items;
+  }
+  function ensureMovePP(mv) {
+    if (!mv) return mv;
+    if (mv.maxPp == null) {
+      var md = mv.slug && window.MOVE_DB ? window.MOVE_DB[mv.slug] : null;
+      mv.maxPp = (md && md.pp) ? md.pp : (mv.power >= 100 ? 5 : mv.power >= 70 ? 10 : 15);
+    }
+    if (mv.pp == null) mv.pp = mv.maxPp;
+    if (mv.acc == null) {
+      var md2 = mv.slug && window.MOVE_DB ? window.MOVE_DB[mv.slug] : null;
+      mv.acc = (md2 && md2.acc != null) ? md2.acc : 100;
+    }
+    return mv;
+  }
+  function normalizeSave(s) {
+    if (!s) return s;
+    if (s.money == null || isNaN(s.money)) s.money = 3000;
+    if (!s.badges || typeof s.badges !== "object") s.badges = {};
+    if (!s.defeated || typeof s.defeated !== "object") s.defeated = {};
+    if (!s.npcDone || typeof s.npcDone !== "object") s.npcDone = {};
+    if (!s.claimedRewards || typeof s.claimedRewards !== "object") s.claimedRewards = {};
+    if (s.balls == null) s.balls = 10;
+    if (s.level == null) s.level = 0;
+    if (s.maxUnlocked == null) s.maxUnlocked = s.level || 0;
+    if (s.maxLevel == null) s.maxLevel = s.maxUnlocked || 0;
+    if (!s.seen) s.seen = {};
+    if (!s.caught) s.caught = {};
+    if (!s.tm || typeof s.tm !== "object") s.tm = {};
+    if (s.champion == null) s.champion = false;
+    if (s.finalRewardClaimed == null) s.finalRewardClaimed = !!s.champion;
+    ensureItems(s);
+    if (!Array.isArray(s.party)) s.party = [];
+    s.party.forEach(function (m) {
+      if (!m) return;
+      if (m.exp == null) m.exp = 0;
+      if (m.status === undefined) m.status = null;
+      if (m.moves) m.moves.forEach(function (mv) { ensureMovePP(mv); });
+    });
+    return s;
+  }
+  function defaultShopStock() {
+    return [
+      { id: "ball", price: 200 },
+      { id: "greatball", price: 600 },
+      { id: "potion", price: 300 },
+      { id: "super", price: 700 },
+      { id: "antidote", price: 100 },
+      { id: "paralyzeheal", price: 200 },
+      { id: "burnheal", price: 250 },
+      { id: "awaken", price: 250 }
+    ];
+  }
+
 
   // 安全网：战斗中任何 setTimeout 回调抛异常时，自动解锁 busy，避免按钮永久卡死
   function safeRun(fn) {
@@ -115,12 +207,16 @@
           name: md.zh || s.replace(/-/g, " "),
           type: md.type,
           power: md.kind === "damage" ? (md.power || 0) : 0,
-          cat: md.cat === "status" ? "status" : md.cat,
+          cat: md.cat === "physical" ? "phys" : (md.cat === "special" ? "spec" : (md.cat === "status" ? "status" : md.cat)),
           cost: 0,
           slug: s,
-          kind: md.kind
+          kind: md.kind,
+          acc: md.acc != null ? md.acc : 100,
+          maxPp: md.pp || 15,
+          pp: md.pp || 15
         };
         if (md.kind === "status") { m.status = md.effect; m.statusChance = (md.chance || 0) / 100; }
+        else if (md.effect && md.chance) { m.status = md.effect; m.statusChance = (md.chance || 0) / 100; }
         cands.push(m);
       });
       if (cands.length >= 2) {
@@ -158,10 +254,14 @@
   }
 
   function equippedMoves(member) {
-    if (!member.moves) {
-      var mon = MON_BY_ID[member.id];
+    var mon = MON_BY_ID[member.id];
+    if (!member.moves || member.moves.length === 0) {
+      member.moves = getLearnset(mon).filter(function (m) { return m.level <= member.level; });
+    } else if (member.moves[0] && (!member.moves[0].name || !member.moves[0].slug)) {
+      // 修复被旧版 capture 损坏的存档：之前只保存了 id/pp/maxPp，缺失 name/type/slug 等关键字段
       member.moves = getLearnset(mon).filter(function (m) { return m.level <= member.level; });
     }
+    member.moves.forEach(function (mv) { ensureMovePP(mv); });
     return member.moves;
   }
   function rpgMoves(mon) { return getLearnset(mon); }
@@ -191,9 +291,11 @@
   }
   function expToNext(level) { return Math.floor(12 + level * level * 3.2); }
   function expReward(oppMember) {
-    var s = MON_BY_ID[oppMember.id] || oppMember.mon;
+    var s = oppMember.mon || MON_BY_ID[oppMember.id] || (oppMember.member && MON_BY_ID[oppMember.member.id]);
+    var level = oppMember.level || (oppMember.member && oppMember.member.level) || 1;
+    if (!s) return Math.floor(10 + level * 3);
     var sum = s.hp + s.attack + s.defense + s.sp_attack + s.sp_defense + s.speed;
-    return Math.floor(10 + oppMember.level * 3 + sum / 30);
+    return Math.floor(10 + level * 3 + sum / 30);
   }
 
   /* ---------- 数据索引 ---------- */
@@ -216,13 +318,21 @@
     forest:    { ground:"#9fce7a", grass1:"#7bb257", grass2:"#4e8a36", tree:"#1f5e2a", treeDk:"#123d1a", water:"#3f7fd0", rock:"#6a5d3f", accent:"#1d4d24", treeProb:0.11, rockProb:0.03 },
     champion:  { ground:"#cdb8e8", grass1:"#b79ad9", grass2:"#8f6fc4", tree:"#5b34b0", treeDk:"#3a2170", water:"#6a5fd0", rock:"#8a7fb0", accent:"#5b34b0", treeProb:0.04, rockProb:0.05 }
   };
-  var LEVEL_BIOME = ["grassland", "wetland", "mountain", "forest", "champion"];
+  var LEVEL_BIOME = [
+    "grassland", "mountain", "wetland", "grassland", "forest",
+    "wetland", "forest", "mountain", "mountain", "champion"
+  ];
   // 每关起点/终点（随关变化，增加辨识度）
-  var LEVEL_POS = [
+    var LEVEL_POS = [
     { start: [14, 17], goal: [27, 2] },
     { start: [2, 17],  goal: [27, 17] },
     { start: [14, 2],  goal: [14, 17] },
     { start: [2, 2],   goal: [27, 17] },
+    { start: [14, 17], goal: [27, 2] },
+    { start: [2, 10],  goal: [27, 10] },
+    { start: [14, 17], goal: [27, 2] },
+    { start: [2, 2],   goal: [27, 17] },
+    { start: [14, 2],  goal: [14, 17] },
     { start: [14, 17], goal: [27, 2] }
   ];
   // 地图氛围（昼夜/雾）：叠在地形之上的半透明色调，营造每关的氛围差异
@@ -237,118 +347,257 @@
   /* ---------- 关卡系统（多关卡，由易到难） ---------- */
   var LEVELS = [
     {
-      name: "初心草原",
-      intro: "新手训练家的起点。野生宝可梦等级很低，先熟悉操作、捕捉伙伴吧！",
+      name: "真新镇 · 1 号道路",
+      intro: "红蓝旅程从真新镇启程。领取补给，在 1 号道路熟悉遇敌与治疗。",
       atmos: "day",
-      wild: [3, 6], wildMaxBst: 360,
-      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.20,
+      wild: [2, 5], wildMaxBst: 320, wildTypes: ["normal", "flying", "bug", "grass", "poison"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.18,
       trainers: [
-        { id: "l1t1", name: "短裤小子 阿勇", x: 8, y: 9,
-          party: [ { id: 10, level: 4 }, { id: 13, level: 4 }, { id: 14, level: 5 } ] },
-        { id: "l1t2", name: "少女 小茜", x: 22, y: 11,
-          party: [ { id: 16, level: 5 }, { id: 19, level: 5 }, { id: 21, level: 6 } ] }
+        { id: "r1-boy", name: "短裤小子·小刚", x: 10, y: 10, money: 200,
+          party: [ { id: 16, level: 3 }, { id: 19, level: 4 } ] },
+        { id: "r1-girl", name: "短裤姑娘·美美", x: 20, y: 8, money: 220,
+          party: [ { id: 13, level: 4 }, { id: 10, level: 4 } ] }
       ],
       npcs: [
-        { id: "l1n1", name: "向导 小茂", x: 5, y: 16, color: "#5aa9e0", once: true, gift: "potion", giftCount: 2,
-          lines: ["欢迎来到宝可梦世界！用方向键或 WASD 移动。", "草丛里会遇到野生宝可梦，用精灵球(🔘)捕捉伙伴吧！", "这些伤药给你，路上用得着～"] }
+        { id: "oak-lab", name: "大木博士", x: 8, y: 15, color: "#5aa9e0", once: true, gift: "potion", giftCount: 3,
+          lines: ["欢迎来到关都地区！", "这是给你的伤药，草丛里小心野生宝可梦。", "击败训练家后，紫色传送门就会开启。"] },
+        { id: "route-shop", name: "旅行商人", x: 18, y: 15, color: "#e0a050", once: false, shop: true,
+          lines: ["我这里有补给品，要看看吗？"] }
       ]
     },
     {
-      name: "溪流湿地",
-      intro: "水边潮湿，常见水属性宝可梦。注意水面（蓝色）无法通行。",
-      atmos: "mist", ambientWeather: "rain",
-      wild: [6, 11], wildMaxBst: 405, wildTypes: ["water"],
-      center: [2, 2], start: [14, 17], goal: [27, 2], pond: { x: 10, y: 6, w: 9, h: 4 }, grassProb: 0.18,
-      trainers: [
-        { id: "l2t1", name: "渔夫 大叔", x: 6, y: 12,
-          party: [ { id: 118, level: 7 }, { id: 120, level: 8 }, { id: 90, level: 9 } ] },
-        { id: "l2t2", name: "泳装少女 小遥", x: 23, y: 10,
-          party: [ { id: 54, level: 8 }, { id: 55, level: 10 }, { id: 80, level: 9 } ] },
-        { id: "l2t3", name: "水手 阿海", x: 15, y: 4,
-          party: [ { id: 79, level: 7 }, { id: 60, level: 8 }, { id: 87, level: 10 } ] }
-      ],
-      npcs: [
-        { id: "l2n1", name: "渔夫爷爷", x: 4, y: 5, color: "#3f9e8f", once: true, gift: "potion", giftCount: 3,
-          lines: ["湿地的水属性宝可梦不少，记得带电系或草系招式。", "蓝色的水面可走不过去，绕路吧。", "这些伤药收好，小伙子！"] }
-      ]
-    },
-    {
-      name: "岩石山道",
-      intro: "崎岖山路，岩石与地面属性宝可梦盘踞，训练家等级明显提升。",
+      name: "深灰市道馆 · 小刚",
+      intro: "深灰市道馆馆主小刚使用岩石系。击败馆主可获得灰色徽章与奖金。",
       atmos: "dusk",
-      wild: [10, 16], wildMaxBst: 435, wildTypes: ["rock", "ground"],
+      wild: [5, 10], wildMaxBst: 360, wildTypes: ["rock", "ground", "normal", "fighting"],
       center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.14,
       trainers: [
-        { id: "l3t1", name: "登山男 小刚", x: 7, y: 8,
-          party: [ { id: 74, level: 11 }, { id: 95, level: 12 }, { id: 111, level: 13 } ] },
-        { id: "l3t2", name: "矿工 阿石", x: 20, y: 9,
-          party: [ { id: 95, level: 12 }, { id: 127, level: 14 }, { id: 108, level: 13 } ] },
-        { id: "l3t3", name: "岩石训练家 阿岩", x: 14, y: 5,
-          party: [ { id: 74, level: 13 }, { id: 108, level: 14 }, { id: 142, level: 14 } ] }
+        { id: "pew-camper", name: "露营少年", x: 8, y: 12, money: 300,
+          party: [ { id: 74, level: 9 }, { id: 27, level: 10 } ] },
+        { id: "gym-brock", name: "道馆馆主·小刚", x: 22, y: 6, money: 1200, badge: "boulder",
+          party: [ { id: 74, level: 12 }, { id: 95, level: 14 } ] }
       ],
       npcs: [
-        { id: "l3n1", name: "登山客 老高", x: 25, y: 14, color: "#c08a3e", once: true, gift: "tm_rock", giftCount: 1,
-          lines: ["山路崎岖，岩石与地面系宝可梦横行。", "给你一张「TM 岩崩」，教给合适的伙伴，开路更轻松！", "对面的训练家可不好惹，小心为上。"] }
+        { id: "pew-shop", name: "友好商店店员", x: 6, y: 16, color: "#e0a050", once: false, shop: true,
+          lines: ["欢迎光临友好商店！", "需要伤药还是精灵球？"] },
+        { id: "pew-guide", name: "道馆向导", x: 16, y: 16, color: "#8a8a8a", once: false,
+          lines: ["小刚的宝可梦很硬，用草系或水系会轻松些。"] }
       ]
     },
     {
-      name: "迷雾森林",
-      intro: "雾气弥漫，幽灵与妖精出没，训练家等级大幅上涨，小心迷路。",
+      name: "华蓝市道馆 · 小霞",
+      intro: "华蓝市水道馆。小霞使用水系，注意雷电与草系克制。",
+      atmos: "mist", ambientWeather: "rain",
+      wild: [8, 14], wildMaxBst: 380, wildTypes: ["water", "normal", "flying", "psychic"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: { x: 10, y: 6, w: 9, h: 4 }, grassProb: 0.16,
+      trainers: [
+        { id: "cer-swimmer", name: "泳裤小子", x: 10, y: 12, money: 400,
+          party: [ { id: 60, level: 14 }, { id: 118, level: 15 } ] },
+        { id: "rival-2", name: "劲敌·青绿", x: 18, y: 8, money: 800, rival: true,
+          party: [ { id: 16, level: 15 }, { id: 19, level: 14 }, { id: 1, level: 16 } ] },
+        { id: "gym-misty", name: "道馆馆主·小霞", x: 24, y: 5, money: 1600, badge: "cascade",
+          party: [ { id: 120, level: 18 }, { id: 121, level: 21 } ] }
+      ],
+      npcs: [
+        { id: "cer-shop", name: "友好商店店员", x: 5, y: 16, color: "#e0a050", once: false, shop: true,
+          lines: ["华蓝市特供好伤药，要看看吗？"],
+          shopStock: [
+            { id: "ball", price: 200 }, { id: "greatball", price: 600 },
+            { id: "potion", price: 300 }, { id: "super", price: 700 },
+            { id: "antidote", price: 100 }, { id: "awaken", price: 250 }
+          ] }
+      ]
+    },
+    {
+      name: "枯叶市道馆 · 马志士",
+      intro: "枯叶市电系道馆。马志士的雷电很快，地面系会很有用。",
+      atmos: "day",
+      wild: [12, 18], wildMaxBst: 400, wildTypes: ["electric", "normal", "flying", "ground"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.15,
+      trainers: [
+        { id: "ver-sailor", name: "水手", x: 9, y: 11, money: 500,
+          party: [ { id: 81, level: 18 }, { id: 100, level: 19 } ] },
+        { id: "gym-surge", name: "道馆馆主·马志士", x: 23, y: 5, money: 2000, badge: "thunder",
+          party: [ { id: 100, level: 21 }, { id: 25, level: 24 }, { id: 26, level: 24 } ] }
+      ],
+      npcs: [
+        { id: "ver-shop", name: "友好商店店员", x: 6, y: 16, color: "#e0a050", once: false, shop: true,
+          lines: ["超级球到货了！捕捉率更高。"],
+          shopStock: [
+            { id: "ball", price: 200 }, { id: "greatball", price: 600 }, { id: "ultraball", price: 1200 },
+            { id: "potion", price: 300 }, { id: "super", price: 700 }, { id: "hyper", price: 1200 },
+            { id: "paralyzeheal", price: 200 }
+          ] },
+        { id: "ver-hint", name: "工程师", x: 16, y: 15, color: "#c08a3e", once: true, gift: "paralyzeheal", giftCount: 3,
+          lines: ["给你一些解麻药，电系很容易麻痹对手。"] }
+      ]
+    },
+    {
+      name: "金黄市道馆 · 莉佳",
+      intro: "金黄市草系道馆。莉佳的花草很棘手，火系与飞行系是关键。",
+      atmos: "day",
+      wild: [16, 22], wildMaxBst: 420, wildTypes: ["grass", "poison", "bug", "normal", "psychic"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.18,
+      trainers: [
+        { id: "cel-lass", name: "迷你裙", x: 8, y: 10, money: 600,
+          party: [ { id: 43, level: 22 }, { id: 69, level: 23 } ] },
+        { id: "rival-3", name: "劲敌·青绿", x: 16, y: 8, money: 1000, rival: true,
+          party: [ { id: 17, level: 24 }, { id: 58, level: 24 }, { id: 2, level: 26 } ] },
+        { id: "gym-erika", name: "道馆馆主·莉佳", x: 24, y: 5, money: 2400, badge: "rainbow",
+          party: [ { id: 71, level: 26 }, { id: 114, level: 28 }, { id: 45, level: 29 } ] }
+      ],
+      npcs: [
+        { id: "cel-shop", name: "友好商店店员", x: 5, y: 16, color: "#e0a050", once: false, shop: true,
+          lines: ["金黄百货应有尽有！"],
+          shopStock: [
+            { id: "ball", price: 200 }, { id: "greatball", price: 600 }, { id: "ultraball", price: 1200 },
+            { id: "potion", price: 300 }, { id: "super", price: 700 }, { id: "hyper", price: 1200 },
+            { id: "full", price: 2500 }, { id: "antidote", price: 100 }, { id: "burnheal", price: 250 },
+            { id: "paralyzeheal", price: 200 }, { id: "awaken", price: 250 }, { id: "iceheal", price: 250 }
+          ] }
+      ]
+    },
+    {
+      name: "浅红市道馆 · 阿桔",
+      intro: "浅红市毒系道馆。阿桔擅长异常状态，记得多带解毒药。",
       atmos: "fog",
-      wild: [14, 22], wildMaxBst: 470, wildTypes: ["ghost", "fairy", "bug", "grass"],
-      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.24,
+      wild: [20, 26], wildMaxBst: 440, wildTypes: ["poison", "bug", "normal", "ground", "water"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.17,
       trainers: [
-        { id: "l4t1", name: "女训练家 小霞", x: 6, y: 10,
-          party: [ { id: 25, level: 15 }, { id: 35, level: 15 }, { id: 39, level: 16 } ] },
-        { id: "l4t2", name: "森林男 阿木", x: 22, y: 11,
-          party: [ { id: 69, level: 15 }, { id: 70, level: 17 }, { id: 102, level: 16 } ] },
-        { id: "l4t3", name: "迷雾使者 阿幽", x: 14, y: 4,
-          party: [ { id: 92, level: 16 }, { id: 93, level: 18 }, { id: 94, level: 19 } ] },
-        { id: "l4t4", name: "猎人 阿烈", x: 9, y: 14,
-          party: [ { id: 52, level: 16 }, { id: 63, level: 17 }, { id: 133, level: 19 } ] }
+        { id: "fuch-ninja", name: "忍者少年", x: 10, y: 11, money: 700,
+          party: [ { id: 23, level: 27 }, { id: 48, level: 28 } ] },
+        { id: "gym-koga", name: "道馆馆主·阿桔", x: 23, y: 5, money: 2800, badge: "soul",
+          party: [ { id: 109, level: 30 }, { id: 89, level: 32 }, { id: 110, level: 33 } ] }
       ],
       npcs: [
-        { id: "l4n1", name: "森林精灵 小露", x: 26, y: 3, color: "#5fae8c", once: true, gift: "potion", giftCount: 5,
-          lines: ["迷雾深处藏着幽灵与妖精属性的宝可梦。", "用恶系或钢系招式能压制它们。", "这些伤药你拿着，森林里可没地方回血哦。"] }
+        { id: "fuch-shop", name: "友好商店店员", x: 6, y: 16, color: "#e0a050", once: false, shop: true,
+          lines: ["解毒药要多备一点。"] },
+        { id: "fuch-warden", name: "狩猎区管理员", x: 18, y: 15, color: "#5fae8c", once: true, gift: "full", giftCount: 1,
+          lines: ["这瓶全复药给你，挑战道馆前用吧。"] }
       ]
     },
     {
-      name: "冠军殿堂",
-      intro: "最终决战之地！先击败四天王门将，再挑战冠军，成为新的联盟冠军！",
-      atmos: "night",
-      wild: [20, 32], allowEvolved: true, wildMaxBst: 520,
-      center: [2, 2], start: [14, 17], goal: [27, 2], pond: { x: 11, y: 7, w: 8, h: 3 }, grassProb: 0.16,
+      name: "金黄市道馆 · 娜姿",
+      intro: "金黄市超能道馆。娜姿的精神力很强，用更快的速度压制吧。",
+      atmos: "mist",
+      wild: [24, 30], wildMaxBst: 460, wildTypes: ["psychic", "fighting", "normal", "ghost"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.15,
       trainers: [
-        { id: "l5t1", name: "四天王门将 阿蜜", x: 14, y: 13,
-          party: [ { id: 134, level: 26 }, { id: 135, level: 26 }, { id: 136, level: 26 } ] },
-        { id: "l5t2", name: "冠军 阿渡", x: 27, y: 2,
-          party: [ { id: 6, level: 30 }, { id: 131, level: 28 }, { id: 142, level: 30 }, { id: 149, level: 32 } ],
+        { id: "saf-psychic", name: "超能力者", x: 9, y: 10, money: 800,
+          party: [ { id: 63, level: 31 }, { id: 96, level: 32 } ] },
+        { id: "gym-sabrina", name: "道馆馆主·娜姿", x: 23, y: 5, money: 3200, badge: "marsh",
+          party: [ { id: 64, level: 34 }, { id: 122, level: 35 }, { id: 65, level: 37 } ] }
+      ],
+      npcs: [
+        { id: "saf-shop", name: "友好商店店员", x: 6, y: 16, color: "#e0a050", once: false, shop: true,
+          lines: ["挑战馆主前，先把背包补满。"] }
+      ]
+    },
+    {
+      name: "红莲镇道馆 · 夏伯",
+      intro: "红莲镇火系道馆。夏伯的火焰很猛，水系与岩石系是关键。",
+      atmos: "dusk", ambientWeather: "sunny",
+      wild: [28, 34], wildMaxBst: 480, wildTypes: ["fire", "rock", "ground", "normal"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.14,
+      trainers: [
+        { id: "cin-burglar", name: "窃贼", x: 10, y: 11, money: 900,
+          party: [ { id: 58, level: 34 }, { id: 77, level: 35 } ] },
+        { id: "gym-blaine", name: "道馆馆主·夏伯", x: 23, y: 5, money: 3600, badge: "volcano",
+          party: [ { id: 78, level: 38 }, { id: 59, level: 40 }, { id: 126, level: 42 } ] }
+      ],
+      npcs: [
+        { id: "cin-shop", name: "友好商店店员", x: 6, y: 16, color: "#e0a050", once: false, shop: true,
+          lines: ["红莲镇货少价高，见谅。"],
+          shopStock: [
+            { id: "greatball", price: 700 }, { id: "ultraball", price: 1400 },
+            { id: "super", price: 800 }, { id: "hyper", price: 1400 }, { id: "full", price: 2800 },
+            { id: "burnheal", price: 300 }, { id: "iceheal", price: 300 }
+          ] }
+      ]
+    },
+    {
+      name: "常磐市道馆 · 坂木",
+      intro: "常磐市道馆由火箭队坂木镇守。这是第八枚徽章，也是前往石英高原的门票。",
+      atmos: "night",
+      wild: [32, 38], wildMaxBst: 500, allowEvolved: true, wildTypes: ["ground", "poison", "normal", "rock", "fighting"],
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: null, grassProb: 0.14,
+      trainers: [
+        { id: "vir-rocket", name: "火箭队杂兵", x: 8, y: 12, money: 1000,
+          party: [ { id: 24, level: 38 }, { id: 42, level: 39 } ] },
+        { id: "rival-4", name: "劲敌·青绿", x: 16, y: 8, money: 1500, rival: true,
+          party: [ { id: 18, level: 40 }, { id: 59, level: 40 }, { id: 130, level: 41 }, { id: 3, level: 42 } ] },
+        { id: "gym-giovanni", name: "道馆馆主·坂木", x: 24, y: 5, money: 4500, badge: "earth",
+          party: [ { id: 51, level: 42 }, { id: 31, level: 44 }, { id: 34, level: 45 }, { id: 112, level: 47 } ] }
+      ],
+      npcs: [
+        { id: "vir-shop", name: "友好商店店员", x: 5, y: 16, color: "#e0a050", once: false, shop: true,
+          lines: ["集齐 8 枚徽章后，就可以挑战石英高原了。"] }
+      ]
+    },
+    {
+      name: "石英高原 · 冠军之路",
+      intro: "四天王与冠军等待着你。这是红蓝版的最终试炼。",
+      atmos: "night",
+      wild: [36, 45], allowEvolved: true, wildMaxBst: 540,
+      center: [2, 2], start: [14, 17], goal: [27, 2], pond: { x: 11, y: 7, w: 8, h: 3 }, grassProb: 0.12,
+      trainers: [
+        { id: "e4-lorelei", name: "四天王·科拿", x: 8, y: 14, money: 2000,
+          party: [ { id: 87, level: 48 }, { id: 91, level: 49 }, { id: 124, level: 50 }, { id: 131, level: 51 } ] },
+        { id: "e4-bruno", name: "四天王·希巴", x: 20, y: 12, money: 2200,
+          party: [ { id: 95, level: 49 }, { id: 107, level: 50 }, { id: 106, level: 50 }, { id: 68, level: 52 } ] },
+        { id: "e4-agatha", name: "四天王·菊子", x: 10, y: 8, money: 2400,
+          party: [ { id: 94, level: 51 }, { id: 42, level: 51 }, { id: 93, level: 52 }, { id: 24, level: 53 } ] },
+        { id: "e4-lance", name: "四天王·阿渡", x: 22, y: 6, money: 2800,
+          party: [ { id: 130, level: 53 }, { id: 148, level: 54 }, { id: 149, level: 55 }, { id: 142, level: 55 } ] },
+        { id: "champ-rival", name: "冠军·青绿", x: 15, y: 3, money: 5000, rival: true, champion: true,
+          party: [ { id: 18, level: 56 }, { id: 65, level: 56 }, { id: 112, level: 56 }, { id: 103, level: 58 }, { id: 59, level: 58 }, { id: 9, level: 60 } ],
           stages: [
-            [ { id: 6, level: 30 }, { id: 131, level: 28 }, { id: 142, level: 30 }, { id: 149, level: 32 } ],
-            [ { id: 6, level: 32 }, { id: 131, level: 30 }, { id: 142, level: 32 }, { id: 149, level: 35 }, { id: 150, level: 38 } ]
+            [ { id: 18, level: 56 }, { id: 65, level: 56 }, { id: 112, level: 56 } ],
+            [ { id: 103, level: 58 }, { id: 59, level: 58 }, { id: 130, level: 58 } ],
+            [ { id: 9, level: 60 }, { id: 6, level: 60 }, { id: 3, level: 60 } ]
           ] }
       ],
       npcs: [
-        { id: "l5n1", name: "联盟卫士 小雪", x: 3, y: 3, color: "#9b7ede", once: true, gift: "full", giftCount: 2,
-          lines: ["冠军 阿渡可不好对付！", "他会使出全力——战败后会立刻派出更强的第二队，连超梦都会登场。", "出发前务必准备好两支能轮换的队伍。", "这两瓶全复药，关键时刻能救场！"] }
+        { id: "e4-clerk", name: "联盟职员", x: 5, y: 16, color: "#9b7ede", once: false,
+          lines: ["进入联盟前请确认队伍状态。", "宝可梦中心就在附近。"] },
+        { id: "e4-shop", name: "补给员", x: 25, y: 16, color: "#e0a050", once: false, shop: true,
+          lines: ["最后补给机会了。"],
+          shopStock: [
+            { id: "ultraball", price: 1200 }, { id: "hyper", price: 1200 }, { id: "full", price: 2500 },
+            { id: "antidote", price: 100 }, { id: "burnheal", price: 250 }, { id: "paralyzeheal", price: 200 },
+            { id: "awaken", price: 250 }, { id: "iceheal", price: 250 }
+          ] }
       ]
     }
   ];
 
-  // 每关通关奖励（精灵球 + 赠送宝可梦），monLevel 为该宝可梦加入时的等级
+  // 每关通关奖励（兼容旧逻辑；馆主奖金/徽章在对战胜利时发放）
   var LEVEL_REWARDS = [
-    { balls: 5,  mon: 25,  monLevel: 6,  items: { potion: 3, tm_thunder: 1 } },  // 皮卡丘
-    { balls: 5,  mon: 130, monLevel: 9,  items: { potion: 3, tm_water: 1 } },    // 暴鲤龙
-    { balls: 8,  mon: 95,  monLevel: 13, items: { potion: 5, tm_ice: 1 } },      // 大岩蛇
-    { balls: 8,  mon: 149, monLevel: 18, items: { potion: 5, full: 1, tm_psychic: 1 } }, // 快龙
-    { balls: 15, mon: 150, monLevel: 32, items: { full: 3, tm_fire: 1 } }        // 超梦（冠军奖励）
+    { balls: 5,  mon: 25,  monLevel: 6,  items: { potion: 3 }, money: 500 },
+    { balls: 5,  mon: 27,  monLevel: 12, items: { potion: 3, super: 1 }, money: 800 },
+    { balls: 6,  mon: 54,  monLevel: 16, items: { super: 2 }, money: 1000 },
+    { balls: 6,  mon: 58,  monLevel: 20, items: { super: 2, paralyzeheal: 2 }, money: 1200 },
+    { balls: 8,  mon: 77,  monLevel: 24, items: { hyper: 1, full: 1 }, money: 1500 },
+    { balls: 8,  mon: 88,  monLevel: 28, items: { antidote: 5, hyper: 1 }, money: 1800 },
+    { balls: 8,  mon: 64,  monLevel: 32, items: { hyper: 2 }, money: 2000 },
+    { balls: 10, mon: 59,  monLevel: 36, items: { full: 1, hyper: 2 }, money: 2500 },
+    { balls: 10, mon: 112, monLevel: 42, items: { full: 2 }, money: 3000 },
+    { balls: 15, mon: 149, monLevel: 50, items: { full: 3 }, money: 5000 }
   ];
 
-  // 道具定义（对战中使用）
+  // 道具定义（对战中使用；与 ITEM_CATALOG 同步）
   var ITEM_INFO = {
-    potion: { name: "伤药",   icon: "🧪", desc: "恢复当前宝可梦 30 点 HP", heal: 30,  full: false },
-    full:   { name: "全复药", icon: "💊", desc: "回满 HP 并解除异常状态",    heal: 9999, full: true }
+    potion:       { name: "伤药",     icon: "🧪", desc: "恢复 20 HP", heal: 20,  full: false },
+    super:        { name: "好伤药",   icon: "💊", desc: "恢复 50 HP", heal: 50,  full: false },
+    hyper:        { name: "厉害伤药", icon: "💉", desc: "恢复 200 HP", heal: 200, full: false },
+    full:         { name: "全复药",   icon: "✨", desc: "回满 HP 并解除异常", heal: 9999, full: true },
+    antidote:     { name: "解毒药",   icon: "🟢", desc: "解除中毒", heal: 0, cure: "poison" },
+    awaken:       { name: "解眠药",   icon: "💤", desc: "解除睡眠", heal: 0, cure: "sleep" },
+    burnheal:     { name: "灼伤药",   icon: "🔥", desc: "解除灼烧", heal: 0, cure: "burn" },
+    paralyzeheal: { name: "解麻药",   icon: "⚡", desc: "解除麻痹", heal: 0, cure: "paralysis" },
+    iceheal:      { name: "解冻药",   icon: "❄️", desc: "解除冰冻", heal: 0, cure: "freeze" }
   };
+
   // 技能机 TM（在队伍详情里教授招式）
   var TM_LIST = [
     { key: "tm_thunder", move: "thunderbolt", name: "TM 十万伏特", icon: "⚡" },
@@ -553,18 +802,26 @@
   /* ---------- 存档 ---------- */
   function saveGame() {
     try {
+      if (!save) return;
+      normalizeSave(save);
       var data = {
         party: save.party.map(function (m) {
           return { id: m.id, level: m.level, exp: m.exp, hp: m.hp, status: m.status || null, moves: m.moves || null };
         }),
         balls: save.balls,
         items: save.items,
+        money: save.money || 0,
+        badges: save.badges || {},
         defeated: save.defeated,
         npcDone: save.npcDone || {},
         dex: save.dex,
         level: save.level,
         maxLevel: save.maxLevel || 0,
-        champion: !!save.champion
+        maxUnlocked: save.maxUnlocked != null ? save.maxUnlocked : (save.maxLevel || 0),
+        champion: !!save.champion,
+        finalRewardClaimed: !!save.finalRewardClaimed,
+        claimedRewards: save.claimedRewards || {},
+        tm: save.tm || {}
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     } catch (e) { /* localStorage 不可用时忽略 */ }
@@ -573,9 +830,7 @@
     try {
       var raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
-      var d = JSON.parse(raw);
-      if (!d || !d.party || d.party.length === 0) return null;
-      return d;
+      return normalizeSave(JSON.parse(raw));
     } catch (e) { return null; }
   }
   function markSeen(id) { if (save && save.dex) save.dex.seen[id] = true; }
@@ -588,8 +843,12 @@
     return { id: id, level: level, exp: 0, hp: statLine(mon, level).hp, status: null, moves: moves };
   }
   function healParty() {
+    if (!save) return;
     save.party.forEach(function (m) {
-      m.hp = statLine(MON_BY_ID[m.id], m.level).hp; m.status = null;
+      var mon = MON_BY_ID[m.id];
+      m.hp = statLine(mon, m.level).hp;
+      m.status = null;
+      if (m.moves) m.moves.forEach(function (mv) { ensureMovePP(mv); mv.pp = mv.maxPp; });
     });
   }
 
@@ -970,30 +1229,118 @@
   }
 
   /* ---------- 战斗：伤害 ---------- */
+
+  function isPhysMove(mv) {
+    return mv.cat === "phys" || mv.cat === "physical";
+  }
+  function hasStab(att, mv) {
+    return att.mon.types && att.mon.types.indexOf(mv.type) >= 0;
+  }
+  function rollHit(att, def, mv) {
+    var acc = (mv.acc != null ? mv.acc : 100);
+    return Math.random() * 100 < acc;
+  }
+  function statusDefaultTurns(type) {
+    if (type === "sleep") return 1 + Math.floor(Math.random() * 3);
+    return 99;
+  }
+  function preActionStatus(c, sideTag) {
+    if (!c || !c.status) return false;
+    var t = c.status.type;
+    if (t === "paralysis") {
+      if (Math.random() < 0.25) {
+        battleLog(sideTag, c.mon.name_zh + " 因麻痹无法行动！");
+        return true;
+      }
+    } else if (t === "sleep") {
+      c.status.turns = (c.status.turns == null ? 2 : c.status.turns) - 1;
+      if (c.status.turns >= 0) {
+        battleLog(sideTag, c.mon.name_zh + " 正在睡觉…");
+        return true;
+      }
+      c.status = null;
+      battleLog("sys", c.mon.name_zh + " 醒了！");
+    } else if (t === "freeze") {
+      if (Math.random() < 0.2) {
+        c.status = null;
+        battleLog("sys", c.mon.name_zh + " 解冻了！");
+      } else {
+        battleLog(sideTag, c.mon.name_zh + " 被冻住了！");
+        return true;
+      }
+    }
+    return false;
+  }
+  function tickStatus(c, sideTag) {
+    if (!c || c.fainted || !c.status) return;
+    var t = c.status.type;
+    if (t === "poison" || t === "burn") {
+      var d = Math.max(1, Math.floor(c.maxHp / 8));
+      c.hp = Math.max(0, c.hp - d);
+      battleLog(sideTag, c.mon.name_zh + (t === "poison" ? " 受到了毒伤害！" : " 受到了灼烧伤害！"));
+      if (c.hp <= 0) c.fainted = true;
+    }
+  }
+  function finishRound() {
+    var you = active("you"), opp = active("opp");
+    tickStatus(you, "you");
+    tickStatus(opp, "foe");
+    if (you && you.hp <= 0) { onFaint("you"); return; }
+    if (opp && opp.hp <= 0) { onFaint("opp"); return; }
+    if (typeof tickWeather === "function") tickWeather();
+    battle.turn = "you"; battle.busy = false; battleRender();
+  }
+
   function expected(att, def, mv) {
-    var atk = mv.cat === "phys" ? att.stats.attack : att.stats.sp_attack;
-    var dfs = mv.cat === "phys" ? def.stats.defense : def.stats.sp_defense;
-    return mv.power * (atk / (dfs + 8)) * 0.42 * typeMult(mv.type, def.mon.types);
+    if (!mv || !mv.power) return 0;
+    var atk = isPhysMove(mv) ? att.stats.attack : att.stats.sp_attack;
+    var dfs = isPhysMove(mv) ? def.stats.defense : def.stats.sp_defense;
+    if (att.status && att.status.type === "burn" && isPhysMove(mv)) atk = Math.floor(atk * 0.5);
+    var mult = typeMult(mv.type, def.mon.types);
+    var stab = hasStab(att, mv) ? 1.5 : 1;
+    return mv.power * (atk / (dfs + 8)) * 0.42 * mult * stab;
   }
   // 计算伤害（不修改 hp），供特效在"命中瞬间"再提交；含天气修正
   function resolveMove(att, def, mv) {
-    var atk = mv.cat === "phys" ? att.stats.attack : att.stats.sp_attack;
-    var dfs = mv.cat === "phys" ? def.stats.defense : def.stats.sp_defense;
-    var wType = (battle.weather && battle.weather.type) || "none";
-    var mult = typeMult(mv.type, def.mon.types) * weatherMult(mv.type, wType);
-    var base = mv.power * (atk / (dfs + 8)) * 0.42 * mult;
-    var variance = 0.85 + Math.random() * 0.15;
-    var dmg = Math.max(1, Math.floor(base * variance));
-    var statusApplied = false;
-    if (mv.status && !def.status && Math.random() < (mv.statusChance || 0)) {
-      statusApplied = true;
+    if (!mv || (mv.pp != null && mv.pp <= 0)) {
+      return { dmg: 0, mult: 1, statusApplied: false, miss: true, noPP: true, crit: false, stab: false, statusType: null };
     }
-    return { dmg: dmg, mult: mult, statusApplied: statusApplied };
+    if (!rollHit(att, def, mv)) {
+      return { dmg: 0, mult: 1, statusApplied: false, miss: true, crit: false, stab: false, statusType: null };
+    }
+    var atk = isPhysMove(mv) ? att.stats.attack : att.stats.sp_attack;
+    var dfs = isPhysMove(mv) ? def.stats.defense : def.stats.sp_defense;
+    if (att.status && att.status.type === "burn" && isPhysMove(mv)) atk = Math.floor(atk * 0.5);
+    var wType = (battle.weather && battle.weather.type) || "none";
+    var mult = typeMult(mv.type, def.mon.types) * (typeof weatherMult === "function" ? weatherMult(mv.type, wType) : 1);
+    var stab = hasStab(att, mv);
+    if (stab) mult *= 1.5;
+    var crit = Math.random() < (1 / 16);
+    if (crit) mult *= 2;
+    var base = (mv.power || 0) * (atk / (dfs + 8)) * 0.42 * mult;
+    if (!mv.power) base = 0;
+    var variance = 0.85 + Math.random() * 0.15;
+    var dmg = mv.power ? Math.max(1, Math.floor(base * variance)) : 0;
+    var statusApplied = false;
+    var statusType = mv.status || null;
+    if (statusType && !def.status && Math.random() < (mv.statusChance || 0)) {
+      statusApplied = true;
+    } else if (!statusType && !def.status) {
+      var st = TYPE_STATUS[mv.type];
+      if (st && Math.random() < 0.1) {
+        statusType = st;
+        statusApplied = true;
+      }
+    }
+    return { dmg: dmg, mult: mult, statusApplied: statusApplied, miss: false, crit: crit, stab: stab, statusType: statusType };
   }
   // 命中瞬间落实伤害与状态
   function commitMove(def, res, mv) {
+    if (res.miss) return;
     def.hp = Math.max(0, def.hp - res.dmg);
-    if (res.statusApplied) def.status = { type: mv.status };
+    if (res.statusApplied) {
+      def.status = { type: res.statusType || mv.status, turns: statusDefaultTurns(res.statusType || mv.status) };
+    }
   }
   // 触发技能粒子特效；若引擎不可用则直接回调（优雅降级）
   function castFX(side, mv, res, onImpact) {
@@ -1040,17 +1387,40 @@
     if (battle.over || battle.busy || battle.turn !== "you" || battle._switch) return;
     battle.busy = true; battle._switch = false;
     var att = active("you"), def = active("opp");
+    if (preActionStatus(att, "you")) {
+      setTimeout(safeRun(function () {
+        if (att.hp <= 0) onFaint("you");
+        else oppTurn();
+      }), 420);
+      battleRender();
+      return;
+    }
     var mv = att.moves[idx];
+    if (!mv) { battle.busy = false; return; }
+    ensureMovePP(mv);
+    if (mv.pp != null && mv.pp <= 0) {
+      battleLog("sys", mv.name + " 的 PP 用完了！");
+      battle.busy = false; battleRender(); return;
+    }
+    if (mv.pp != null) mv.pp--;
     var res = resolveMove(att, def, mv);
     battleLog("you", "你 的 " + att.mon.name_zh + " 使用【" + mv.name + "】！");
-    applyMoveWeather(att, mv);
+    if (res.miss) {
+      battleLog("sys", "但是没有命中！");
+      try { sfx("miss"); } catch (e) {}
+      battleRender();
+      setTimeout(safeRun(function () { oppTurn(); }), 420);
+      return;
+    }
+    if (typeof applyMoveWeather === "function") applyMoveWeather(att, mv);
     sfx("move");
     battleRender();
     castFX("you", mv, res, safeRun(function () {
       commitMove(def, res, mv);
-      spawnDmg("opp", res.dmg, res.mult);
+      if (res.dmg > 0) spawnDmg("opp", res.dmg, res.mult, res.crit);
       flashHit("opp");
-      sfx(res.mult >= 2 ? "crit" : "hit");
+      sfx(res.crit || res.mult >= 2 ? "crit" : "hit");
+      if (res.crit) battleLog("eff", "会心一击！");
       battleRender();
       setTimeout(safeRun(function () {
         if (def.hp <= 0) { onFaint("opp"); }
@@ -1061,34 +1431,60 @@
       }), 420);
     }));
   }
-  function doCapture() {
+  function doCapture(ballKind) {
     if (battle.over || battle.busy || battle.turn !== "you" || !battle.wild || battle._switch) return;
-    if (save.balls <= 0) { battleLog("sys", "没有精灵球了！无法捕捉！"); toast("没有精灵球了！"); battleRender(); return; }
+    ballKind = ballKind || "ball";
+    var mult = 1;
+    if (ballKind === "ball") {
+      if (save.balls <= 0) { battleLog("sys", "没有精灵球了！无法捕捉！"); toast("没有精灵球了！"); battleRender(); return; }
+    } else {
+      if (!save.items[ballKind] || save.items[ballKind] <= 0) { toast("没有该精灵球了！"); return; }
+      mult = (ITEM_CATALOG[ballKind] && ITEM_CATALOG[ballKind].ballMult) || 1.5;
+    }
     if (battle.you.party.length >= 6) { battleLog("sys", "队伍已满（最多 6 只），无法捕捉！"); toast("队伍已满（最多 6 只），无法捕捉！"); battleRender(); return; }
     battle.busy = true;
-    save.balls--; renderPartyHUD();
+    if (ballKind === "ball") save.balls--;
+    else save.items[ballKind]--;
+    renderPartyHUD();
     var opp = active("opp");
-    var rate = clamp(0.08 + (1 - opp.hp / opp.maxHp) * 0.5, 0.05, 0.95);
-    battleLog("you", "你投出了精灵球…");
+    var statusBonus = (opp.status && (opp.status.type === "sleep" || opp.status.type === "freeze")) ? 2
+      : (opp.status ? 1.5 : 1);
+    var rate = clamp((0.12 + (1 - opp.hp / opp.maxHp) * 0.55) * mult * statusBonus, 0.05, 0.98);
+    var ballName = (ITEM_CATALOG[ballKind] && ITEM_CATALOG[ballKind].name) || "精灵球";
+    battleLog("you", "你投出了" + ballName + "…");
+    sfx("throw");
     battleRender();
     setTimeout(safeRun(function () {
       if (Math.random() < rate) {
-        var mon = MON_BY_ID[opp.mon.id];
-        var moves = getLearnset(mon).filter(function (m) { return m.level <= opp.level; });
-        var m = { id: opp.mon.id, level: opp.level, exp: 0, hp: opp.hp, status: null, moves: moves };
-        save.party.push(m);
-        battle.you.party.push(buildCombat(m, true));
-        markCaught(opp.mon.id);
-        battleLog("cap", "太好了！抓住了 " + opp.mon.name_zh + "！");
-        toast("抓住了 " + opp.mon.name_zh + "！");
-        sfx("achv");
-        endBattle("caught");
+        var mon = opp.mon;
+        var member = makeMember(mon.id, opp.level);
+        member.hp = Math.max(1, opp.hp);
+        member.status = opp.status ? { type: opp.status.type, turns: opp.status.turns } : null;
+        member.moves = (opp.moves || []).map(function (mv) {
+          var copy = {};
+          for (var k in mv) if (mv.hasOwnProperty(k)) copy[k] = mv[k];
+          return copy;
+        });
+        if (!member.moves.length) member.moves = equippedMoves(member);
+        // 战斗 party 必须是 combat 对象，不能直接 push member
+        var caught = buildCombat(member, true);
+        battle.you.party.push(caught);
+        battle.you.participants[battle.you.party.length - 1] = true;
+        markCaught(mon.id);
+        battleLog("sys", "恭喜！捕捉到了 " + mon.name_zh + "！");
+        toast("捕捉成功！" + mon.name_zh);
+        sfx("catch");
+        battle.over = true; battle.busy = false;
+        battleRender();
+        setTimeout(safeRun(function () { endBattle("caught"); }), 900);
       } else {
-        battleLog("foe", opp.mon.name_zh + " 挣脱了精灵球！");
-        toast("没抓住…");
-        oppTurn();
+        battleLog("sys", "啊…差一点就抓住了！");
+        sfx("miss");
+        battleRender();
+        // 捕捉失败消耗回合，由对手行动（oppTurn 内会 finishRound）
+        setTimeout(safeRun(function () { if (!battle.over) oppTurn(); }), 500);
       }
-    }), 950);
+    }), 700);
   }
   function doSwitch(idx) {
     if (battle.over || battle.busy || battle.turn !== "you") return;
@@ -1115,14 +1511,19 @@
   }
   function doUseItem(kind) {
     if (battle.over || battle.busy || battle.turn !== "you" || battle._switch) return;
-    if (!ITEM_INFO[kind]) return;
+    var info = ITEM_CATALOG[kind] || ITEM_INFO[kind];
+    if (!info || info.ball) return;
     if (!save.items[kind] || save.items[kind] <= 0) { toast("没有该道具了！"); return; }
     battle.busy = true; battle._item = false;
-    var info = ITEM_INFO[kind];
     var you = active("you");
     save.items[kind]--;
     if (info.full) { you.hp = you.maxHp; you.status = null; }
-    else { you.hp = Math.min(you.maxHp, you.hp + info.heal); }
+    else if (info.cure) {
+      if (you.status && you.status.type === info.cure) you.status = null;
+      else if (info.heal) you.hp = Math.min(you.maxHp, you.hp + (info.heal || 0));
+    } else {
+      you.hp = Math.min(you.maxHp, you.hp + (info.heal || 0));
+    }
     battleLog("you", "你使用了" + info.icon + info.name + "！");
     sfx("heal");
     battleRender();
@@ -1132,41 +1533,56 @@
   /* ---------- 战斗：对手回合 ---------- */
   function oppTurn() {
     if (battle.over) return;
-    tickWeather();
     battle.turn = "opp"; battleRender();
     setTimeout(safeRun(function () {
       if (battle.over) return;
       var att = active("opp"), def = active("you");
-      // 选最优招式；同时看是否有能一击致命的招
-      var best = att.moves[0], be = -1, ko = null;
-      for (var i = 0; i < att.moves.length; i++) {
-        var e = expected(att, def, att.moves[i]);
-        if (e > be) { be = e; best = att.moves[i]; }
-        if (e >= def.hp) ko = att.moves[i];
+      if (preActionStatus(att, "foe")) {
+        setTimeout(safeRun(function () {
+          if (att.hp <= 0) onFaint("opp");
+          else finishRound();
+        }), 360);
+        return;
       }
-      // 若当前宝可梦所有招都被抵抗，且场下有属性克制的替补，则换人
-      var allResisted = att.moves.every(function (m) { return typeMult(m.type, def.mon.types) < 1; });
-      if (!ko && allResisted) {
+      var usable = att.moves.filter(function (m) { return m.pp == null || m.pp > 0; });
+      if (!usable.length) usable = att.moves;
+      var best = usable[0], be = -1, ko = null;
+      for (var i = 0; i < usable.length; i++) {
+        var e = expected(att, def, usable[i]);
+        if (e > be) { be = e; best = usable[i]; }
+        if (e >= def.hp) ko = usable[i];
+      }
+      var allResisted = usable.every(function (m) { return typeMult(m.type, def.mon.types) < 1; });
+      if (!ko && allResisted && typeof bestSwitchOpp === "function") {
         var sw = bestSwitchOpp(def);
         if (sw >= 0) { oppSwitch(sw); return; }
       }
       var mv = ko || best;
+      ensureMovePP(mv);
+      if (mv.pp != null && mv.pp > 0) mv.pp--;
       var res = resolveMove(att, def, mv);
       battleLog("foe", battle.opp.name + " 的 " + att.mon.name_zh + " 使用【" + mv.name + "】！");
-      applyMoveWeather(att, mv);
+      if (res.miss) {
+        battleLog("sys", "但是没有命中！");
+        battleRender();
+        setTimeout(safeRun(finishRound), 420);
+        return;
+      }
+      if (typeof applyMoveWeather === "function") applyMoveWeather(att, mv);
       sfx("move");
       battleRender();
       castFX("opp", mv, res, safeRun(function () {
         commitMove(def, res, mv);
-        spawnDmg("you", res.dmg, res.mult);
+        if (res.dmg > 0) spawnDmg("you", res.dmg, res.mult, res.crit);
         flashHit("you");
-        sfx(res.mult >= 2 ? "crit" : "hit");
+        sfx(res.crit || res.mult >= 2 ? "crit" : "hit");
+        if (res.crit) battleLog("eff", "会心一击！");
         battleRender();
         setTimeout(safeRun(function () {
           if (def.hp <= 0) { onFaint("you"); }
           else {
             if (res.statusApplied && def.status) battleLog("you", def.mon.name_zh + " 陷入" + STATUS_ZH[def.status.type] + "状态！");
-            battle.turn = "you"; battle.busy = false; battleRender();
+            finishRound();
           }
         }), 420);
       }));
@@ -1211,7 +1627,11 @@
     battleLog("sys", (side === "you" ? "你" : battle.opp.name) + " 派出 " + arr[next].mon.name_zh + "！");
     if (side === "you") battle.you.participants[next] = true;
     battleRender();
-    setTimeout(safeRun(function () { if (side === "you") oppTurn(); else endYourTurn(); }), 650);
+    setTimeout(safeRun(function () {
+      // 初代：击倒方获得再行动（对方派出后备后仍由击倒方先手）
+      if (side === "you") oppTurn();
+      else endYourTurn();
+    }), 650);
   }
   function endYourTurn() { battle.turn = "you"; battle.busy = false; battleRender(); }
 
@@ -1222,7 +1642,9 @@
     Object.keys(parts).forEach(function (k) {
       if (!parts[k]) return;
       var ci = battle.you.party[+k];
-      if (ci) addExp(ci.member, exp);
+      if (!ci || ci.fainted || !ci.member) return;
+      addExp(ci.member, exp);
+      ci.level = ci.member.level;
     });
   }
   function addExp(member, amount) {
@@ -1254,43 +1676,82 @@
   }
 
   function endBattle(result) {
-    battle.over = true; battle.busy = true;
-    // 同步存活 HP 回存档
-    battle.you.party.forEach(function (c) { c.member.hp = c.hp; c.member.status = c.status; });
-    if (result === "win") {
-      battleLog("sys", "你赢得了对战！");
-      // 多段连战：还有下一阶段则直接开下一场（不回地图、不标记通关、不回血）
-      if (battle.opp.trainerRef && battle.trainerStage < battle.trainerStages - 1) {
-        var t = battle.opp.trainerRef;
-        var next = battle.trainerStage + 1;
-        saveGame();
-        battleRender();
-        battleLog("sys", t.name + " 派出了更强的队伍（第 " + (next + 1) + " 阶段）！");
-        setTimeout(safeRun(function () { startStage(t, next); }), 1300);
+    if (battle.over && result !== "win" && result !== "caught" && result !== "lose" && result !== "run") return;
+    battle.over = true; battle.busy = false;
+    // 同步回 save.party（combat 结构：属性在 member 上）
+    save.party = battle.you.party.map(function (c) {
+      var mem = c.member || c;
+      return {
+        id: mem.id || (c.mon && c.mon.id),
+        level: mem.level != null ? mem.level : c.level,
+        exp: mem.exp || 0,
+        hp: c.hp != null ? c.hp : mem.hp,
+        status: c.status != null ? c.status : mem.status,
+        moves: c.moves || mem.moves
+      };
+    });
+    if (result === "win" || result === "caught") {
+      sfx("victory");
+      // 多阶段训练家：若还有下一队，先推进阶段（不发奖金/徽章）
+      if (!battle.wild && battle.opp.trainerRef && battle.trainerStage + 1 < battle.trainerStages) {
+        var nextIdx = battle.trainerStage + 1;
+        var tref = battle.opp.trainerRef;
+        var events0 = collectLevelUpEvents();
+        processLevelUpEvents(events0, function () {
+          toast(tref.name + " 派出了下一队！");
+          startStage(tref, nextIdx);
+        });
         return;
       }
-      if (battle.opp.trainerId) save.defeated[battle.opp.trainerId] = true;
-      sfx("victory");
-    } else if (result === "caught") {
-      battleLog("cap", "收服成功，队伍更强大了！");
-    } else if (result === "run") {
-      battleLog("sys", "你逃离了战斗。");
+      // 最终阶段胜利：标记击败、发奖金与徽章
+      if (battle.opp.trainerId) {
+        save.defeated[battle.opp.trainerId] = true;
+        var tr = battle.opp.trainerRef || null;
+        if (!tr && LEVELS[save.level]) {
+          var ts = LEVELS[save.level].trainers || [];
+          for (var ti = 0; ti < ts.length; ti++) if (ts[ti].id === battle.opp.trainerId) tr = ts[ti];
+        }
+        if (tr) {
+          var prize = tr.money != null ? tr.money : (120 + (save.level + 1) * 80);
+          if (tr.rival) prize = Math.floor(prize * 1.2);
+          if (tr.champion) prize = Math.floor(prize * 1.5);
+          save.money = (save.money || 0) + prize;
+          battleLog("lv", "获得奖金 ₽" + prize + "！");
+          toast("获得 ₽" + prize);
+          if (tr.badge) {
+            if (!save.badges) save.badges = {};
+            save.badges[tr.badge] = true;
+            var bmeta = null;
+            for (var bi = 0; bi < BADGE_ORDER.length; bi++) if (BADGE_ORDER[bi].id === tr.badge) bmeta = BADGE_ORDER[bi];
+            var bname = bmeta ? bmeta.name : tr.badge;
+            battleLog("lv", "得到了" + bname + "！");
+            toast("徽章入手：" + bname);
+          }
+          if (tr.champion) {
+            // 冠军标记在 finishReturnToMap 统一处理，避免跳过终章奖励/胜利界面
+            toast("你成为了关都冠军！");
+          }
+        }
+        if (typeof levelCleared === "function" && levelCleared()) toast("本区训练家已全部击败！传送门开启！");
+        renderPartyHUD();
+      }
+      // 经验已在击倒时由 awardExp 结算；捕捉成功时补发一次
+      if (result === "caught" && battle.opp && battle.opp.party && battle.opp.party[0]) {
+        awardExp(battle.opp.party[0]);
+      }
     } else if (result === "lose") {
-      battleLog("sys", "你输掉了…被送回宝可梦中心。");
-      sfx("defeat");
+      sfx("faint");
+      battleLog("sys", "你被击败了……回到宝可梦中心吧。");
+    } else if (result === "run") {
+      battleLog("sys", "你顺利地逃跑了！");
     }
     saveGame();
     battleRender();
-    setTimeout(safeRun(function () {
+    // 升级/进化/学招 串行弹窗，再返回地图
+    setTimeout(function () {
       var events = collectLevelUpEvents();
-      if (events.length && result !== "lose") {
-        processLevelUpEvents(events, function () {
-          finishReturnToMap(result);
-        });
-      } else {
-        finishReturnToMap(result);
-      }
-    }), 1200);
+      processLevelUpEvents(events, function () { finishReturnToMap(result); });
+    }, 900);
   }
   function finishReturnToMap(result) {
     hideBattle();
@@ -1304,9 +1765,15 @@
     renderPartyHUD();
     renderLevelInfo();
     drawMap();
-    if (save.level >= LEVELS.length - 1 && levelCleared() && !save.champion) {
-      save.champion = true; saveGame();
-      showLevelReward(LEVELS.length - 1, function () { showVictory(); });
+    if (save.level >= LEVELS.length - 1 && levelCleared()) {
+      save.champion = true;
+      if (!save.finalRewardClaimed) {
+        save.finalRewardClaimed = true;
+        saveGame();
+        showLevelReward(LEVELS.length - 1, function () { showVictory(); });
+      } else {
+        saveGame();
+      }
     }
   }
 
@@ -1328,7 +1795,24 @@
     return events;
   }
   function processLevelUpEvents(events, onDone) {
-    if (events.length === 0) { saveGame(); if (onDone) onDone(); return; }
+    if (events.length === 0) {
+      if (battle && battle.you && battle.you.party) {
+        save.party = battle.you.party.map(function (c) {
+          var mem = c.member || c;
+          return {
+            id: mem.id || (c.mon && c.mon.id),
+            level: mem.level != null ? mem.level : c.level,
+            exp: mem.exp || 0,
+            hp: c.hp != null ? c.hp : mem.hp,
+            status: c.status != null ? c.status : mem.status,
+            moves: c.moves || mem.moves
+          };
+        });
+      }
+      saveGame();
+      if (onDone) onDone();
+      return;
+    }
     var ev = events.shift();
     showLevelUpEvent(ev, function () { processLevelUpEvents(events, onDone); });
   }
@@ -1580,20 +2064,29 @@
     }
     var att = active("you"), def = active("opp");
     var moves = att.moves.map(function (mv, i) {
+      ensureMovePP(mv);
       var mult = typeMult(mv.type, def.mon.types);
       var effCls = mult >= 2 ? "sup" : mult < 1 ? "weak" : "";
       var effTxt = mult >= 2 ? "克制" : mult === 0 ? "无效" : mult < 1 ? "被抵抗" : "";
+      var noPP = mv.pp != null && mv.pp <= 0;
       return '' +
-        '<button class="rpg-move" data-bmove="' + i + '"' + (canAct ? "" : " disabled") + '>' +
+        '<button class="rpg-move" data-bmove="' + i + '"' + (canAct && !noPP ? "" : " disabled") + '>' +
           '<div class="mn"><span class="type-chip" style="background:' + (TYPE_COLOR[mv.type] || "#888") + '">' +
             (TYPE_ZH[mv.type] || mv.type) + '</span>' + mv.name + '</div>' +
-          '<div class="md"><span>威力 ' + mv.power + '</span><span>' + (mv.cat === "phys" ? "物理" : "特殊") + '</span></div>' +
+          '<div class="md"><span>威力 ' + (mv.power || 0) + '</span><span>PP ' + (mv.pp != null ? mv.pp : "-") + '/' + (mv.maxPp || "-") + '</span><span>' + ((mv.cat === "phys" || mv.cat === "physical") ? "物理" : "特殊") + '</span></div>' +
           (effTxt ? '<div class="eff ' + effCls + '">' + effTxt + '</div>' : "") +
           (mv.weather && WEATHER[mv.weather] ? '<div class="eff weather">' + WEATHER[mv.weather].icon + "天气</div>" : "") +
         '</button>';
     }).join("");
     var sub = '<div class="rpg-subrow">' +
-      (battle.wild ? '<button class="rpg-act catch" data-bcatch="1"' + (canAct ? "" : " disabled") + '>捕捉（🔘' + save.balls + '）</button>' : "") +
+      (function () {
+        if (!battle.wild) return "";
+        var s = "";
+        s += '<button class="rpg-act catch" data-bcatch="ball"' + (canAct && save.balls > 0 ? "" : " disabled") + '>精灵球（' + save.balls + '）</button>';
+        if ((save.items.greatball || 0) > 0) s += '<button class="rpg-act catch" data-bcatch="greatball"' + (canAct ? "" : " disabled") + '>超级球（' + save.items.greatball + '）</button>';
+        if ((save.items.ultraball || 0) > 0) s += '<button class="rpg-act catch" data-bcatch="ultraball"' + (canAct ? "" : " disabled") + '>高级球（' + save.items.ultraball + '）</button>';
+        return s;
+      })() +
       '<button class="rpg-act ghost" data-bitemopen="1"' + (canAct ? "" : " disabled") + '>道具</button>' +
       '<button class="rpg-act ghost" data-bswitchopen="1"' + (canAct ? "" : " disabled") + '>换人</button>' +
       (battle.wild ? '<button class="rpg-act run" data-brun="1"' + (canAct ? "" : " disabled") + '>逃跑</button>' : "") +
@@ -1607,7 +2100,10 @@
     for (var i = 0; i < mv.length; i++) (function (el) {
       el.addEventListener("click", function () { playerAct(+el.getAttribute("data-bmove")); });
     })(mv[i]);
-    var cap = root.querySelector("[data-bcatch]"); if (cap) cap.addEventListener("click", doCapture);
+    var caps = root.querySelectorAll("[data-bcatch]");
+    for (var ci = 0; ci < caps.length; ci++) (function (el) {
+      el.addEventListener("click", function () { doCapture(el.getAttribute("data-bcatch") || "ball"); });
+    })(caps[ci]);
     var sw = root.querySelector("[data-bswitchopen]"); if (sw) sw.addEventListener("click", function () { battle._switch = true; battle._item = false; battleRender(); });
     var swb = root.querySelectorAll("[data-bswitch]"); for (var j = 0; j < swb.length; j++) (function (el) {
       el.addEventListener("click", function () { doSwitch(+el.getAttribute("data-bswitch")); });
@@ -1638,27 +2134,150 @@
   }
 
   /* ---------- 浮动伤害文字 ---------- */
-  function spawnDmg(side, dmg, mult) {
+  function spawnDmg(side, dmg, mult, crit) {
     try {
       var spr = document.getElementById(side === "you" ? "you-active-card" : "ai-active-card");
       var fx = document.getElementById("rpg-fx");
       if (!spr || !fx) return;
       var r = spr.getBoundingClientRect();
       var d = document.createElement("div");
-      d.className = "rpg-dmg" + (mult >= 2 ? " sup" : mult < 1 ? " weak" : "");
-      d.textContent = "-" + dmg;
-      d.style.left = (r.left + r.width / 2 + (Math.random() * 20 - 10)) + "px";
-      d.style.top = (r.top + r.height / 2 - 10) + "px";
+      d.className = "rpg-dmg" + (crit ? " sup" : mult >= 2 ? " sup" : mult < 1 ? " weak" : "");
+      d.textContent = (crit ? "会心 " : "") + "-" + dmg;
+      d.style.left = (r.left + r.width / 2 - 20) + "px";
+      d.style.top = (r.top + 10) + "px";
       fx.appendChild(d);
-      setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 1000);
-      if (mult >= 2) {
-        var t = document.createElement("div");
-        t.className = "rpg-txt"; t.textContent = "效果拔群！";
-        t.style.left = (r.left + r.width / 2) + "px"; t.style.top = (r.top + r.height / 2 + 14) + "px";
-        fx.appendChild(t);
-        setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 1100);
-      }
+      setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 900);
     } catch (e) {}
+  }
+
+
+  /* ---------- 友好商店 / 场外背包 ---------- */
+  var currentShop = null;
+  function openShop(npc) {
+    currentShop = npc || { name: "友好商店", shopStock: defaultShopStock() };
+    var modal = document.getElementById("rpg-shop");
+    if (!modal) { toast("商店界面未加载"); return; }
+    var nameEl = document.getElementById("rpg-shop-name");
+    if (nameEl) nameEl.textContent = (currentShop.name || "友好商店");
+    var monEl = document.getElementById("rpg-shop-money");
+    if (monEl) monEl.textContent = "持有 ₽" + (save.money || 0);
+    renderShopList();
+    modal.classList.remove("hidden");
+    inDialog = true;
+  }
+  function closeShop() {
+    var modal = document.getElementById("rpg-shop");
+    if (modal) modal.classList.add("hidden");
+    currentShop = null;
+    inDialog = false;
+    renderPartyHUD();
+  }
+  function renderShopList() {
+    var list = document.getElementById("rpg-shop-list");
+    if (!list || !currentShop) return;
+    var stock = currentShop.shopStock || defaultShopStock();
+    list.innerHTML = stock.map(function (row) {
+      var info = ITEM_CATALOG[row.id];
+      if (!info) return "";
+      var price = row.price != null ? row.price : info.price;
+      var own = row.id === "ball" ? save.balls : ((save.items && save.items[row.id]) || 0);
+      return '' +
+        '<div class="rpg-shop-row">' +
+          '<div class="sr-info"><span class="sr-icon">' + info.icon + '</span><b>' + info.name + '</b>' +
+            '<small>持有 ' + own + '</small></div>' +
+          '<div class="sr-price">₽' + price + '</div>' +
+          '<button class="rpg-btn" data-buy="' + row.id + '" data-price="' + price + '"' +
+            ((save.money || 0) < price ? " disabled" : "") + '>购买</button>' +
+        '</div>';
+    }).join("") || '<div class="pd-tm-empty">本店暂无商品</div>';
+    var buys = list.querySelectorAll("[data-buy]");
+    for (var i = 0; i < buys.length; i++) (function (el) {
+      el.addEventListener("click", function () {
+        buyItem(el.getAttribute("data-buy"), +el.getAttribute("data-price"));
+      });
+    })(buys[i]);
+  }
+  function buyItem(id, price) {
+    if (!save) return;
+    price = +price || 0;
+    if (!id || price < 0) return;
+    if (!ITEM_CATALOG[id]) { toast("未知商品"); return; }
+    if ((save.money || 0) < price) { toast("金钱不足！"); return; }
+    save.money -= price;
+    if (id === "ball") save.balls = (save.balls || 0) + 1;
+    else {
+      ensureItems(save);
+      save.items[id] = (save.items[id] || 0) + 1;
+    }
+    var info = ITEM_CATALOG[id];
+    toast("购买了 " + (info ? info.icon + info.name : id));
+    saveGame();
+    var monEl = document.getElementById("rpg-shop-money");
+    if (monEl) monEl.textContent = "持有 ₽" + save.money;
+    renderShopList();
+    renderPartyHUD();
+  }
+  function openBag() {
+    if (!save) return;
+    var modal = document.getElementById("rpg-bag");
+    if (!modal) return;
+    var monEl = document.getElementById("rpg-bag-money");
+    if (monEl) monEl.textContent = "₽ " + (save.money || 0);
+    var list = document.getElementById("rpg-bag-list");
+    var rows = [];
+    rows.push({ id: "ball", count: save.balls, info: ITEM_CATALOG.ball });
+    Object.keys(ITEM_CATALOG).forEach(function (k) {
+      if (k === "ball") return;
+      var c = (save.items && save.items[k]) || 0;
+      if (c > 0) rows.push({ id: k, count: c, info: ITEM_CATALOG[k] });
+    });
+    list.innerHTML = rows.map(function (r) {
+      var canField = r.info.field && !r.info.ball;
+      return '' +
+        '<div class="rpg-shop-row">' +
+          '<div class="sr-info"><span class="sr-icon">' + r.info.icon + '</span><b>' + r.info.name + '</b>' +
+            '<small>×' + r.count + '</small></div>' +
+          (canField ? '<button class="rpg-btn ghost" data-fielditem="' + r.id + '">使用</button>' : '<span class="sr-price">—</span>') +
+        '</div>';
+    }).join("") || '<div class="pd-tm-empty">背包是空的</div>';
+    var btns = list.querySelectorAll("[data-fielditem]");
+    for (var i = 0; i < btns.length; i++) (function (el) {
+      el.addEventListener("click", function () { useFieldItem(el.getAttribute("data-fielditem")); });
+    })(btns[i]);
+    var bg = document.getElementById("rpg-bag-badges");
+    if (bg) {
+      bg.innerHTML = BADGE_ORDER.map(function (b) {
+        var on = save.badges && save.badges[b.id];
+        return '<div class="rpg-badge-card' + (on ? " on" : "") + '"><div class="bb-icon">' + (on ? "🏅" : "⚪") +
+          '</div><div class="bb-name">' + b.name + '</div><div class="bb-gym">' + b.city + ' · ' + b.gym + '</div></div>';
+      }).join("");
+    }
+    modal.classList.remove("hidden");
+  }
+  function closeBag() {
+    var modal = document.getElementById("rpg-bag");
+    if (modal) modal.classList.add("hidden");
+  }
+  function useFieldItem(kind) {
+    var info = ITEM_CATALOG[kind];
+    if (!info || !info.field) return;
+    if (!save.items[kind] || save.items[kind] <= 0) return;
+    var target = null;
+    for (var i = 0; i < save.party.length; i++) {
+      var m = save.party[i];
+      var max = statLine(MON_BY_ID[m.id], m.level).hp;
+      if (info.full && (m.hp < max || m.status)) { target = m; break; }
+      if (info.cure && m.status && m.status.type === info.cure) { target = m; break; }
+      if (info.heal && m.hp < max && m.hp > 0) { target = m; break; }
+    }
+    if (!target) { toast("没有需要使用的宝可梦"); return; }
+    var maxHp = statLine(MON_BY_ID[target.id], target.level).hp;
+    if (info.full) { target.hp = maxHp; target.status = null; }
+    else if (info.cure) { target.status = null; }
+    else if (info.heal) { target.hp = Math.min(maxHp, target.hp + info.heal); }
+    save.items[kind]--;
+    toast("对 " + MON_BY_ID[target.id].name_zh + " 使用了" + info.name);
+    saveGame(); renderPartyHUD(); openBag();
   }
 
   /* ---------- Toast ---------- */
@@ -1672,7 +2291,22 @@
   }
 
   /* ---------- 队伍 HUD ---------- */
+  function renderTrainerHUD() {
+    var moneyEl = document.getElementById("rpg-money");
+    if (moneyEl) moneyEl.textContent = "₽ " + (save && save.money != null ? save.money : 0);
+    var badgeEl = document.getElementById("rpg-badges");
+    if (badgeEl) {
+      badgeEl.innerHTML = BADGE_ORDER.map(function (b) {
+        var on = save && save.badges && save.badges[b.id];
+        return '<span class="rpg-badge' + (on ? " on" : "") + '" title="' + b.name + " · " + b.gym + '">' +
+          (on ? "🏅" : "⚪") + "</span>";
+      }).join("");
+    }
+    var bagBall = document.getElementById("rpg-ball");
+    if (bagBall) bagBall.textContent = "🔘 " + (save ? save.balls : 0);
+  }
   function renderPartyHUD() {
+    renderTrainerHUD();
     var wrap = document.getElementById("rpg-party");
     var ball = document.getElementById("rpg-ball");
     if (ball) ball.textContent = "🔘 " + save.balls;
@@ -1723,10 +2357,12 @@
   function hideStarter() { var el = document.getElementById("rpg-starter"); if (el) el.classList.add("hidden"); }
 
   function newGame(starterId) {
-    save = {
-      party: [ makeMember(starterId, 5) ], balls: 10, items: { potion: 3, full: 0 },
+    save = normalizeSave({
+      party: [ makeMember(starterId, 5) ], money: 3000,
+      badges: {},
+      balls: 10, items: { potion: 3, super: 0, hyper: 0, full: 0, antidote: 1, paralyzeheal: 1, greatball: 0, ultraball: 0 },
       defeated: {}, npcDone: {}, dex: { seen: {}, caught: {} }, level: 0, maxLevel: 0, champion: false
-    };
+    });
     markCaught(starterId);
     player.starterId = starterId;
     hideStarter();
@@ -1876,19 +2512,33 @@
   function closeNPC(npc) {
     var modal = document.getElementById("rpg-npcdialog");
     if (modal) {
-      if (modal._keyHandler) { document.removeEventListener("keydown", modal._keyHandler); modal._keyHandler = null; }
       modal.classList.add("hidden");
+      if (modal._keyHandler) { document.removeEventListener("keydown", modal._keyHandler); modal._keyHandler = null; }
     }
-    if (npc.once) { if (!save.npcDone) save.npcDone = {}; save.npcDone[npc.id] = true; }
-    if (npc.once && npc.gift) {
-      var g = itemMeta(npc.gift);
-      if (!save.items[npc.gift]) save.items[npc.gift] = 0;
-      save.items[npc.gift] += (npc.giftCount || 1);
-      saveGame(); renderPartyHUD();
-      toast(g.icon + " 获得 " + g.name + " ×" + (npc.giftCount || 1) + "！");
+    if (npc.gift && !save.npcDone[npc.id]) {
+      var n = npc.giftCount || 1;
+      if (npc.gift === "ball") {
+        save.balls += n;
+        toast("获得精灵球 ×" + n);
+      } else if (npc.gift.indexOf("tm_") === 0) {
+        save.items[npc.gift] = (save.items[npc.gift] || 0) + n;
+        toast("获得技能机 ×" + n);
+      } else {
+        save.items[npc.gift] = (save.items[npc.gift] || 0) + n;
+        var info = (typeof ITEM_CATALOG !== "undefined" && ITEM_CATALOG[npc.gift]) || ITEM_INFO[npc.gift];
+        toast("获得" + (info ? info.icon + info.name : npc.gift) + " ×" + n);
+      }
     }
+    if (npc.giftMoney && !save.npcDone[npc.id]) {
+      save.money = (save.money || 0) + npc.giftMoney;
+      toast("获得 ₽" + npc.giftMoney);
+    }
+    if (npc.once) save.npcDone[npc.id] = true;
+    saveGame(); renderPartyHUD();
     inDialog = false;
-    drawMap();
+    if (npc.shop) {
+      openShop(npc);
+    }
   }
 
   /* ---------- 关卡 UI ---------- */
@@ -1897,10 +2547,12 @@
     if (!el || !save) return;
     var idx = save.level;
     var cfg = LEVELS[idx];
+    if (!cfg) return;
     var total = TRAINERS.length, done = 0;
     for (var i = 0; i < total; i++) if (save.defeated[TRAINERS[i].id]) done++;
     el.innerHTML =
-      '<div class="rpg-li-name">关卡 ' + (idx + 1) + ' / ' + LEVELS.length + ' · ' + cfg.name + '</div>' +
+      '<div class="rpg-li-name">章节 ' + (idx + 1) + ' / ' + LEVELS.length +
+        ' · 徽章 ' + badgeCount(save) + '/8 · ₽' + (save.money || 0) + ' · ' + cfg.name + '</div>' +
       '<div class="rpg-li-prog">训练家 ' + done + ' / ' + total +
         (levelCleared() ? ' · <span class="open">传送门已开启 ✦</span>' : '') + '</div>';
   }
@@ -1963,44 +2615,92 @@
     renderLevelInfo();
   }
   function grantLevelReward(idx) {
-    var rw = LEVEL_REWARDS[idx];
-    if (!rw) return null;
     var parts = [];
-    if (rw.balls) { save.balls += rw.balls; parts.push("🔘 " + rw.balls + " 个精灵球"); }
-    if (rw.items) {
-      Object.keys(rw.items).forEach(function (k) {
-        if (!save.items[k]) save.items[k] = 0;
-        save.items[k] += rw.items[k];
-        var meta = itemMeta(k);
-        parts.push(meta.icon + " " + rw.items[k] + " 个" + meta.name);
+    if (idx == null || idx < 0) return parts;
+    if (!save.claimedRewards || typeof save.claimedRewards !== "object") save.claimedRewards = {};
+    if (save.claimedRewards[String(idx)]) return parts;
+    var reward = LEVEL_REWARDS[idx];
+    if (!reward) {
+      save.claimedRewards[String(idx)] = true;
+      return parts;
+    }
+    if (reward.money) {
+      save.money = (save.money || 0) + reward.money;
+      parts.push("₽ " + reward.money);
+    }
+    if (reward.balls) {
+      save.balls = (save.balls || 0) + reward.balls;
+      parts.push("精灵球 ×" + reward.balls);
+    }
+    if (reward.items) {
+      Object.keys(reward.items).forEach(function (k) {
+        var n = reward.items[k] || 0;
+        if (!n) return;
+        if (k === "ball") save.balls = (save.balls || 0) + n;
+        else {
+          ensureItems(save);
+          save.items[k] = (save.items[k] || 0) + n;
+        }
+        var info = (ITEM_CATALOG && ITEM_CATALOG[k]) || (typeof ITEM_INFO !== "undefined" && ITEM_INFO[k]);
+        parts.push((info ? info.icon + info.name : k) + " ×" + n);
       });
     }
-    if (rw.mon) {
-      var mon = MON_BY_ID[rw.mon];
+    if (reward.mon) {
       if (save.party.length < 6) {
-        var lvl = rw.monLevel || Math.max(5, Math.round((LEVELS[idx].wild[0] + LEVELS[idx].wild[1]) / 2));
-        save.party.push(makeMember(rw.mon, lvl));
-        parts.push("⭐ " + mon.name_zh + "（Lv." + lvl + "）");
+        var mem = makeMember(reward.mon, reward.monLevel || 5);
+        save.party.push(mem);
+        markCaught(reward.mon);
+        var mon = MON_BY_ID[reward.mon];
+        parts.push((mon ? mon.name_zh : ("#" + reward.mon)) + " Lv." + (reward.monLevel || 5));
       } else {
-        save.balls += 3;
-        parts.push("⭐ " + mon.name_zh + "（队伍已满，转为 🔘 3 个精灵球）");
+        parts.push("队伍已满，跳过赠送宝可梦");
       }
     }
+    save.claimedRewards[String(idx)] = true;
+    renderPartyHUD();
     return parts;
   }
   function showLevelReward(idx, onOk) {
     var parts = grantLevelReward(idx);
-    if (!parts || !parts.length) { if (onOk) onOk(); return; }
+    if (!parts || !parts.length) {
+      var reward = LEVEL_REWARDS[idx] || {};
+      parts = [];
+      if (reward.money) parts.push("₽ " + reward.money);
+      if (reward.balls) parts.push("精灵球 ×" + reward.balls);
+      if (reward.items) {
+        Object.keys(reward.items).forEach(function (k) {
+          var n = reward.items[k] || 0;
+          if (!n) return;
+          var info = (ITEM_CATALOG && ITEM_CATALOG[k]) || (typeof ITEM_INFO !== "undefined" && ITEM_INFO[k]);
+          parts.push((info ? info.icon + info.name : k) + " ×" + n);
+        });
+      }
+      if (reward.mon) {
+        var mon2 = MON_BY_ID[reward.mon];
+        parts.push((mon2 ? mon2.name_zh : ("#" + reward.mon)) + " Lv." + (reward.monLevel || 5));
+      }
+    }
+    if ((!parts || !parts.length) && !(idx === LEVELS.length - 1 || (save && save.champion))) {
+      if (onOk) onOk();
+      return;
+    }
+    if (idx === LEVELS.length - 1 || (save && save.champion)) {
+      if (parts.indexOf("🏆 关都联盟冠军") < 0) parts.push("🏆 关都联盟冠军");
+    }
     saveGame();
     var modal = document.getElementById("rpg-reward");
     var title = document.getElementById("rpg-reward-title");
     var body = document.getElementById("rpg-reward-body");
-    var ok = document.getElementById("rpg-reward-ok");
-    if (!modal || !title || !body || !ok) { if (onOk) onOk(); return; }
-    title.textContent = "🎉 通关 第 " + (idx + 1) + " 关 · " + LEVELS[idx].name;
+    var okBtn = document.getElementById("rpg-reward-ok");
+    if (!modal || !title || !body || !okBtn) {
+      if (parts && parts.length) toast(parts.join(" / "));
+      if (onOk) onOk();
+      return;
+    }
+    title.textContent = "🎉 通关章节 " + (idx + 1) + " · " + (LEVELS[idx] ? LEVELS[idx].name : "");
     body.innerHTML = parts.map(function (p) { return '<div class="rpg-reward-item">' + p + '</div>'; }).join("");
     modal.classList.remove("hidden");
-    ok.onclick = function () { modal.classList.add("hidden"); if (onOk) onOk(); };
+    okBtn.onclick = function () { modal.classList.add("hidden"); if (onOk) onOk(); };
   }
 
   function advanceLevel() {
@@ -2008,6 +2708,7 @@
     var cleared = save.level;
     save.level++;
     if (save.level > (save.maxLevel || 0)) save.maxLevel = save.level;
+    if (save.level > (save.maxUnlocked || 0)) save.maxUnlocked = save.level;
     healParty();
     loadLevel(save.level, false); // 先布置新关，稍后弹奖励与介绍
     saveGame();
@@ -2021,7 +2722,7 @@
 
     var loaded = loadGame();
     if (loaded) {
-      save = loaded;
+      save = normalizeSave(loaded);
       // 修正可能的字段缺失
       save.party.forEach(function (m) {
         if (m.status === undefined) m.status = null;
@@ -2029,9 +2730,11 @@
           var mon = MON_BY_ID[m.id];
           m.moves = getLearnset(mon).filter(function (mv) { return mv.level <= m.level; });
         }
+        if (m.moves) m.moves.forEach(function (mv) { ensureMovePP(mv); });
       });
       if (typeof save.balls !== "number") save.balls = 10;
       if (!save.items) save.items = { potion: 0, full: 0 };
+      ensureItems(save);
       if (!save.defeated) save.defeated = {};
       if (!save.npcDone) save.npcDone = {};
       if (!save.dex) save.dex = { seen: {}, caught: {} };
@@ -2070,6 +2773,9 @@
 
     // 顶部按钮
     var menu = document.getElementById("rpg-menu"); if (menu) menu.addEventListener("click", showPartyModal);
+    var bagBtn = document.getElementById("rpg-bag-btn"); if (bagBtn) bagBtn.addEventListener("click", openBag);
+    var bagClose = document.getElementById("rpg-bag-close"); if (bagClose) bagClose.addEventListener("click", closeBag);
+    var shopClose = document.getElementById("rpg-shop-close"); if (shopClose) shopClose.addEventListener("click", closeShop);
     var dexBtn = document.getElementById("rpg-dex"); if (dexBtn) dexBtn.addEventListener("click", showPokedex);
     var dexClose = document.getElementById("rpg-dex-close"); if (dexClose) dexClose.addEventListener("click", hidePokedex);
     var lselBtn = document.getElementById("rpg-levelselect-btn"); if (lselBtn) lselBtn.addEventListener("click", showLevelSelect);

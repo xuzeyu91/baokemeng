@@ -12,14 +12,15 @@
     <div class="rpg-brand">
       <span class="logo"></span>
       <div>
-        <h1>宝可梦 RPG 冒险</h1>
-        <small>地图探索 · 捕捉 · 对战 · 升级</small>
+        <h1>宝可梦 RPG · 关都篇章</h1>
+        <small>对标红蓝 · 道馆徽章 · 金钱商店 · 联盟挑战</small>
       </div>
     </div>
     <div class="rpg-topbtns">
       <button class="rpg-btn" id="rpg-menu">队伍</button>
+      <button class="rpg-btn ghost" id="rpg-bag-btn">背包</button>
       <button class="rpg-btn ghost" id="rpg-dex">图鉴</button>
-      <button class="rpg-btn ghost" id="rpg-levelselect-btn">选关</button>
+      <button class="rpg-btn ghost" id="rpg-levelselect-btn">地图</button>
       <button class="rpg-btn ghost" id="rpg-sound">🔊 音效</button>
       <button class="rpg-btn ghost" id="rpg-hub">返回大厅</button>
       <button class="rpg-btn ghost" id="rpg-reset">重置存档</button>
@@ -44,12 +45,13 @@
       </div>
       <div class="rpg-hud-card">
         <div class="rpg-hud-title">我的队伍 <span class="rpg-ball" id="rpg-ball">🔘 10</span></div>
+        <div class="rpg-moneyline"><span id="rpg-money">₽ 3000</span><span class="rpg-badges" id="rpg-badges"></span></div>
         <div class="rpg-party" id="rpg-party"></div>
       </div>
       <div class="rpg-hint" id="rpg-hint">
-        共 <b>5 个关卡</b>，由易到难。击败本关<b>所有训练家</b>后，紫色的<b>传送门 ✦</b>会开启，走上去即可进入下一关。
-        用 <b>方向键 / WASD</b> 移动，草丛里会遇到野生宝可梦，黄色「宝可梦中心」可回满体力。<br>
-        地图上带 <b>💬 / 🎁</b> 的 <b>NPC</b> 可以对话、领取道具与提示，别错过。
+        对标红蓝版关都主线：共 <b>10 个章节</b>（8 道馆 + 联盟）。击败本区全部训练家后，紫色<b>传送门 ✦</b>开启。<br>
+        <b>方向键 / WASD</b> 移动；草丛遇敌；宝可梦中心回满 HP/PP/状态；
+        <b>🛒 友好商店</b>可花 ₽ 购买伤药与精灵球；背包可场外使用道具并查看徽章。
       </div>
       <div class="rpg-dpad">
         <button class="rpg-dbtn up"    data-dir="up">▲</button>
@@ -162,6 +164,29 @@
     </div>
   </div>
 
+  
+  <!-- 背包 / 徽章 -->
+  <div class="rpg-modal hidden" id="rpg-bag">
+    <div class="rpg-modal-box">
+      <h2>背包</h2>
+      <p class="rpg-modal-sub">金钱 <span id="rpg-bag-money">₽ 0</span> · 场外可使用恢复类道具</p>
+      <div id="rpg-bag-list" class="rpg-shop-list"></div>
+      <h3 class="rpg-subhead">道馆徽章</h3>
+      <div id="rpg-bag-badges" class="rpg-badge-grid"></div>
+      <button class="rpg-btn" id="rpg-bag-close">关闭</button>
+    </div>
+  </div>
+
+  <!-- 友好商店 -->
+  <div class="rpg-modal hidden" id="rpg-shop">
+    <div class="rpg-modal-box">
+      <h2 id="rpg-shop-name">友好商店</h2>
+      <p class="rpg-modal-sub" id="rpg-shop-money">持有 ₽ 0</p>
+      <div id="rpg-shop-list" class="rpg-shop-list"></div>
+      <button class="rpg-btn" id="rpg-shop-close">离开</button>
+    </div>
+  </div>
+
   <div id="rpg-fx"></div>
   <canvas id="fx3d"></canvas>
   <script src="data.js?v=3"></script>
@@ -171,6 +196,6 @@
   <script src="battle-fx.js"></script>
 <script src="battle-audio.js"></script>
 <script src="sw-register.js"></script>
-<script src="rpg.js?v=4"></script>
+<script src="rpg.js?v=9"></script>
 </body>
 </html>
