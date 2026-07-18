@@ -452,3 +452,32 @@ body #fx3d { z-index: 96; background: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .rpg-bc.hit { animation: none; }
 }
+
+
+/* ===== RB money / badges / shop / bag ===== */
+.rpg-moneyline {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 12px; font-weight: 800; color: var(--ink); margin: -2px 0 8px;
+}
+.rpg-moneyline #rpg-money { color: #2f6fed; }
+.rpg-badges { display: flex; gap: 2px; flex-wrap: wrap; }
+.rpg-badge { font-size: 12px; opacity: .35; filter: grayscale(1); }
+.rpg-badge.on { opacity: 1; filter: none; }
+.rpg-subhead { font-size: 14px; margin: 14px 0 8px; color: var(--ink); text-align: left; }
+.rpg-shop-list { display: flex; flex-direction: column; gap: 8px; text-align: left; margin-bottom: 14px; max-height: 46vh; overflow: auto; }
+.rpg-shop-row {
+  display: flex; align-items: center; gap: 10px; background: #f4f6fb; border-radius: 12px; padding: 10px 12px;
+}
+.rpg-shop-row .sr-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rpg-shop-row .sr-info b { font-size: 13px; }
+.rpg-shop-row .sr-info small { color: var(--muted); font-size: 11px; }
+.rpg-shop-row .sr-icon { margin-right: 4px; }
+.rpg-shop-row .sr-price { font-weight: 800; color: #2f6fed; min-width: 56px; text-align: right; }
+.rpg-badge-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+.rpg-badge-card {
+  background: #f4f6fb; border-radius: 12px; padding: 10px 6px; border: 2px solid #e3e8f2;
+}
+.rpg-badge-card.on { border-color: #f0c040; background: #fff8e6; }
+.rpg-badge-card .bb-icon { font-size: 20px; }
+.rpg-badge-card .bb-name { font-size: 11px; font-weight: 800; margin-top: 4px; }
+.rpg-badge-card .bb-gym { font-size: 10px; color: var(--muted); margin-top: 2px; }

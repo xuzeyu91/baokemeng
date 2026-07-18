@@ -85,8 +85,18 @@
     if (s.level == null) s.level = 0;
     if (s.maxUnlocked == null) s.maxUnlocked = s.level || 0;
     if (s.maxLevel == null) s.maxLevel = s.maxUnlocked || 0;
-    if (!s.seen) s.seen = {};
-    if (!s.caught) s.caught = {};
+    // 图鉴统一走 save.dex；兼容旧档把 seen/caught 写在根上的情况
+    if (!s.dex || typeof s.dex !== "object") s.dex = { seen: {}, caught: {} };
+    if (!s.dex.seen || typeof s.dex.seen !== "object") s.dex.seen = {};
+    if (!s.dex.caught || typeof s.dex.caught !== "object") s.dex.caught = {};
+    if (s.seen && typeof s.seen === "object") {
+      Object.keys(s.seen).forEach(function (k) { if (s.seen[k]) s.dex.seen[k] = true; });
+    }
+    if (s.caught && typeof s.caught === "object") {
+      Object.keys(s.caught).forEach(function (k) { if (s.caught[k]) s.dex.caught[k] = true; });
+    }
+    if (!s.seen) s.seen = s.dex.seen;
+    if (!s.caught) s.caught = s.dex.caught;
     if (!s.tm || typeof s.tm !== "object") s.tm = {};
     if (s.champion == null) s.champion = false;
     if (s.finalRewardClaimed == null) s.finalRewardClaimed = !!s.champion;
@@ -654,6 +664,8 @@
     function mark(p) { if (p) reserved[p[0] + "," + p[1]] = true; }
     mark(cfg.center); mark(pos.start); mark(pos.goal);
     cfg.trainers.forEach(function (t) { mark([t.x, t.y]); });
+    // NPC（商店/礼物）也必须站在可行走格上，否则 tryMove 会被 isBlocking 挡在外面
+    if (cfg.npcs) cfg.npcs.forEach(function (n) { mark([n.x, n.y]); });
     var rnd = lvlRng((LEVELS.indexOf(cfg) + 1) * 7919);
     var pond = cfg.pond;
     var grid = [];
@@ -670,13 +682,16 @@
       }
       grid.push(row);
     }
-    grid[cfg.center[1]][cfg.center[0]] = "C";
-    grid[pos.start[1]][pos.start[0]] = "P";
-    if (pos.goal) grid[pos.goal[1]][pos.goal[0]] = "G";
+    // 特殊地块优先级：起点可与中心重合，但中心格必须保持 "C"（否则无法治疗）
+    // 传送门 "G" 最后写，避免被覆盖
+    function placeSpecials() {
+      grid[pos.start[1]][pos.start[0]] = "P";
+      grid[cfg.center[1]][cfg.center[0]] = "C";
+      if (pos.goal) grid[pos.goal[1]][pos.goal[0]] = "G";
+    }
+    placeSpecials();
     ensureConnectivity(grid, pos, cfg);
-    grid[cfg.center[1]][cfg.center[0]] = "C";
-    grid[pos.start[1]][pos.start[0]] = "P";
-    if (pos.goal) grid[pos.goal[1]][pos.goal[0]] = "G";
+    placeSpecials();
     return grid.map(function (r) { return r.join(""); });
   }
   // 保证起点能走到终点与所有训练家，避免障碍造成软锁
@@ -704,8 +719,11 @@
       while (y !== ty) { y += y < ty ? 1 : -1; if (grid[y][x] !== "#" && isBlocking(grid[y][x])) grid[y][x] = "."; }
     }
     var seen = reach();
-    var targets = [pos.goal].concat(cfg.trainers.map(function (t) { return [t.x, t.y]; }));
+    var targets = [pos.goal]
+      .concat(cfg.trainers.map(function (t) { return [t.x, t.y]; }))
+      .concat((cfg.npcs || []).map(function (n) { return [n.x, n.y]; }));
     targets.forEach(function (t) {
+      if (!t) return;
       if (!seen[t[0] + "," + t[1]]) { carve(t[0], t[1]); seen = reach(); }
     });
   }
@@ -888,8 +906,8 @@
       });
       // 友好 NPC
       if (NPCS) NPCS.forEach(function (n) { drawNPC(n); });
-      // 玩家
-      drawSpriteOnTile(player.starterId || save.party[0].id, -1, -1, 1, true);
+      // 玩家（用当前队伍领队，进化后同步新形态）
+      drawSpriteOnTile(playerSpriteId(), -1, -1, 1, true);
     }
     ctx.restore();
   }
@@ -974,25 +992,64 @@
       for (var x = 0; x < MAP_W; x++)
         drawTile(terrainCtx, x, y, MAP[y][x]);
   }
+  // 地图上的主角形象：优先当前队伍第一只存活成员，避免进化后仍显示旧形态
+  function playerSpriteId() {
+    if (save && save.party && save.party.length) {
+      for (var i = 0; i < save.party.length; i++) {
+        if (save.party[i] && save.party[i].hp > 0) return save.party[i].id;
+      }
+      return save.party[0].id;
+    }
+    return player.starterId;
+  }
   function drawSpriteOnTile(id, x, y, alpha, isPlayer) {
     var cx, cy;
     if (isPlayer) { cx = player.px; cy = player.py; }
     else { cx = x * TILE + TILE/2; cy = y * TILE + TILE/2; }
     ctx.save();
     ctx.globalAlpha = alpha;
-    // 影子
+    // 主角略放大，并加高亮环 + 「我」标识，避免在草丛里看不清
+    var s = isPlayer ? TILE + 10 : TILE - 6;
+    var shadowRx = isPlayer ? 14 : 11;
+    var shadowRy = isPlayer ? 5 : 4;
     ctx.fillStyle = "#00000033";
-    ctx.beginPath(); ctx.ellipse(cx, cy + TILE/2 - 3, 11, 4, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx, cy + TILE/2 - 2, shadowRx, shadowRy, 0, 0, 7); ctx.fill();
+    if (isPlayer) {
+      // 呼吸式黄环（用时间驱动轻微脉动）
+      var pulse = 1 + 0.08 * Math.sin(Date.now() / 280);
+      var ringR = (s / 2 + 4) * pulse;
+      ctx.strokeStyle = "rgba(255, 214, 40, 0.95)";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy + 1, ringR, 0, 7); ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy + 1, ringR + 3, 0, 7); ctx.stroke();
+    }
     var im = spriteImg(id);
-    var s = TILE - 6;
     if (im.complete && im.naturalWidth) {
-      ctx.drawImage(im, cx - s/2, cy - s/2, s, s);
+      ctx.drawImage(im, cx - s/2, cy - s/2 - (isPlayer ? 2 : 0), s, s);
     } else {
       ctx.fillStyle = TYPE_COLOR[MON_BY_ID[id].types[0]] || "#888";
       ctx.beginPath(); ctx.arc(cx, cy, s/2, 0, 7); ctx.fill();
       ctx.fillStyle = "#fff"; ctx.font = "bold 11px sans-serif";
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText("#" + id, cx, cy);
+    }
+    if (isPlayer) {
+      // 头顶「我」小旗，训练家/NPC 没有，辨识度更高
+      var flagY = cy - s/2 - 10;
+      ctx.fillStyle = "#ffd628";
+      ctx.beginPath();
+      ctx.moveTo(cx - 10, flagY + 4);
+      ctx.lineTo(cx + 10, flagY + 4);
+      ctx.lineTo(cx, flagY - 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#3a2d00";
+      ctx.font = "bold 10px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("我", cx, flagY + 1);
     }
     ctx.restore();
   }
@@ -1108,7 +1165,18 @@
     var pool = CURRENT_WILD_POOL || WILD_COMMON;
     return pool[Math.floor(Math.random() * pool.length)];
   }
+  function hasConsciousMember() {
+    if (!save || !save.party) return false;
+    for (var i = 0; i < save.party.length; i++) {
+      if (save.party[i] && save.party[i].hp > 0) return true;
+    }
+    return false;
+  }
   function triggerEncounter() {
+    if (!hasConsciousMember()) {
+      toast("队伍全灭，请先到宝可梦中心回复！");
+      return;
+    }
     var mon = wildSpecies();
     var maxLv = save.party.reduce(function (m, p) { return Math.max(m, p.level); }, 1);
     var level = Math.max(WILD_RANGE[0], Math.min(WILD_RANGE[1], maxLv - 1 + Math.floor(Math.random() * 4)));
@@ -1117,6 +1185,10 @@
     startBattle({ wild: true, name: "野生宝可梦", oppParty: [m] });
   }
   function triggerTrainer(t) {
+    if (!hasConsciousMember()) {
+      toast("队伍全灭，请先到宝可梦中心回复！");
+      return;
+    }
     var firstStage = (t.stages && t.stages[0]) ? t.stages[0] : t.party;
     var party = firstStage.map(function (p) { return makeMember(p.id, p.level); });
     var stages = t.stages ? t.stages.length : 1;
@@ -1141,9 +1213,16 @@
     var youCombat = save.party.map(function (m) { return buildCombat(m, true); });
     var oppCombat = opts.oppParty.map(function (m) { return buildCombat(m, false); });
     oppCombat.forEach(function (c) { markSeen(c.mon.id); });
+    // 若首发已倒下，自动改用第一只仍可战的宝可梦，避免开局无法行动
+    var lead = 0;
+    for (var li = 0; li < youCombat.length; li++) {
+      if (!youCombat[li].fainted && youCombat[li].hp > 0) { lead = li; break; }
+    }
+    var participants = {};
+    participants[lead] = true;
     battle = {
       wild: opts.wild,
-      you: { party: youCombat, idx: 0, participants: { 0: true } },
+      you: { party: youCombat, idx: lead, participants: participants },
       opp: { party: oppCombat, idx: 0, name: opts.name, trainerId: opts.trainerId || null, trainerRef: opts.trainerRef || null },
       trainerStage: opts.trainerStage || 0, trainerStages: opts.trainerStages || 1,
       turn: "you", over: false, busy: false, log: [], _switch: false, _item: false,

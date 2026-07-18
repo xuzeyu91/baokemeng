@@ -169,3 +169,9 @@ python build_data.py      # 依据各世代脚本重新产出 data.js
 - 宝可梦数值、属性、进化链数据来源于公开的 [PokéAPI](https://pokeapi.co/) 图鉴。
 - 宝可梦精灵图（sprite）来自 [PokeAPI/sprites](https://github.com/PokeAPI/sprites) 仓库。
 - 宝可梦相关名称与素材的版权归 Pokémon / Nintendo / Game Freak 等原权利人所有；本项目仅用于学习与家庭娱乐，非官方作品。
+
+
+## RPG 关都篇章（对标红蓝）
+- 10 章节主线：真新镇 → 8 道馆 → 石英高原四天王/冠军
+- 系统：徽章、金钱 ₽、友好商店、背包、PP/命中/STAB/暴击/异常状态
+- 入口：`rpg.html`；旧存档自动迁移 money/badges/items
